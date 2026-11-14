@@ -356,7 +356,10 @@ async function main(): Promise<void> {
   document.addEventListener("contextmenu", onContextMenu);
   installDrag(document, api.startDrag);
   const grip = document.getElementById("grip");
-  if (grip) installResize(grip, { get: api.getScale, set: api.setScale }, (err) => toast(api.errorText(err)));
+  if (grip) {
+    const resizeApi = { start: api.resizeStart, move: api.resizeMove, end: api.resizeEnd, get: api.getScale, set: api.setScale };
+    installResize(grip, resizeApi, (err) => toast(api.errorText(err)));
+  }
   app.addEventListener("focusout", () => window.setTimeout(() => deferredRender && render(), 0));
   window.setInterval(() => state.view !== "detail" && state.view !== "chat" && render(), AGE_TICK_MS);
   await listen<StreamEvent>("group://event", (e) => onStreamEvent(e.payload));

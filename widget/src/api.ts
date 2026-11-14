@@ -95,6 +95,18 @@ export function setScale(scale: number): Promise<number> {
   return invoke<number>("set_scale", { scale });
 }
 
+export function resizeStart(): Promise<void> {
+  return invoke("resize_start");
+}
+
+export function resizeMove(): Promise<number> {
+  return invoke<number>("resize_move");
+}
+
+export function resizeEnd(): Promise<void> {
+  return invoke("resize_end");
+}
+
 export function getAutostart(): Promise<boolean> {
   return invoke<boolean>("get_autostart");
 }

@@ -1,45 +1,40 @@
-// Resizing the widget: drag the top-left grip, or Ctrl + mouse wheel anywhere. Both set
-// one size factor through Rust (`set_scale`), which zooms the webview and resizes the
-// window from its bottom-right anchor, so the grip stays under the pointer.
-// Positions are in physical pixels (screen CSS px × devicePixelRatio, which includes the
-// zoom), so they stay comparable while the zoom changes under the drag.
+// Resizing the widget: drag the top-left grip, or Ctrl + mouse wheel anywhere. Rust does
+// the measuring: it reads the OS cursor at the start and on every move (webview pointer
+// coordinates change with the zoom), zooms the webview and resizes the window from its
+// bottom-right anchor, so the grip stays under the pointer. Moves are coalesced: at most
+// one call in flight.
 
 const WHEEL_STEP = 0.05;
 
-export interface ScaleApi {
+export interface ResizeApi {
+  start(): Promise<void>;
+  move(): Promise<number>;
+  end(): Promise<void>;
   get(): Promise<number>;
   set(scale: number): Promise<number>;
 }
 
-interface Start {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  scale: number;
-}
-
-function physical(event: PointerEvent): { x: number; y: number } {
-  const ratio = window.devicePixelRatio || 1;
-  return { x: event.screenX * ratio, y: event.screenY * ratio };
-}
-
-export function installResize(grip: HTMLElement, api: ScaleApi, onError: (err: unknown) => void): void {
-  let start: Start | null = null;
-  let pending: number | null = null;
+export function installResize(grip: HTMLElement, api: ResizeApi, onError: (err: unknown) => void): void {
+  let active = false;
   let busy = false;
+  let again = false;
 
-  const flush = (): void => {
-    if (busy || pending === null) return;
-    const next = pending;
-    pending = null;
+  const follow = (): void => {
+    if (!active) return;
+    if (busy) {
+      again = true;
+      return;
+    }
     busy = true;
     api
-      .set(next)
+      .move()
       .catch(onError)
       .finally(() => {
         busy = false;
-        flush();
+        if (again) {
+          again = false;
+          follow();
+        }
       });
   };
 
@@ -49,27 +44,19 @@ export function installResize(grip: HTMLElement, api: ScaleApi, onError: (err: u
     event.stopPropagation();
     grip.setPointerCapture(event.pointerId);
     grip.classList.add("grip--active");
-    const ratio = window.devicePixelRatio || 1;
-    const at = physical(event);
-    void api.get().then(
-      (scale) => (start = { ...at, width: window.innerWidth * ratio, height: window.innerHeight * ratio, scale }),
-      onError,
-    );
+    api.start().then(() => (active = true), onError);
   });
 
   grip.addEventListener("pointermove", (event) => {
-    if (!start || (event.buttons & 1) === 0) return;
-    const at = physical(event);
-    // Moving up-left grows the widget: use the larger of the two proportional changes.
-    const grow = Math.max((start.width + start.x - at.x) / start.width, (start.height + start.y - at.y) / start.height);
-    pending = Math.round(start.scale * grow * 100) / 100;
-    flush();
+    if ((event.buttons & 1) !== 0) follow();
   });
 
   const end = (event: PointerEvent): void => {
-    start = null;
+    if (!active && !grip.classList.contains("grip--active")) return;
+    active = false;
     grip.classList.remove("grip--active");
     if (grip.hasPointerCapture(event.pointerId)) grip.releasePointerCapture(event.pointerId);
+    api.end().catch(onError);
   };
   grip.addEventListener("pointerup", end);
   grip.addEventListener("pointercancel", end);
@@ -80,10 +67,10 @@ export function installResize(grip: HTMLElement, api: ScaleApi, onError: (err: u
       if (!event.ctrlKey) return;
       event.preventDefault();
       const step = event.deltaY < 0 ? WHEEL_STEP : -WHEEL_STEP;
-      void api.get().then((scale) => {
-        pending = Math.round((scale + step) * 100) / 100;
-        flush();
-      }, onError);
+      api
+        .get()
+        .then((scale) => api.set(Math.round((scale + step) * 100) / 100))
+        .catch(onError);
     },
     { passive: false },
   );

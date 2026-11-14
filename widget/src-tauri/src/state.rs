@@ -50,6 +50,8 @@ pub struct AppState {
     pub config: Mutex<Option<serde_json::Value>>,
     /// Size factor of the OSD and panel (scale.rs), saved with the anchor.
     pub scale: Mutex<f64>,
+    /// Grip drag in progress (scale.rs), None otherwise.
+    pub resize: Mutex<Option<crate::scale::Drag>>,
     /// The daemon this widget started in WSL (daemon_launch.rs), if any.
     pub daemon_child: Mutex<Option<std::process::Child>>,
     /// Logical size the right-click menu webview measured for itself.
@@ -77,6 +79,7 @@ impl AppState {
             anchor: Mutex::new(placement.anchor),
             scale: Mutex::new(crate::scale::initial(placement.scale)),
             daemon_child: Mutex::new(None),
+            resize: Mutex::new(None),
             placed: Mutex::new(None),
             move_seq: Mutex::new(0),
             config: Mutex::new(None),
