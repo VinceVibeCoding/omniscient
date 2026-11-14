@@ -1,7 +1,7 @@
 //! Right-click menu of the OSD, drawn by the widget itself (Omniscient look, current
 //! skin) in a second, borderless webview window labelled "menu" (menu.html):
-//! « Vue OSD » Bars / Gauge, « Thème » Default / Terminal / Dashboard, « Afficher le
-//! ticker », « Replacer dans le coin », « Quitter ». Keys fixed in ~/.claude/settings.json
+//! « OSD View » Bars / Gauge, « Thème » Default / Terminal / Dashboard, « Taille »,
+//! « Afficher le ticker », « Lancer au démarrage », « Replacer dans le coin », « Quitter ». Keys fixed in ~/.claude/settings.json
 //! are shown locked. The menu opens at the cursor and closes on a pick, Escape or as soon
 //! as it loses focus. A pick is sent to the daemon (PUT /config, which persists it) and
 //! the new effective view is pushed to the OSD as a `config` group://event.
@@ -29,8 +29,14 @@ pub async fn put_config(state: &AppState, patch: &Value) -> Result<Value, String
 }
 
 fn snapshot(app: &AppHandle) -> MenuSnapshot {
-    let cached = lock(&app.state::<AppState>().config).clone();
-    MenuSnapshot::from_view(cached.as_ref())
+    let state = app.state::<AppState>();
+    let cached = lock(&state.config).clone();
+    let scale = *lock(&state.scale);
+    MenuSnapshot {
+        scale_pct: (scale * 100.0).round() as u32,
+        autostart: crate::autostart::is_enabled(app),
+        ..MenuSnapshot::from_view(cached.as_ref())
+    }
 }
 
 /// Refreshes the cached view when possible (the menu still opens with defaults if not).
@@ -117,6 +123,16 @@ pub fn pick(app: &AppHandle, id: &str) -> Result<(), String> {
     match action {
         MenuAction::Patch(patch) => {
             tauri::async_runtime::spawn(apply(app.clone(), patch));
+        }
+        MenuAction::Scale(pct) => {
+            if let Err(err) = crate::scale::set(app, f64::from(pct) / 100.0) {
+                emit(app, "menu_error", json!({ "message": err }));
+            }
+        }
+        MenuAction::Autostart(enabled) => {
+            if let Err(err) = crate::autostart::set(app, enabled) {
+                emit(app, "menu_error", json!({ "message": err }));
+            }
         }
         MenuAction::Corner => crate::drag::reset(app),
         MenuAction::Quit => app.exit(0),

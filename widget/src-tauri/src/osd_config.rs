@@ -40,6 +40,10 @@ pub struct MenuSnapshot {
     pub theme_locked: bool,
     pub view_locked: bool,
     pub ticker_locked: bool,
+    /// Widget size in percent (widget-side, not a daemon config key).
+    pub scale_pct: u32,
+    /// Launch at Windows login (widget-side).
+    pub autostart: bool,
 }
 
 impl MenuSnapshot {
@@ -57,6 +61,8 @@ impl MenuSnapshot {
             theme_locked: locked("theme"),
             view_locked: locked("osd_view"),
             ticker_locked: locked("show_ticker"),
+            scale_pct: 100,
+            autostart: false,
         }
     }
 }
@@ -65,6 +71,9 @@ impl MenuSnapshot {
 #[derive(Clone, Debug, PartialEq)]
 pub enum MenuAction {
     Patch(Value),
+    /// Size preset, in percent (one of scale::PRESETS).
+    Scale(u32),
+    Autostart(bool),
     Corner,
     Quit,
 }
@@ -79,6 +88,7 @@ pub fn theme_id(theme: &str) -> String {
 
 pub const TICKER_ID: &str = "ctx:ticker";
 pub const CORNER_ID: &str = "ctx:corner";
+pub const AUTOSTART_ID: &str = "ctx:autostart";
 pub const QUIT_ID: &str = "ctx:quit";
 
 /// None for ids that are not ours (tray menu, unknown values).
@@ -87,9 +97,14 @@ pub fn parse_menu_id(id: &str, current: &MenuSnapshot) -> Option<MenuAction> {
         TICKER_ID => return Some(MenuAction::Patch(json!({ "show_ticker": !current.show_ticker }))),
         CORNER_ID => return Some(MenuAction::Corner),
         QUIT_ID => return Some(MenuAction::Quit),
+        AUTOSTART_ID => return Some(MenuAction::Autostart(!current.autostart)),
         _ => {}
     }
     let rest = id.strip_prefix(MENU_PREFIX)?;
+    if let Some(pct) = rest.strip_prefix("scale:") {
+        let pct: u32 = pct.parse().ok()?;
+        return crate::scale::PRESETS.contains(&pct).then_some(MenuAction::Scale(pct));
+    }
     if let Some(view) = rest.strip_prefix("view:") {
         return VIEWS.iter().any(|(v, _)| *v == view).then(|| MenuAction::Patch(json!({ "osd_view": view })));
     }
@@ -108,7 +123,7 @@ pub fn menu_size(width: f64, height: f64) -> Result<(f64, f64), String> {
 pub const MENU_MIN: (f64, f64) = (160.0, 120.0);
 pub const MENU_MAX: (f64, f64) = (360.0, 560.0);
 /// Size used until the menu webview reports its own (logical px).
-pub const MENU_DEFAULT: (f64, f64) = (252.0, 360.0);
+pub const MENU_DEFAULT: (f64, f64) = (252.0, 430.0);
 /// Longest id the menu webview may send (all ours are short).
 pub const MENU_ID_MAX: usize = 40;
 
@@ -154,6 +169,10 @@ mod tests {
         assert_eq!(parse_menu_id("ctx:theme:neon", &snap), None);
         assert_eq!(parse_menu_id("toggle", &snap), None);
         assert_eq!(parse_menu_id("quit", &snap), None);
+        assert_eq!(parse_menu_id("ctx:scale:125", &snap), Some(MenuAction::Scale(125)));
+        assert_eq!(parse_menu_id("ctx:scale:300", &snap), None);
+        assert_eq!(parse_menu_id("ctx:scale:x", &snap), None);
+        assert_eq!(parse_menu_id(AUTOSTART_ID, &snap), Some(MenuAction::Autostart(true)));
     }
 
     #[test]

@@ -9,6 +9,8 @@ export interface MenuSnapshot {
   readonly theme_locked: boolean;
   readonly view_locked: boolean;
   readonly ticker_locked: boolean;
+  readonly scale_pct: number;
+  readonly autostart: boolean;
 }
 
 export const DEFAULT_SNAPSHOT: MenuSnapshot = {
@@ -18,7 +20,12 @@ export const DEFAULT_SNAPSHOT: MenuSnapshot = {
   theme_locked: false,
   view_locked: false,
   ticker_locked: false,
+  scale_pct: 100,
+  autostart: false,
 };
+
+/** Size presets in percent (scale::PRESETS in Rust). */
+export const SCALES: readonly number[] = [85, 100, 125, 150];
 
 export const VIEWS: readonly { id: OsdView; label: string }[] = [
   { id: "bars", label: "Bars" },
@@ -33,6 +40,8 @@ export const THEMES: readonly { id: Skin; label: string; hint: string }[] = [
 
 export const TICKER_ID = "ctx:ticker";
 export const CORNER_ID = "ctx:corner";
+export const AUTOSTART_ID = "ctx:autostart";
+export const scaleId = (pct: number): string => `ctx:scale:${pct}`;
 export const QUIT_ID = "ctx:quit";
 export const viewId = (view: OsdView): string => `ctx:view:${view}`;
 export const themeId = (theme: Skin): string => `ctx:theme:${theme}`;
@@ -54,5 +63,7 @@ export function toSnapshot(raw: unknown): MenuSnapshot {
     theme_locked: bool(raw.theme_locked, false),
     view_locked: bool(raw.view_locked, false),
     ticker_locked: bool(raw.ticker_locked, false),
+    scale_pct: typeof raw.scale_pct === "number" && Number.isFinite(raw.scale_pct) ? raw.scale_pct : 100,
+    autostart: bool(raw.autostart, false),
   };
 }

@@ -5,6 +5,7 @@ import * as osdApi from "./api-osd";
 import { ChatController } from "./chat-controller";
 import { replace } from "./dom";
 import { installDrag } from "./drag";
+import { installResize } from "./resize";
 import { keepUiState, restoreUiState } from "./keep";
 import { applySkin, applyTheme } from "./theme";
 import type { ConfigPatch, ConfigView, LinkStatus, Osd, Pending, Session, SessionDetail, Settings, Step, StreamEvent, Transcript, Usage, WidgetConfig } from "./types";
@@ -28,12 +29,14 @@ interface AppState {
   readonly link: LinkStatus;
   readonly osd: Osd | null;
   readonly config: ConfigView | null;
+  readonly autostart: boolean | null;
 }
 
 const REFRESH_DEBOUNCE_MS = 250;
 const AGE_TICK_MS = 30_000;
 const TOAST_MS = 4_000;
 const DEFAULT_CONFIG: WidgetConfig = { theme: "default", osd_view: "bars", show_ticker: true };
+const DEFAULT_SETTINGS: Settings = { daemon_url: "http://127.0.0.1:7341", start_daemon: false, wsl_home: "" };
 
 const app = document.getElementById("app") as HTMLElement;
 const toastEl = document.getElementById("toast") as HTMLElement;
@@ -47,6 +50,7 @@ let state: AppState = {
   link: { state: "connecting", message: "Connexion au démon…" },
   osd: null,
   config: null,
+  autostart: null,
 };
 let deferredRender = false;
 let refreshTimer: number | undefined;
@@ -116,7 +120,7 @@ function viewFor(s: AppState): HTMLElement {
 }
 
 function settingsPanel(s: AppState): HTMLElement {
-  const panel = settingsView(s.settings ?? { daemon_url: "http://127.0.0.1:7341" }, s.link, settingsHandlers);
+  const panel = settingsView({ ...DEFAULT_SETTINGS, ...s.settings }, s.link, settingsHandlers, s.autostart);
   panel.querySelector(".panel__body")?.prepend(displaySection(s.config, changeConfig));
   return withTabs(panel, tabBar("settings", selectTab));
 }
@@ -190,7 +194,8 @@ async function openSession(id: string): Promise<void> {
 
 async function openSettings(): Promise<void> {
   const settings = await guarded(api.getSettings);
-  update({ view: "settings", settings: settings ?? state.settings });
+  const autostart = await guarded(api.getAutostart);
+  update({ view: "settings", settings: settings ?? state.settings, autostart: autostart ?? null });
 }
 
 function applyConfig(view: ConfigView | null): void {
@@ -234,6 +239,12 @@ const detailHandlers = {
 
 const settingsHandlers = {
   back: () => update({ view: "list" }),
+  autostart: (enabled: boolean) =>
+    void guarded(async () => {
+      const now = await api.setAutostart(enabled);
+      toast(now ? "Omnigroup se lancera au démarrage de Windows." : "Lancement au démarrage désactivé.");
+      update({ autostart: now });
+    }),
   save: (settings: Settings) =>
     void guarded(async () => {
       const saved = await api.saveSettings(settings);
@@ -344,6 +355,8 @@ async function main(): Promise<void> {
   document.addEventListener("keydown", onKey);
   document.addEventListener("contextmenu", onContextMenu);
   installDrag(document, api.startDrag);
+  const grip = document.getElementById("grip");
+  if (grip) installResize(grip, { get: api.getScale, set: api.setScale }, (err) => toast(api.errorText(err)));
   app.addEventListener("focusout", () => window.setTimeout(() => deferredRender && render(), 0));
   window.setInterval(() => state.view !== "detail" && state.view !== "chat" && render(), AGE_TICK_MS);
   await listen<StreamEvent>("group://event", (e) => onStreamEvent(e.payload));

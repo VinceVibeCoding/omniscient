@@ -1,4 +1,5 @@
-//! Widget settings: only the daemon URL. Stored as JSON in the app config dir (per
+//! Widget settings: the daemon URL, whether the widget may start the daemon in WSL
+//! (and from which Omniscient folder), and whether autostart was set up once. Stored as JSON in the app config dir (per
 //! Windows user, %APPDATA%). The widget token is NOT a setting: it lives in the Windows
 //! Credential Manager (vault.rs). An older settings.json that still holds a token or a
 //! token command is rewritten without them on start.
@@ -20,19 +21,57 @@ const LEGACY_SECRETS: [&str; 3] = ["token", "token_command", "wsl_distro"];
 #[serde(default)]
 pub struct Settings {
     pub daemon_url: String,
+    /// Start `omniscient group serve` in WSL when the daemon does not answer.
+    pub start_daemon: bool,
+    /// The Omniscient folder in WSL (`~/…` or `/…`), where the daemon is started.
+    pub wsl_home: String,
+    /// Launch at Windows login was switched on once (first run); the owner may undo it.
+    pub autostart_init: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { daemon_url: DEFAULT_URL.to_string() }
+        Self {
+            daemon_url: DEFAULT_URL.to_string(),
+            start_daemon: false,
+            wsl_home: String::new(),
+            autostart_init: false,
+        }
     }
 }
 
 impl Settings {
     /// A normalised copy, or a French error naming the bad field.
     pub fn validated(&self) -> Result<Settings, String> {
-        Ok(Settings { daemon_url: validate_url(&self.daemon_url)? })
+        let wsl_home = validate_wsl_home(&self.wsl_home)?;
+        if self.start_daemon && wsl_home.is_empty() {
+            return Err("Indiquez le dossier Omniscient dans WSL pour démarrer le démon.".into());
+        }
+        Ok(Settings {
+            daemon_url: validate_url(&self.daemon_url)?,
+            start_daemon: self.start_daemon,
+            wsl_home,
+            autostart_init: self.autostart_init,
+        })
     }
+}
+
+const WSL_HOME_MAX: usize = 512;
+
+/// A Linux folder: empty, `~`, `~/…` or absolute; no `..`, no control or quote characters.
+/// It reaches the daemon launcher as one argv entry, never through a shell string.
+pub fn validate_wsl_home(raw: &str) -> Result<String, String> {
+    let path = raw.trim();
+    if path.is_empty() {
+        return Ok(String::new());
+    }
+    let rooted = path == "~" || path.starts_with("~/") || path.starts_with('/');
+    let bad_char = path.chars().any(|c| c.is_control() || matches!(c, '"' | '\'' | '`' | '$' | '\\'));
+    let dotdot = path.split('/').any(|part| part == "..");
+    if !rooted || bad_char || dotdot || path.chars().count() > WSL_HOME_MAX {
+        return Err("Dossier WSL invalide : utilisez ~/… ou /… (sans « .. »).".into());
+    }
+    Ok(path.trim_end_matches('/').to_string())
 }
 
 /// What `load` found: the settings, and whether the file still held legacy secrets.
@@ -109,6 +148,31 @@ mod tests {
     }
 
     #[test]
+    fn wsl_home_is_a_plain_linux_folder() {
+        assert_eq!(validate_wsl_home("").unwrap(), "");
+        assert_eq!(validate_wsl_home(" ~/projects/omniscient/ ").unwrap(), "~/projects/omniscient");
+        assert_eq!(validate_wsl_home("/srv/home").unwrap(), "/srv/home");
+        assert_eq!(validate_wsl_home("~").unwrap(), "~");
+        for bad in ["projects", "C:\\x", "~/a/../b", "/a$(x)", "/a`x`", "/a'b", "/a\nb", "~user/x"] {
+            assert!(validate_wsl_home(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn starting_the_daemon_needs_a_folder() {
+        let on = Settings { start_daemon: true, ..Settings::default() };
+        assert!(on.validated().is_err());
+        let ok = Settings { start_daemon: true, wsl_home: "~/omni".into(), ..Settings::default() };
+        assert_eq!(ok.validated().unwrap().wsl_home, "~/omni");
+    }
+
+    #[test]
+    fn older_files_load_with_new_defaults() {
+        let parsed: Settings = serde_json::from_str(r#"{"daemon_url":"http://127.0.0.1:7341"}"#).unwrap();
+        assert!(!parsed.start_daemon && !parsed.autostart_init && parsed.wsl_home.is_empty());
+    }
+
+    #[test]
     fn accepts_loopback_urls_and_strips_trailing_slash() {
         assert_eq!(validate_url("http://127.0.0.1:7341/").unwrap(), "http://127.0.0.1:7341");
         assert!(validate_url("http://localhost:7341").is_ok());
@@ -134,7 +198,7 @@ mod tests {
     #[test]
     fn save_then_load_round_trips_without_any_secret() {
         let dir = temp_dir("roundtrip");
-        let settings = Settings { daemon_url: "http://localhost:7341".into() };
+        let settings = Settings { daemon_url: "http://localhost:7341".into(), ..Settings::default() };
         save(&dir, &settings).unwrap();
         let text = fs::read_to_string(dir.join(FILE_NAME)).unwrap();
         assert!(!text.contains("token"));

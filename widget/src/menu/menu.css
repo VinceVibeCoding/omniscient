@@ -38,6 +38,8 @@ body.menu-page { display: block; }
   display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin: 0 6px; padding: 2px;
   border-radius: calc(var(--radius) - 4px); background: color-mix(in srgb, var(--background) 70%, transparent);
 }
+.menu__segs--4 { grid-template-columns: repeat(4, 1fr); }
+.menu__segs--4 .menu__seg { font-size: 11.5px; }
 .menu__seg {
   border: 0; background: transparent; padding: 5px 0; border-radius: calc(var(--radius) - 6px);
   color: var(--muted); cursor: pointer;

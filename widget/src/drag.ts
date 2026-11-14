@@ -3,7 +3,8 @@
 // and the click that may follow a drag is swallowed so the pill does not open by accident.
 
 const THRESHOLD_PX = 4;
-const FIELDS = "input, textarea, select, [contenteditable]";
+// The resize grip (resize.ts) is not a drag handle.
+const FIELDS = "input, textarea, select, [contenteditable], .grip";
 
 export function installDrag(root: Document, startDrag: () => Promise<void>): void {
   let origin: { x: number; y: number } | null = null;

@@ -48,6 +48,10 @@ pub struct AppState {
     pub move_seq: Mutex<u64>,
     /// Last effective config view from the daemon ({config, sources}), for the context menu.
     pub config: Mutex<Option<serde_json::Value>>,
+    /// Size factor of the OSD and panel (scale.rs), saved with the anchor.
+    pub scale: Mutex<f64>,
+    /// The daemon this widget started in WSL (daemon_launch.rs), if any.
+    pub daemon_child: Mutex<Option<std::process::Child>>,
     /// Logical size the right-click menu webview measured for itself.
     pub menu_size: Mutex<(f64, f64)>,
 }
@@ -58,7 +62,7 @@ impl AppState {
         config_dir: PathBuf,
         settings: Settings,
         token: String,
-        anchor: Option<(i32, i32)>,
+        placement: crate::position::Placement,
     ) -> Self {
         Self {
             http,
@@ -70,7 +74,9 @@ impl AppState {
             link: Mutex::new(LinkStatus::new("connecting", "Connexion au démon…")),
             stream: Mutex::new(None),
             mode: Mutex::new(Mode::Osd),
-            anchor: Mutex::new(anchor),
+            anchor: Mutex::new(placement.anchor),
+            scale: Mutex::new(crate::scale::initial(placement.scale)),
+            daemon_child: Mutex::new(None),
             placed: Mutex::new(None),
             move_seq: Mutex::new(0),
             config: Mutex::new(None),

@@ -87,6 +87,22 @@ export function setWindowMode(mode: WindowMode): Promise<void> {
   return invoke("set_window_mode", { mode });
 }
 
+export function getScale(): Promise<number> {
+  return invoke<number>("get_scale");
+}
+
+export function setScale(scale: number): Promise<number> {
+  return invoke<number>("set_scale", { scale });
+}
+
+export function getAutostart(): Promise<boolean> {
+  return invoke<boolean>("get_autostart");
+}
+
+export function setAutostart(enabled: boolean): Promise<boolean> {
+  return invoke<boolean>("set_autostart", { enabled });
+}
+
 export function startDrag(): Promise<void> {
   return invoke("start_drag");
 }

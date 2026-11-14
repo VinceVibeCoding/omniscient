@@ -86,6 +86,10 @@ export interface SessionDetail extends Session {
 /** Only the daemon URL: the widget token stays in the Windows vault (never here). */
 export interface Settings {
   daemon_url: string;
+  /** Start `omniscient group serve` in WSL when the daemon does not answer. */
+  start_daemon: boolean;
+  /** The Omniscient folder in WSL (~/… or /…). */
+  wsl_home: string;
 }
 
 export type LinkState = "connecting" | "connected" | "unpaired" | "unauthorized" | "offline";

@@ -129,11 +129,14 @@ pub fn link_status(state: State<'_, AppState>) -> LinkStatus {
 
 #[tauri::command]
 pub fn save_settings(app: AppHandle, settings: Settings) -> CmdResult<Settings> {
-    let settings = settings.validated()?;
     let state = app.state::<AppState>();
+    // The webview does not own autostart_init: keep what Rust knows.
+    let autostart_init = lock(&state.settings).autostart_init;
+    let settings = Settings { autostart_init, ..settings }.validated()?;
     settings::save(&state.config_dir, &settings)?;
     *lock(&state.settings) = settings.clone();
     stream::restart(&app);
+    crate::daemon_launch::ensure_later(&app);
     Ok(settings)
 }
 

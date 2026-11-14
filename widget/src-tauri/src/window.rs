@@ -28,7 +28,8 @@ impl Mode {
         }
     }
 
-    fn size(self) -> (f64, f64) {
+    /// Logical size at scale 1 (the webview zoom scales the content by the same factor).
+    fn base_size(self) -> (f64, f64) {
         match self {
             Mode::Osd => OSD,
             Mode::Panel => PANEL,
@@ -36,8 +37,15 @@ impl Mode {
     }
 }
 
+/// Logical window size of `mode` at the owner's size factor.
+fn scaled_size<R: Runtime>(window: &WebviewWindow<R>, mode: Mode) -> (f64, f64) {
+    let scale = *lock(&window.state::<AppState>().scale);
+    let (w, h) = mode.base_size();
+    (w * scale, h * scale)
+}
+
 pub fn set_mode<R: Runtime>(window: &WebviewWindow<R>, mode: Mode) -> Result<(), String> {
-    let (w, h) = mode.size();
+    let (w, h) = scaled_size(window, mode);
     window
         .set_size(LogicalSize::new(w, h))
         .map_err(|err| format!("Redimensionnement impossible : {err}"))?;
@@ -80,7 +88,7 @@ pub fn dock<R: Runtime>(window: &WebviewWindow<R>, mode: Mode) -> Result<(), Str
             .move_window(Position::BottomRight)
             .map_err(|err| format!("Placement impossible : {err}"));
     };
-    let (w, h) = mode.size();
+    let (w, h) = scaled_size(window, mode);
     let size = ((w * scale).round() as i32, (h * scale).round() as i32);
     let margin = (MARGIN * scale).round() as i32;
     let (x, y) = place(area, size, anchor, margin);
