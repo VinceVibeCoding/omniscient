@@ -1,19 +1,23 @@
-//! Right-click menu of the OSD (native, built in Rust): « OSD View ▸ Bars / Gauge »,
-//! « Thème ▸ Default / Terminal / Dashboard », « Afficher le ticker », « Replacer dans le
-//! coin », « Quitter ». Keys fixed in ~/.claude/settings.json are shown disabled.
-//! A selection is sent to the daemon (PUT /config, which persists it) and the new
-//! effective view is pushed to the webview as a `config` group://event.
+//! Right-click menu of the OSD, drawn by the widget itself (Omniscient look, current
+//! skin) in a second, borderless webview window labelled "menu" (menu.html):
+//! « Vue OSD » Bars / Gauge, « Thème » Default / Terminal / Dashboard, « Afficher le
+//! ticker », « Replacer dans le coin », « Quitter ». Keys fixed in ~/.claude/settings.json
+//! are shown locked. The menu opens at the cursor and closes on a pick, Escape or as soon
+//! as it loses focus. A pick is sent to the daemon (PUT /config, which persists it) and
+//! the new effective view is pushed to the OSD as a `config` group://event.
 
 use crate::commands::daemon_for;
-use crate::osd_config::{
-    label, parse_menu_id, theme_id, validate_patch, view_id, MenuAction, MenuSnapshot, CORNER_ID, MENU_PREFIX,
-    QUIT_ID, THEMES, TICKER_ID, VIEWS,
-};
+use crate::osd_config::{menu_size, parse_menu_id, validate_patch, MenuAction, MenuSnapshot, MENU_ID_MAX, MENU_PREFIX};
+use crate::position::popup_origin;
 use crate::state::{lock, AppState};
 use crate::stream::STREAM_EVENT;
+use crate::window::work_area;
 use serde_json::{json, Value};
-use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow, Wry};
+use tauri::{AppHandle, Emitter, EventTarget, LogicalSize, Manager, PhysicalPosition, WebviewWindow};
+
+pub const MENU_LABEL: &str = "menu";
+/// Sent to the menu webview with the MenuSnapshot just before it is shown.
+const OPEN_EVENT: &str = "menu://open";
 
 /// PUT /config with a validated patch; caches and returns the new effective view.
 pub async fn put_config(state: &AppState, patch: &Value) -> Result<Value, String> {
@@ -22,45 +26,6 @@ pub async fn put_config(state: &AppState, patch: &Value) -> Result<Value, String
     let view = daemon.put(&["config"], &clean).await.map_err(|err| err.message())?;
     *lock(&state.config) = Some(view.clone());
     Ok(view)
-}
-
-fn checks(
-    app: &AppHandle,
-    entries: &[(&str, &str)],
-    id: fn(&str) -> String,
-    current: &str,
-    locked: bool,
-) -> tauri::Result<Vec<CheckMenuItem<Wry>>> {
-    entries
-        .iter()
-        .map(|(value, text)| {
-            CheckMenuItem::with_id(app, id(value), label(text, locked), !locked, current == *value, None::<&str>)
-        })
-        .collect()
-}
-
-fn submenu(app: &AppHandle, title: &str, items: &[CheckMenuItem<Wry>]) -> tauri::Result<Submenu<Wry>> {
-    let refs: Vec<&dyn IsMenuItem<Wry>> = items.iter().map(|item| item as &dyn IsMenuItem<Wry>).collect();
-    Submenu::with_items(app, title, true, &refs)
-}
-
-fn build(app: &AppHandle, snap: &MenuSnapshot) -> tauri::Result<Menu<Wry>> {
-    let views = checks(app, &VIEWS, view_id, &snap.osd_view, snap.view_locked)?;
-    let themes = checks(app, &THEMES, theme_id, &snap.theme, snap.theme_locked)?;
-    let view_menu = submenu(app, "OSD View", &views)?;
-    let theme_menu = submenu(app, "Thème", &themes)?;
-    let ticker = CheckMenuItem::with_id(
-        app,
-        TICKER_ID,
-        label("Afficher le ticker", snap.ticker_locked),
-        !snap.ticker_locked,
-        snap.show_ticker,
-        None::<&str>,
-    )?;
-    let separator = PredefinedMenuItem::separator(app)?;
-    let corner = MenuItem::with_id(app, CORNER_ID, "Replacer dans le coin", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, QUIT_ID, "Quitter", true, None::<&str>)?;
-    Menu::with_items(app, &[&view_menu, &theme_menu, &ticker, &separator, &corner, &quit])
 }
 
 fn snapshot(app: &AppHandle) -> MenuSnapshot {
@@ -78,20 +43,51 @@ async fn refresh(app: &AppHandle) {
     }
 }
 
-/// Shows the menu at the cursor (built and shown on the main thread).
-pub async fn popup(app: AppHandle, window: WebviewWindow) -> Result<(), String> {
+fn menu_window(app: &AppHandle) -> Result<WebviewWindow, String> {
+    app.get_webview_window(MENU_LABEL).ok_or_else(|| "Menu introuvable.".to_string())
+}
+
+/// Sizes the menu and puts it at the cursor, flipped to stay on the cursor's monitor.
+fn place_at_cursor(app: &AppHandle, menu: &WebviewWindow) -> Result<(), String> {
+    let (width, height) = *lock(&app.state::<AppState>().menu_size);
+    menu.set_size(LogicalSize::new(width, height))
+        .map_err(|err| format!("Menu impossible à dimensionner : {err}"))?;
+    let cursor = menu.cursor_position().map_err(|err| format!("Curseur introuvable : {err}"))?;
+    let point = (cursor.x.round() as i32, cursor.y.round() as i32);
+    let (area, scale) = work_area(menu, Some(point)).ok_or("Écran introuvable.")?;
+    let size = ((width * scale).round() as i32, (height * scale).round() as i32);
+    let (x, y) = popup_origin(area, size, point);
+    menu.set_position(PhysicalPosition::new(x, y))
+        .map_err(|err| format!("Menu impossible à placer : {err}"))
+}
+
+/// Opens the menu at the cursor with the current config.
+pub async fn popup(app: AppHandle) -> Result<(), String> {
     refresh(&app).await;
-    let snap = snapshot(&app);
-    let handle = app.clone();
-    app.run_on_main_thread(move || match build(&handle, &snap) {
-        Ok(menu) => {
-            if let Err(err) = window.popup_menu(&menu) {
-                eprintln!("omnigroup: context menu not shown: {err}");
-            }
-        }
-        Err(err) => eprintln!("omnigroup: context menu not built: {err}"),
-    })
-    .map_err(|err| format!("Menu impossible à afficher : {err}"))
+    let menu = menu_window(&app)?;
+    menu.emit_to(EventTarget::webview_window(MENU_LABEL), OPEN_EVENT, snapshot(&app))
+        .map_err(|err| format!("Menu impossible à préparer : {err}"))?;
+    place_at_cursor(&app, &menu)?;
+    menu.show().map_err(|err| format!("Menu impossible à afficher : {err}"))?;
+    if let Err(err) = menu.set_focus() {
+        eprintln!("omnigroup: menu not focused: {err}");
+    }
+    Ok(())
+}
+
+/// Hides the menu (pick, Escape, focus lost).
+pub fn close(app: &AppHandle) {
+    let Some(menu) = app.get_webview_window(MENU_LABEL) else { return };
+    if let Err(err) = menu.hide() {
+        eprintln!("omnigroup: menu not hidden: {err}");
+    }
+}
+
+/// The menu webview measured itself: remember its size (applied on the next opening).
+pub fn fit(app: &AppHandle, width: f64, height: f64) -> Result<(), String> {
+    let size = menu_size(width, height)?;
+    *lock(&app.state::<AppState>().menu_size) = size;
+    Ok(())
 }
 
 fn emit(app: &AppHandle, kind: &str, data: Value) {
@@ -111,21 +107,19 @@ async fn apply(app: AppHandle, patch: Value) {
     }
 }
 
-fn on_menu(app: &AppHandle, id: &str) {
-    if !id.starts_with(MENU_PREFIX) {
-        return; // tray menu items are handled by tray.rs
+/// A pick from the menu webview: closes the menu, then applies it. Unknown ids are refused.
+pub fn pick(app: &AppHandle, id: &str) -> Result<(), String> {
+    if id.len() > MENU_ID_MAX || !id.starts_with(MENU_PREFIX) {
+        return Err("Choix de menu inconnu.".into());
     }
-    match parse_menu_id(id, &snapshot(app)) {
-        Some(MenuAction::Patch(patch)) => {
+    let action = parse_menu_id(id, &snapshot(app)).ok_or("Choix de menu inconnu.")?;
+    close(app);
+    match action {
+        MenuAction::Patch(patch) => {
             tauri::async_runtime::spawn(apply(app.clone(), patch));
         }
-        Some(MenuAction::Corner) => crate::drag::reset(app),
-        Some(MenuAction::Quit) => app.exit(0),
-        None => eprintln!("omnigroup: unknown menu id {id}"),
+        MenuAction::Corner => crate::drag::reset(app),
+        MenuAction::Quit => app.exit(0),
     }
-}
-
-/// Registers the global menu listener once (setup).
-pub fn install(app: &AppHandle) {
-    app.on_menu_event(|app, event| on_menu(app, event.id().as_ref()));
+    Ok(())
 }

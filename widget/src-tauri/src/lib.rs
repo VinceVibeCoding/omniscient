@@ -40,7 +40,6 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let anchor = position::load(&config_dir);
     app.manage(AppState::new(http, config_dir, loaded.settings, token.unwrap_or_default(), anchor));
     tray::build(app)?;
-    context_menu::install(app.handle());
     let window = app.get_webview_window("main").ok_or("main window missing")?;
     window::dock(&window, window::Mode::Osd)?;
     window.show()?;
@@ -54,12 +53,17 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_positioner::init())
         .setup(setup)
-        .on_window_event(|window, event| {
-            if let WindowEvent::Moved(pos) = event {
-                if let Some(webview) = window.app_handle().get_webview_window(window.label()) {
+        .on_window_event(|window, event| match event {
+            // Only the OSD / panel window is dragged: the menu moves to the cursor itself.
+            WindowEvent::Moved(pos) if window.label() == "main" => {
+                if let Some(webview) = window.app_handle().get_webview_window("main") {
                     drag::on_moved(&webview, *pos);
                 }
             }
+            WindowEvent::Focused(false) if window.label() == context_menu::MENU_LABEL => {
+                context_menu::close(window.app_handle());
+            }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             commands::list_sessions,
@@ -82,6 +86,9 @@ pub fn run() {
             osd_commands::get_config,
             osd_commands::set_config,
             osd_commands::show_context_menu,
+            osd_commands::menu_pick,
+            osd_commands::menu_close,
+            osd_commands::menu_fit,
             osd_commands::list_projects,
             osd_commands::chat_create,
             osd_commands::chat_send,

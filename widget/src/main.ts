@@ -330,7 +330,7 @@ function onKey(event: KeyboardEvent): void {
   else if (state.view === "list") collapse();
 }
 
-/** Right-click on the OSD opens the native menu (OSD View ▸, Thème ▸, ticker…). */
+/** Right-click on the OSD opens the widget's own menu (menu.html: OSD View, Thème, ticker…). */
 function onContextMenu(event: MouseEvent): void {
   const target = event.target as Element | null;
   if (state.view !== "osd" && target?.closest("input, textarea, select")) return; // keep copy/paste

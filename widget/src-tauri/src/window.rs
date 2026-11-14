@@ -45,7 +45,7 @@ pub fn set_mode<R: Runtime>(window: &WebviewWindow<R>, mode: Mode) -> Result<(),
 }
 
 /// The monitor work area holding `anchor` (else the window's monitor, else the primary).
-fn work_area<R: Runtime>(window: &WebviewWindow<R>, anchor: Option<(i32, i32)>) -> Option<(Rect, f64)> {
+pub fn work_area<R: Runtime>(window: &WebviewWindow<R>, anchor: Option<(i32, i32)>) -> Option<(Rect, f64)> {
     let as_rect = |m: &tauri::Monitor| {
         let area = m.work_area();
         let rect = Rect {

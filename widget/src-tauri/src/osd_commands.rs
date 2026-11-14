@@ -4,10 +4,10 @@
 
 use crate::client::validate_id;
 use crate::commands::{daemon_for, get, post};
-use crate::context_menu::{popup, put_config};
+use crate::context_menu::{self, popup, put_config};
 use crate::state::{lock, AppState};
 use serde_json::{json, Value};
-use tauri::{AppHandle, State, WebviewWindow};
+use tauri::{AppHandle, State};
 
 type CmdResult<T> = Result<T, String>;
 
@@ -66,8 +66,25 @@ pub async fn set_config(state: State<'_, AppState>, patch: Value) -> CmdResult<V
 }
 
 #[tauri::command]
-pub async fn show_context_menu(app: AppHandle, window: WebviewWindow) -> CmdResult<()> {
-    popup(app, window).await
+pub async fn show_context_menu(app: AppHandle) -> CmdResult<()> {
+    popup(app).await
+}
+
+/// A pick in the right-click menu (an id such as "ctx:theme:terminal").
+#[tauri::command]
+pub fn menu_pick(app: AppHandle, id: String) -> CmdResult<()> {
+    context_menu::pick(&app, &id)
+}
+
+#[tauri::command]
+pub fn menu_close(app: AppHandle) {
+    context_menu::close(&app);
+}
+
+/// The menu webview reports its own size (logical px) so the window fits it exactly.
+#[tauri::command]
+pub fn menu_fit(app: AppHandle, width: f64, height: f64) -> CmdResult<()> {
+    context_menu::fit(&app, width, height)
 }
 
 #[tauri::command]

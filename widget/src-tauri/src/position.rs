@@ -34,6 +34,20 @@ pub fn place(area: Rect, size: (i32, i32), anchor: Option<(i32, i32)>, margin: i
     (x, y)
 }
 
+/// Top-left of a `size` popup opened at `cursor`: below-right of it, flipped left / up
+/// when it would leave `area`, and always kept inside it.
+pub fn popup_origin(area: Rect, size: (i32, i32), cursor: (i32, i32)) -> (i32, i32) {
+    let (width, height) = size;
+    let (cx, cy) = cursor;
+    let right = area.x + area.width;
+    let bottom = area.y + area.height;
+    let x = if cx + width > right { cx - width } else { cx };
+    let y = if cy + height > bottom { cy - height } else { cy };
+    let x = x.clamp(area.x, (right - width).max(area.x));
+    let y = y.clamp(area.y, (bottom - height).max(area.y));
+    (x, y)
+}
+
 /// True when `point` lies inside `area` (used to pick the monitor of an anchor).
 pub fn contains(area: Rect, point: (i32, i32)) -> bool {
     let (px, py) = point;
@@ -67,6 +81,23 @@ mod tests {
     use super::*;
 
     const AREA: Rect = Rect { x: 0, y: 0, width: 1920, height: 1032 };
+
+    #[test]
+    fn popup_opens_below_right_of_the_cursor() {
+        assert_eq!(popup_origin(AREA, (240, 320), (600, 300)), (600, 300));
+    }
+
+    #[test]
+    fn popup_flips_near_the_right_and_bottom_edges() {
+        // The OSD sits in the bottom-right corner: the menu opens up and to the left.
+        assert_eq!(popup_origin(AREA, (240, 320), (1800, 1000)), (1560, 680));
+    }
+
+    #[test]
+    fn popup_stays_inside_a_small_area() {
+        let small = Rect { x: 100, y: 100, width: 200, height: 200 };
+        assert_eq!(popup_origin(small, (240, 320), (150, 150)), (100, 100));
+    }
 
     #[test]
     fn docks_in_the_corner_without_anchor() {

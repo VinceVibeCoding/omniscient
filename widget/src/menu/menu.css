@@ -1,0 +1,92 @@
+/* The right-click menu (menu.html). Same tokens and skins as the OSD (styles.css,
+   themes.css), so it follows the home palette and the terminal / dashboard skins. */
+@import "../styles.css";
+
+body.menu-page { display: block; }
+
+/* Measured by main.ts: the padding leaves room for the shadow inside the window. */
+#menu { display: inline-block; padding: 8px; }
+
+.menu {
+  width: 236px;
+  padding: 6px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 24px -8px color-mix(in srgb, #000 70%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent);
+  backdrop-filter: blur(12px);
+  animation: menu-in 120ms ease-out;
+  user-select: none;
+}
+@keyframes menu-in { from { opacity: 0; transform: translateY(4px) scale(0.98); } }
+@media (prefers-reduced-motion: reduce) { .menu { animation: none; } }
+
+.menu__head { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; }
+.menu__title { font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; font-size: 11px; color: var(--accent); }
+
+.menu__section { padding: 2px 0 4px; }
+.menu__label {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 8px; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+.menu__lock {
+  text-transform: none; letter-spacing: 0; font-size: 10px; padding: 0 6px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--warning);
+}
+
+.menu__segs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin: 0 6px; padding: 2px;
+  border-radius: calc(var(--radius) - 4px); background: color-mix(in srgb, var(--background) 70%, transparent);
+}
+.menu__seg {
+  border: 0; background: transparent; padding: 5px 0; border-radius: calc(var(--radius) - 6px);
+  color: var(--muted); cursor: pointer;
+}
+.menu__seg:hover:not([disabled]) { color: var(--foreground); }
+.menu__seg[aria-checked="true"] {
+  background: color-mix(in srgb, var(--primary) 26%, var(--surface)); color: var(--foreground); font-weight: 600;
+}
+
+.menu__item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px;
+  border: 0; border-radius: calc(var(--radius) - 6px); background: transparent; text-align: left; cursor: pointer;
+}
+.menu__item:hover:not([disabled]), .menu__item:focus-visible {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+.menu button[disabled] { opacity: 0.45; cursor: default; }
+.menu__item--danger:hover, .menu__item--danger:focus-visible {
+  background: color-mix(in srgb, var(--error) 18%, transparent); color: var(--error);
+}
+
+.menu__text { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; }
+.menu__text small { color: var(--muted); font-size: 11px; }
+.menu__icon { width: 16px; text-align: center; color: var(--secondary); }
+.menu__check { width: 12px; color: var(--accent); font-size: 10px; text-align: center; }
+
+/* A preview of each skin: background, foreground bar, accent. */
+.menu__swatch { width: 16px; height: 16px; border-radius: 4px; flex: none; border: 1px solid var(--border); }
+.menu__swatch--default { background: linear-gradient(135deg, #151831 0 50%, #9a8cff 50% 75%, #f0b445 75%); }
+.menu__swatch--terminal { background: linear-gradient(135deg, #0d110d 0 50%, #4ade80 50% 75%, #facc15 75%); }
+.menu__swatch--dashboard { background: linear-gradient(135deg, #22262e 0 50%, #5b9cf5 50% 75%, #f5c451 75%); }
+
+.menu__toggle {
+  width: 28px; height: 16px; border-radius: 999px; flex: none; padding: 2px;
+  background: color-mix(in srgb, var(--muted) 35%, transparent); transition: background 120ms;
+}
+.menu__knob { display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--foreground); transition: transform 120ms; }
+.menu__item[aria-checked="true"] .menu__toggle { background: var(--success); }
+.menu__item[aria-checked="true"] .menu__knob { transform: translateX(12px); background: var(--background); }
+
+.menu__sep { height: 1px; margin: 5px 8px; background: var(--border); }
+
+/* Skin touches (the palettes themselves come from themes.css). */
+html[data-theme="terminal"] .menu { font-family: "Cascadia Code", "JetBrains Mono", ui-monospace, Consolas, monospace; backdrop-filter: none; }
+html[data-theme="terminal"] .menu__title::before { content: "┌─ "; color: var(--muted); }
+html[data-theme="terminal"] .menu__title { color: var(--primary); letter-spacing: 0.04em; }
+html[data-theme="terminal"] .menu__label { text-transform: lowercase; letter-spacing: 0.02em; }
+html[data-theme="terminal"] .menu__label::before { content: "# "; }
+html[data-theme="terminal"] .menu__check { font-size: 12px; }
+html[data-theme="dashboard"] .menu__title { letter-spacing: 0.22em; color: var(--primary); }
+html[data-theme="dashboard"] .menu__label { letter-spacing: 0.16em; font-weight: 600; }

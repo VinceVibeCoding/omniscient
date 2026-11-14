@@ -48,6 +48,8 @@ pub struct AppState {
     pub move_seq: Mutex<u64>,
     /// Last effective config view from the daemon ({config, sources}), for the context menu.
     pub config: Mutex<Option<serde_json::Value>>,
+    /// Logical size the right-click menu webview measured for itself.
+    pub menu_size: Mutex<(f64, f64)>,
 }
 
 impl AppState {
@@ -72,6 +74,7 @@ impl AppState {
             placed: Mutex::new(None),
             move_seq: Mutex::new(0),
             config: Mutex::new(None),
+            menu_size: Mutex::new(crate::osd_config::MENU_DEFAULT),
         }
     }
 }
