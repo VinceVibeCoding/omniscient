@@ -10,12 +10,11 @@ body.menu-page { display: block; }
 .menu {
   width: 236px;
   padding: 6px;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 0 10px 24px -8px color-mix(in srgb, #000 70%, transparent),
     0 0 0 1px color-mix(in srgb, var(--primary) 18%, transparent);
-  backdrop-filter: blur(12px);
   animation: menu-in 120ms ease-out;
   user-select: none;
 }
@@ -27,11 +26,11 @@ body.menu-page { display: block; }
 
 .menu__section { padding: 2px 0 4px; }
 .menu__label {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 0;
   padding: 4px 8px; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
 }
 .menu__lock {
-  text-transform: none; letter-spacing: 0; font-size: 10px; padding: 0 6px; border-radius: 999px;
+  margin-left: auto; text-transform: none; letter-spacing: 0; font-size: 10px; padding: 0 6px; border-radius: 999px;
   border: 1px solid var(--border); color: var(--warning);
 }
 
@@ -82,7 +81,7 @@ body.menu-page { display: block; }
 .menu__sep { height: 1px; margin: 5px 8px; background: var(--border); }
 
 /* Skin touches (the palettes themselves come from themes.css). */
-html[data-theme="terminal"] .menu { font-family: "Cascadia Code", "JetBrains Mono", ui-monospace, Consolas, monospace; backdrop-filter: none; }
+html[data-theme="terminal"] .menu { font-family: "Cascadia Code", "JetBrains Mono", ui-monospace, Consolas, monospace; }
 html[data-theme="terminal"] .menu__title::before { content: "┌─ "; color: var(--muted); }
 html[data-theme="terminal"] .menu__title { color: var(--primary); letter-spacing: 0.04em; }
 html[data-theme="terminal"] .menu__label { text-transform: lowercase; letter-spacing: 0.02em; }
