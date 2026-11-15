@@ -42,6 +42,8 @@ from omniscient.group.chat_store import (
 )
 from omniscient.group.credentials import secure_dir
 from omniscient.group.models import iso, utcnow
+from omniscient.group.page_context import PageError, clean_page
+from omniscient.group.page_context import render as render_page
 from omniscient.group.providers import CLAUDE_CODE, ProviderStore
 from omniscient.home import Home
 from omniscient.redact import redact_secrets
@@ -80,6 +82,19 @@ def _claude_session_id(raw: Any) -> str:
     if not isinstance(raw, str) or not chat_runner.SESSION_ID.match(raw):
         raise ChatError(400, "Identifiant de session Claude invalide.")
     return raw
+
+
+def _shown(chat: Chat, message: Message) -> dict[str, Any]:
+    """A message as the widget sees it; an attached page shows as one line, never its text."""
+    if message.role != "context":
+        return message.to_json()
+    label = chat.page_title or chat.page_url or "page"
+    return {
+        "role": "tool",
+        "tool": "Page",
+        "text": f"Page jointe : {label} — {chat.page_url or ''}",
+        "at": iso(message.at),
+    }
 
 
 def _clip(text: str) -> str:
@@ -148,16 +163,22 @@ class ChatManager:
 
     # -- public API (raises ChatError) --
 
-    def create(self, project: Any, text: Any, provider: Any = None) -> str:
+    def create(
+        self, project: Any, text: Any, provider: Any = None, page: Any = None
+    ) -> str:
         """A new chat. `provider`: Claude Code (a project is required, it runs there) or a
         saved provider id (plain chat, no tools; the project is optional). None = the
-        person's default provider."""
+        person's default provider. `page` (from the browser extension) attaches a web page
+        as untrusted context: the chat then runs without any tool, and needs no project."""
+        context = None
+        if page is not None:
+            try:
+                context = clean_page(page)
+            except PageError as exc:
+                raise ChatError(exc.status, exc.message) from exc
         engine = self._engine(provider)
-        ref = (
-            self._project(project)
-            if engine == CLAUDE_CODE or project
-            else self._home_ref()
-        )
+        needs_project = engine == CLAUDE_CODE and context is None
+        ref = self._project(project) if needs_project or project else self._home_ref()
         prompt = _text(text)
         now = utcnow()
         chat = Chat(
@@ -168,13 +189,21 @@ class ChatManager:
             now,
             now,
             provider=engine,
+            read_only=context is not None,
+            page_url=context.url if context else None,
+            page_title=context.title if context else None,
         )
+        if context is not None:
+            chat = chat.with_message(Message("context", render_page(context), now))
+            prompt_for_claude = f"{render_page(context)}\n\n{prompt}"
+        else:
+            prompt_for_claude = prompt
         with self._lock:
             self._reserve_slot()
             self._chats[chat.chat_id] = chat.with_message(Message("user", prompt, now))
             self._running[chat.chat_id] = TurnHandle()
         self._prune()
-        self._start(chat.chat_id, ref, prompt, None)
+        self._start(chat.chat_id, ref, prompt_for_claude, None)
         return chat.chat_id
 
     def fork(self, session_native_id: Any, cwd: Any, text: Any) -> str:
@@ -240,7 +269,7 @@ class ChatManager:
             chat = self._get(chat_id)
         return chat, {
             "chat": chat.summary(),
-            "messages": [m.to_json() for m in chat.messages],
+            "messages": [_shown(chat, m) for m in chat.messages],
         }
 
     def join(self, chat_id: str, timeout: float | None = None) -> None:
@@ -357,7 +386,11 @@ class ChatManager:
     ) -> None:
         handle = self._running[chat_id]
         try:
-            argv = chat_runner.build_argv(self._claude, resume, self._budget, fork)
+            with self._lock:
+                tools_off = self._chats[chat_id].read_only
+            argv = chat_runner.build_argv(
+                self._claude, resume, self._budget, fork, tools_off=tools_off
+            )
             spec = TurnSpec(argv, ref.path, prompt, self._timeout_s)
             outcome = self._runner(spec, lambda e: self._on_event(chat_id, e), handle)
         except Exception as exc:  # never leave a chat stuck in "running"

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import threading
 from collections.abc import Callable, Sequence
@@ -44,6 +45,23 @@ ALLOWED_ORIGINS = frozenset(
     {"http://tauri.localhost", "https://tauri.localhost", "tauri://localhost"}
 )
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "[::1]"})
+# Omnigroup's browser extension (Chrome / Edge). Its ID is pinned by the public key in
+# extension/manifest.json, so no other extension can pass for it. More IDs (a store build,
+# a fork) can be added with OMNIGROUP_EXTENSION_IDS="id1,id2".
+EXTENSION_IDS = ("hapedjahhcmgfkmdegelfbffoeoaokfj",)
+EXTENSION_ID = re.compile(r"^[a-p]{32}$")
+
+
+def allowed_origins() -> frozenset[str]:
+    """The widget's webview origins, plus the extension's (Chrome and Edge spellings)."""
+    extra = (
+        i.strip() for i in os.environ.get("OMNIGROUP_EXTENSION_IDS", "").split(",")
+    )
+    ids = {*EXTENSION_IDS, *(i for i in extra if EXTENSION_ID.match(i))}
+    schemes = ("chrome-extension", "extension")
+    return ALLOWED_ORIGINS | {f"{s}://{i}" for s in schemes for i in ids}
+
+
 SOCKET_TIMEOUT_S = 30
 HEARTBEAT_S = 15.0
 SERVE_POLL_S = 0.1
@@ -184,7 +202,7 @@ class Handler(BaseHTTPRequestHandler):
         except ApiError as exc:
             self._send_json(exc.status, {"error": exc.message})
             return
-        if self.headers.get("Origin") not in ALLOWED_ORIGINS:
+        if self.headers.get("Origin") not in allowed_origins():
             self._send_json(403, {"error": "origine refusée"})
             return
         self.send_response(204)
@@ -228,7 +246,7 @@ class Handler(BaseHTTPRequestHandler):
         if name not in LOOPBACK_HOSTS:
             raise ApiError(421, "hôte refusé")
         origin = self.headers.get("Origin")
-        if origin is not None and origin not in ALLOWED_ORIGINS:
+        if origin is not None and origin not in allowed_origins():
             raise ApiError(403, "origine refusée")
 
     def _caller(self) -> str | None:
@@ -284,7 +302,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _cors_headers(self) -> None:
         origin = self.headers.get("Origin")
-        if origin in ALLOWED_ORIGINS:
+        if origin in allowed_origins():
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Vary", "Origin")
 

@@ -63,7 +63,10 @@ def create_chat(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict
         return 202, {"chat_id": _fork(app, manager, body)}
     chat_id = _guard(
         lambda: manager.create(
-            body.get("project"), body.get("text"), body.get("provider")
+            body.get("project"),
+            body.get("text"),
+            body.get("provider"),
+            body.get("page"),
         )
     )
     return 202, {"chat_id": chat_id}
