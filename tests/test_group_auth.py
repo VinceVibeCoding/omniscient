@@ -498,3 +498,49 @@ def test_provider_errors_never_leak_server_text(
     with pytest.raises(au.AuthError) as err:
         svc.password("signin", "ana@example.com", "correct-horse")
     assert "SECRET-TOKEN" not in err.value.message and err.value.status == 502
+
+
+# ---- key formats: new publishable keys work, secret keys are refused --------------------
+
+
+def _jwt(role: str) -> str:
+    def part(obj: dict[str, Any]) -> str:
+        return base64.urlsafe_b64encode(json.dumps(obj).encode()).rstrip(b"=").decode()
+
+    return (
+        f"{part({'alg': 'HS256'})}.{part({'role': role, 'iss': 'supabase'})}.signature"
+    )
+
+
+@pytest.mark.parametrize(
+    "key", ["sb_secret_abcdefghijklmnopqrstuv", _jwt("service_role")]
+)
+def test_secret_keys_are_refused(svc: au.AuthService, key: str) -> None:
+    with pytest.raises(au.AuthError) as err:
+        svc.configure(URL, key)
+    assert err.value.status == 400 and "secrète" in err.value.message
+    assert key not in err.value.message
+
+
+@pytest.mark.parametrize(
+    "key", ["sb_publishable_abcdefghijklmnopqrstuv", _jwt("anon"), ANON]
+)
+def test_public_keys_are_accepted(svc: au.AuthService, key: str) -> None:
+    assert svc.configure(URL, key).anon_key == key
+
+
+def test_the_key_is_never_sent_as_a_bearer_token(
+    tmp_path: Path, fake: FakeGoTrue, events: list, clock: Clock
+) -> None:
+    seen: list[httpx.Request] = []
+
+    def spy(req: httpx.Request) -> httpx.Response:
+        seen.append(req)
+        return fake(req)
+
+    s = make(tmp_path, spy, events, clock)
+    s.password("signin", "ana@example.com", "correct-horse")
+    s.signout()
+    by_path = {r.url.path: r for r in seen}
+    assert "authorization" not in by_path["/auth/v1/token"].headers
+    assert by_path["/auth/v1/logout"].headers["authorization"] == "Bearer access-1"

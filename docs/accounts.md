@@ -11,10 +11,12 @@ aucun jeton.
 
 ## Mettre en place (une fois, par le propriétaire du projet)
 
-1. **Créer un projet** sur supabase.com. Noter l'adresse du projet (`https://<ref>.supabase.co`)
-   et la clé publique « anon » / « publishable » (Project Settings › API). Cette clé est faite
-   pour être publique ; **ne donnez jamais la clé `service_role`** (ni au widget, ni à la ligne
-   de commande).
+1. **Créer un projet** sur supabase.com. Noter l'adresse du projet (`https://<ref>.supabase.co`,
+   où `<ref>` est l'identifiant du projet) et la **clé publique** : Project Settings › API Keys ›
+   *Publishable key* (`sb_publishable_…`). Les anciennes clés « anon » (`eyJ…`, *Legacy API
+   keys*, retirées par Supabase en 2027) marchent aussi. Cette clé est faite pour être
+   publique ; **ne donnez jamais une clé secrète** (`sb_secret_…` ou `service_role`) : la
+   ligne de commande la refuse.
 2. **Authentication › URL Configuration**
    - *Site URL* : `http://127.0.0.1:7341/auth/confirmed`
    - *Redirect URLs* : `http://127.0.0.1:7341/auth/callback`
