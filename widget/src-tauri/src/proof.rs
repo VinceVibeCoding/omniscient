@@ -3,7 +3,7 @@
 //! HMAC-SHA256(key = SHA-256(widget token), message = N), hex. The daemon keeps only the
 //! token's SHA-256, so it can compute this; an impostor on the port cannot.
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -18,7 +18,7 @@ pub fn hex(bytes: &[u8]) -> String {
 /// 16 random bytes from the OS, hex (32 URL-safe characters).
 pub fn new_nonce() -> Result<String, String> {
     let mut buf = [0u8; NONCE_BYTES];
-    getrandom::getrandom(&mut buf).map_err(|err| format!("Aléa indisponible : {err}"))?;
+    getrandom::fill(&mut buf).map_err(|err| format!("Aléa indisponible : {err}"))?;
     Ok(hex(&buf))
 }
 
