@@ -42,7 +42,7 @@ from omniscient.group.chat_store import (
 )
 from omniscient.group.credentials import secure_dir
 from omniscient.group.models import iso, utcnow
-from omniscient.group.page_context import PageError, clean_page
+from omniscient.group.page_context import PageContext, PageError, clean_page
 from omniscient.group.page_context import render as render_page
 from omniscient.group.providers import CLAUDE_CODE, ProviderStore
 from omniscient.home import Home
@@ -170,8 +170,8 @@ class ChatManager:
         saved provider id (plain chat, no tools; the project is optional). None = the
         person's default provider. `page` (from the browser extension) attaches a web page
         as untrusted context: the chat then runs without any tool, and needs no project."""
-        context = None
-        if page is not None:
+        context = page if isinstance(page, PageContext) else None
+        if page is not None and context is None:
             try:
                 context = clean_page(page)
             except PageError as exc:

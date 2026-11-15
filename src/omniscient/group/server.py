@@ -100,6 +100,9 @@ class App:
     osd: Any = None  # osd.OsdState: limits, live tok/min, ticker, widget config
     chat: Any = None  # chat.ChatManager: headless Claude chats from the widget
     providers: Any = None  # providers.ProviderStore: other LLM providers and their keys
+    browser: Any = (
+        None  # browser_page.BrowserPages: the page open in the browser (memory)
+    )
     auth: Any = (
         None  # auth.AuthService: sign-in with Google / GitHub / e-mail (Supabase Auth)
     )
@@ -391,6 +394,7 @@ def create_server(
     """A bound (not yet serving) daemon; port 0 picks a free port."""
     secure_dir(home.state)
     from omniscient.group.auth import AuthService
+    from omniscient.group.browser_page import BrowserPages
     from omniscient.group.chat import ChatManager
     from omniscient.group.osd import OsdState
     from omniscient.group.providers import ProviderStore
@@ -412,6 +416,7 @@ def create_server(
         chat=ChatManager(home, store._publish, providers=providers),
         providers=providers,
         auth=AuthService(home.state, store._publish),
+        browser=BrowserPages(),
     )
     server = GroupServer(app, port)
     app.auth.set_port(
