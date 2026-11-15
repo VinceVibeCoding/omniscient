@@ -262,7 +262,7 @@ body[data-view="osd"] #toast { display: none; }
 
 /* ---- usage strip at the top of the panel (views/usage-strip.ts) ----------- */
 .ustrip {
-  margin: 0 12px 6px; padding: 7px 10px; border-radius: calc(var(--radius) - 6px);
+  margin: 8px 12px 6px; padding: 7px 10px; border-radius: calc(var(--radius) - 6px);
   border: 1px solid var(--border); background: color-mix(in srgb, var(--background) 55%, transparent);
   display: flex; flex-direction: column; gap: 4px; font-size: 11.5px;
 }
