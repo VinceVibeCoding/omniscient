@@ -170,3 +170,11 @@ def test_files_are_private(daemon: Daemon, tmp_path: Path) -> None:
         assert (
             stat.S_IMODE(os.stat(tmp_path / ".omniscient" / name).st_mode) == 0o600
         ), name
+
+
+def test_a_wrong_code_while_a_flow_is_pending_gets_the_failure_page(daemon: Daemon) -> None:
+    configure(daemon)
+    daemon.call("POST", "/auth/start", {"provider": "google"})
+    status, text, resp = raw_get(daemon, "/auth/callback?code=00000000-0000-4000-8000-000000000001")
+    assert status == 400 and text.startswith("<!doctype html>") and "impossible" in text
+    assert daemon.call("GET", "/auth")[1]["signed_in"] is False

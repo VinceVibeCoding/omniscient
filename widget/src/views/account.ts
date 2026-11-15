@@ -54,6 +54,7 @@ function emailForm(m: AccountModel, on: AccountHandlers): HTMLElement {
     event.preventDefault();
     on.password(m.draft.mode, email.value.trim(), password.value);
     password.value = ""; // the password leaves the page as soon as it is sent
+    password.blur(); // a focused field holds redraws back: let the result show
   });
   return form;
 }

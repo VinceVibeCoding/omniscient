@@ -100,6 +100,7 @@ function addForm(m: ProviderModel, on: ProviderHandlers): HTMLElement {
     const chosen = kind.value as NewProvider["kind"];
     on.add({ kind: chosen, label: label.value.trim(), base_url: url.value.trim(), api_key: key.value.trim() });
     key.value = ""; // the key leaves the page as soon as it is sent
+    key.blur(); // a focused field holds redraws back: let the result show
   });
   return form;
 }
