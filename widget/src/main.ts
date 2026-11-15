@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import * as api from "./api";
 import * as osdApi from "./api-osd";
 import { ChatController } from "./chat-controller";
-import { replace } from "./dom";
+import { h, replace } from "./dom";
 import { installDrag } from "./drag";
 import { installResize } from "./resize";
 import { keepUiState, restoreUiState } from "./keep";
@@ -17,6 +17,7 @@ import { osdView } from "./views/osd";
 import { settingsView } from "./views/settings";
 import { type Tab, tabBar, withTabs } from "./views/tabs";
 import { transcriptSection } from "./views/transcript";
+import { pendingCard } from "./views/pending";
 import { STRIP_CLASS, usageStrip, withUsageStrip } from "./views/usage-strip";
 
 type View = "osd" | "list" | "detail" | "settings" | "chat";
@@ -36,6 +37,7 @@ interface AppState {
 const REFRESH_DEBOUNCE_MS = 250;
 const AGE_TICK_MS = 30_000;
 const TOAST_MS = 4_000;
+const CHAT_APPROVALS = "chat__approvals";
 const DEFAULT_CONFIG: WidgetConfig = { theme: "default", osd_view: "bars", show_ticker: true };
 const DEFAULT_SETTINGS: Settings = { daemon_url: "http://127.0.0.1:7341", start_daemon: false, wsl_home: "" };
 
@@ -84,6 +86,7 @@ function editing(): boolean {
 function render(): void {
   if (editing()) {
     deferredRender = true;
+    refreshInPlace(); // usage and approvals must not wait for the end of typing
     return;
   }
   deferredRender = false;
@@ -101,6 +104,21 @@ function strip(): HTMLElement {
 /** Panel open: refresh only the usage strip (forms and scroll positions stay as they are). */
 function refreshStrip(): void {
   app.querySelector(`.${STRIP_CLASS}`)?.replaceWith(strip());
+}
+
+/** Open permission requests of the active widget chat's session, as answerable cards. */
+function chatApprovals(): HTMLElement {
+  const sid = chat.view.active?.session_id;
+  const session = sid ? state.sessions.find((s) => s.id === sid) : undefined;
+  const open = session ? session.pending.filter((p) => p.status === "open") : [];
+  const handlers = { answer: detailHandlers.answer, jump: () => session && detailHandlers.jump(session.id) };
+  const ctx = { title: session?.title || "Chat", cwd: session?.cwd ?? null };
+  return h("div", { class: CHAT_APPROVALS, "aria-live": "polite" }, ...open.map((p) => pendingCard(p, ctx, handlers)));
+}
+
+function refreshInPlace(): void {
+  refreshStrip();
+  if (state.view === "chat") app.querySelector(`.${CHAT_APPROVALS}`)?.replaceWith(chatApprovals());
 }
 
 function selectTab(tab: Tab): void {
@@ -124,7 +142,7 @@ function viewFor(s: AppState): HTMLElement {
     case "settings":
       return settingsPanel(s);
     case "chat":
-      return withTabs(chatView(chat.view, chat.handlers, header(s.link, nav, "Chat")), tabBar("chat", selectTab));
+      return withTabs(chatView(chat.view, chat.handlers, header(s.link, nav, "Chat"), chatApprovals()), tabBar("chat", selectTab));
     default:
       return withTabs(listView(sessions, s.link, nav), tabBar("sessions", selectTab));
   }
@@ -355,12 +373,15 @@ function onKey(event: KeyboardEvent): void {
   else if (state.view === "list") collapse();
 }
 
-/** Right-click on the OSD opens the widget's own menu (menu.html: OSD View, Thème, ticker…). */
+/** Right-click anywhere on the widget (OSD or expanded panel) opens its own menu (menu.html:
+ * OSD View, Thème, Taille, ticker…). Text fields and selected text keep the native
+ * copy / paste menu. */
 function onContextMenu(event: MouseEvent): void {
   const target = event.target as Element | null;
-  if (state.view !== "osd" && target?.closest("input, textarea, select")) return; // keep copy/paste
+  if (target?.closest("input, textarea, select, [contenteditable]")) return;
+  if ((window.getSelection()?.toString() ?? "") !== "") return;
   event.preventDefault();
-  if (state.view === "osd") void guarded(osdApi.showContextMenu);
+  void guarded(osdApi.showContextMenu);
 }
 
 async function main(): Promise<void> {

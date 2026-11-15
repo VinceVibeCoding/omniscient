@@ -107,7 +107,14 @@ export class ChatController {
         if (!this.model.project) throw new Error("Choisissez un projet.");
         const chatId = await osdApi.chatCreate(this.model.project, text);
         const now = new Date().toISOString();
-        const active: Chat = { chat_id: chatId, project: this.model.project, title: text.slice(0, 80), state: "running", updated_at: now };
+        const active: Chat = {
+          chat_id: chatId,
+          project: this.model.project,
+          title: text.slice(0, 80),
+          state: "running",
+          updated_at: now,
+          session_id: null,
+        };
         this.set({ activeId: chatId, active });
       }
       this.set({ busy: false });
@@ -141,6 +148,11 @@ export class ChatController {
     const message = event.chat_id === this.model.activeId ? this.messageFor(event) : null;
     this.set(message ? { ...patch, messages: [...this.model.messages, message] } : patch);
     const known = this.model.chats.some((c) => c.chat_id === event.chat_id);
-    if (event.kind === "result" || event.kind === "error" || event.kind === "state" || !known) this.scheduleReload();
+    // A new chat learns its session id from the daemon once Claude has started: needed
+    // to show that session's approvals inline before the turn ends.
+    const unlinked = event.chat_id === this.model.activeId && !this.model.active?.session_id;
+    if (event.kind === "result" || event.kind === "error" || event.kind === "state" || !known || unlinked) {
+      this.scheduleReload();
+    }
   }
 }

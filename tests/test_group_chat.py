@@ -127,6 +127,34 @@ def test_send_resumes_the_claude_session(home: Home) -> None:
     assert argv[argv.index("--resume") + 1] == "sess-1"
 
 
+def test_chat_names_its_omnigroup_session(home: Home) -> None:
+    """The widget finds the chat's approvals by this id (the /sessions id, not --resume)."""
+    events: list = []
+    mgr = manager(home, FakeRunner(), events)
+    chat_id = mgr.create("alpha", "un")
+    mgr.join(chat_id, 5)
+    _, detail = mgr.get(chat_id)
+    assert detail["chat"]["session_id"] == "claude:sess-1"
+    assert mgr.list()[0]["session_id"] == "claude:sess-1"
+
+
+def test_chat_without_claude_session_has_no_session_id(home: Home) -> None:
+    from datetime import UTC, datetime
+
+    from omniscient.group.chat_store import Chat
+
+    now = datetime.now(UTC)
+    chat = Chat(
+        chat_id="c",
+        project="p",
+        title="t",
+        state="running",
+        created_at=now,
+        updated_at=now,
+    )
+    assert chat.summary()["session_id"] is None
+
+
 def test_validation_errors(home: Home) -> None:
     mgr = manager(home, FakeRunner())
     with pytest.raises(ch.ChatError) as unknown:
