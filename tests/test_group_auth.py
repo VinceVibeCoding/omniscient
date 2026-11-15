@@ -333,7 +333,7 @@ def test_password_sign_in(svc: au.AuthService, fake: FakeGoTrue) -> None:
 def test_wrong_password_gives_a_clean_message(svc: au.AuthService) -> None:
     with pytest.raises(au.AuthError) as err:
         svc.password("signin", "ana@example.com", "wrong-password")
-    assert err.value.status == 401 and "incorrect" in err.value.message
+    assert err.value.status == 422 and "incorrect" in err.value.message
     assert (
         "wrong-password" not in err.value.message
         and "secret detail" not in err.value.message

@@ -106,7 +106,7 @@ def test_password_sign_in_never_returns_a_token(daemon: Daemon) -> None:
         "/auth/password",
         {"mode": "signin", "email": "ana@example.com", "password": "wrong-password"},
     )
-    assert status == 401 and "incorrect" in body["error"]
+    assert status == 422 and "incorrect" in body["error"]
     assert daemon.call("POST", "/auth/signout", {})[1]["signed_in"] is False
 
 
@@ -172,9 +172,13 @@ def test_files_are_private(daemon: Daemon, tmp_path: Path) -> None:
         ), name
 
 
-def test_a_wrong_code_while_a_flow_is_pending_gets_the_failure_page(daemon: Daemon) -> None:
+def test_a_wrong_code_while_a_flow_is_pending_gets_the_failure_page(
+    daemon: Daemon,
+) -> None:
     configure(daemon)
     daemon.call("POST", "/auth/start", {"provider": "google"})
-    status, text, resp = raw_get(daemon, "/auth/callback?code=00000000-0000-4000-8000-000000000001")
+    status, text, _ = raw_get(
+        daemon, "/auth/callback?code=00000000-0000-4000-8000-000000000001"
+    )
     assert status == 400 and text.startswith("<!doctype html>") and "impossible" in text
     assert daemon.call("GET", "/auth")[1]["signed_in"] is False

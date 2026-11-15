@@ -57,8 +57,10 @@ MAX_REPLY_BYTES = 256 * 1024
 TIMEOUT = httpx.Timeout(20.0, connect=10.0)
 NOT_CONFIGURED = "Comptes non configurés : voir docs/accounts.md."
 
+# 422, never 401/403: the widget's client reads those two as "your widget token was refused".
+REFUSED = 422
 _ERRORS: dict[str, tuple[int, str]] = {
-    "invalid_credentials": (401, "E-mail ou mot de passe incorrect."),
+    "invalid_credentials": (REFUSED, "E-mail ou mot de passe incorrect."),
     "email_not_confirmed": (
         401,
         "Confirmez d'abord votre e-mail (lien reçu par courrier).",
@@ -72,7 +74,7 @@ _ERRORS: dict[str, tuple[int, str]] = {
         400,
         "Mot de passe trop faible : choisissez-en un plus long ou plus varié.",
     ),
-    "signup_disabled": (403, "Les inscriptions sont fermées."),
+    "signup_disabled": (REFUSED, "Les inscriptions sont fermées."),
     "over_request_rate_limit": (
         429,
         "Trop de tentatives : réessayez dans quelques minutes.",
@@ -145,7 +147,7 @@ def _map_error(status: int, payload: Any) -> AuthError:
         return AuthError(429, "Trop de tentatives : réessayez dans quelques minutes.")
     if status >= 500:
         return AuthError(502, "Le service de comptes est indisponible.")
-    return AuthError(401, "Connexion refusée ou expirée : recommencez.")
+    return AuthError(REFUSED, "Connexion refusée ou expirée : recommencez.")
 
 
 class AuthService:
@@ -344,11 +346,8 @@ class AuthService:
                 self._store_session(data)
             except AuthError as exc:
                 log.warning("omnigroup accounts: refresh failed (%s)", exc.message)
-                if exc.status in (
-                    400,
-                    401,
-                    403,
-                ):  # the session is dead, not just unreachable
+                # the session is dead, not just unreachable
+                if exc.status in (400, REFUSED):
                     self._forget()
                     self._publish("auth", self.status())
                 return None
