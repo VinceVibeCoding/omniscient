@@ -121,3 +121,35 @@ def test_session_transcript(app: SimpleNamespace) -> None:
         call(
             api_chat.session_transcript, app, {"id": f"claude:{SID}"}, {"limit": "abc"}
         )
+
+
+def test_create_chat_from_a_claude_session_forks_it(app: SimpleNamespace) -> None:
+    app.store.sessions[f"claude:{SID}"] = Session(
+        id=f"claude:{SID}", source="claude", native_id=SID, title="t",
+        cwd=str(app.chat.home.root), state="idle", started_at=utcnow(), updated_at=utcnow(),
+    )  # fmt: skip
+    status, body = api_chat.create_chat(
+        app, {}, {}, {"session": f"claude:{SID}", "text": "go"}
+    )
+    assert status == 202
+    app.chat.join(body["chat_id"], 5)
+    _, detail = app.chat.get(body["chat_id"])
+    assert detail["chat"]["project"] == app.chat.home.root.name
+
+
+def test_create_chat_from_session_validates(app: SimpleNamespace) -> None:
+    with pytest.raises(ApiError) as err:
+        api_chat.create_chat(app, {}, {}, {"session": "claude:nope", "text": "go"})
+    assert err.value.status == 404
+    herdr = Session(
+        id="herdr:p1", source="herdr", native_id="p1", title="t", cwd=None,
+        state="idle", started_at=utcnow(), updated_at=utcnow(),
+    )  # fmt: skip
+    app.store.sessions[herdr.id] = herdr
+    with pytest.raises(ApiError) as err:
+        api_chat.create_chat(app, {}, {}, {"session": herdr.id, "text": "go"})
+    assert err.value.status == 400
+    both = {"session": f"claude:{SID}", "project": "x", "text": "go"}
+    with pytest.raises(ApiError) as err:
+        api_chat.create_chat(app, {}, {}, both)
+    assert err.value.status == 400  # one or the other, not both

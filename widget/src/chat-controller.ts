@@ -121,6 +121,27 @@ export class ChatController {
     });
   }
 
+  /** « Continuer dans le widget »: a widget chat that starts from a copy of a session. */
+  async fork(session: { id: string; title: string; cwd: string | null }, text: string): Promise<boolean> {
+    this.set({ busy: true });
+    let ok = false;
+    await this.guard(async () => {
+      const chatId = await osdApi.chatFork(session.id, text);
+      const now = new Date().toISOString();
+      const active: Chat = {
+        chat_id: chatId,
+        project: session.cwd?.split("/").filter(Boolean).pop() ?? "",
+        title: text.slice(0, 80),
+        state: "running",
+        updated_at: now,
+        session_id: null,
+      };
+      this.set({ activeId: chatId, active, messages: [this.userMessage(text)], draft: "", busy: false });
+      ok = true;
+    });
+    return ok;
+  }
+
   private async stop(): Promise<void> {
     const id = this.model.activeId;
     if (id) await this.guard(async () => void (await osdApi.chatStop(id)));

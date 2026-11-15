@@ -117,6 +117,15 @@ def test_tool_summary_is_short_and_redacted() -> None:
     assert len(events[0].text or "") <= cr.TOOL_SUMMARY_MAX + 1
 
 
+def test_fork_resumes_a_copy_never_the_original() -> None:
+    argv = cr.build_argv(["claude"], resume="abc-123", fork=True)
+    i = argv.index("--resume")
+    assert argv[i + 1] == "abc-123" and "--fork-session" in argv
+    assert "--fork-session" not in cr.build_argv(["claude"], resume="abc-123")
+    with pytest.raises(ValueError):
+        cr.build_argv(["claude"], fork=True)  # a fork needs a session to copy
+
+
 def test_build_argv_is_a_list_without_shell() -> None:
     assert cr.build_argv(["claude"]) == [
         "claude",

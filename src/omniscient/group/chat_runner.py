@@ -99,13 +99,20 @@ def build_argv(
     claude: Sequence[str],
     resume: str | None = None,
     max_budget_usd: float | None = None,
+    fork: bool = False,
 ) -> list[str]:
+    """`fork`: resume a COPY of the session (--fork-session), so a session that is still
+    open in a terminal or IDE is never written to from here."""
     argv = [*claude, "-p", "--output-format", "stream-json", "--verbose"]
     argv += ["--permission-mode", PERMISSION_MODE]
+    if fork and resume is None:
+        raise ValueError("une copie de session demande la session à copier")
     if resume is not None:
         if not SESSION_ID.match(resume):
             raise ValueError("identifiant de session Claude invalide")
         argv += ["--resume", resume]
+        if fork:
+            argv += ["--fork-session"]
     if max_budget_usd is not None:
         argv += ["--max-budget-usd", f"{float(max_budget_usd):g}"]
     return argv

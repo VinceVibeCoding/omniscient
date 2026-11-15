@@ -98,6 +98,14 @@ pub async fn chat_create(state: State<'_, AppState>, project: String, text: Stri
     post(&state, &["chats"], &body).await
 }
 
+/// Continues a running Claude Code session (terminal, IDE) in a widget chat: the daemon
+/// resumes a copy of it, so the original is never written to.
+#[tauri::command]
+pub async fn chat_fork(state: State<'_, AppState>, session_id: String, text: String) -> CmdResult<Value> {
+    let body = json!({ "session": validate_id(&session_id)?, "text": validate_text(&text)? });
+    post(&state, &["chats"], &body).await
+}
+
 #[tauri::command]
 pub async fn chat_send(state: State<'_, AppState>, chat_id: String, text: String) -> CmdResult<Value> {
     let body = json!({ "text": validate_text(&text)? });
