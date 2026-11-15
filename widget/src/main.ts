@@ -104,7 +104,7 @@ function render(): void {
   document.body.dataset.view = state.view;
   const kept = keepUiState(app);
   const view = viewFor(state);
-  replace(app, state.view === "osd" ? view : withUsageStrip(view, strip()));
+  replace(app, state.view === "osd" || state.view === "wizard" ? view : withUsageStrip(view, strip()));
   restoreUiState(app, kept);
 }
 
@@ -189,6 +189,26 @@ function conversationFor(detail: SessionDetail, transcript: Transcript | null): 
   });
 }
 
+const READY_TRIES = 20;
+const READY_DELAY_MS = 250;
+
+/** Start-up reads: the webview can load before the Rust side has finished setting up its
+ * state, so the first calls may fail for a moment. Retries, then reports the last error. */
+async function whenReady<T>(work: () => Promise<T>): Promise<T | undefined> {
+  for (let attempt = 1; attempt <= READY_TRIES; attempt += 1) {
+    try {
+      return await work();
+    } catch (err) {
+      if (attempt === READY_TRIES) {
+        toast(api.errorText(err));
+        return undefined;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, READY_DELAY_MS));
+    }
+  }
+  return undefined;
+}
+
 async function guarded<T>(work: () => Promise<T>): Promise<T | undefined> {
   try {
     return await work();
@@ -258,8 +278,8 @@ async function openSettings(): Promise<void> {
 
 /** First run: the assistant (connect → AI provider → look) in the expanded panel. */
 async function startWizard(): Promise<void> {
-  await guarded(() => api.setWindowMode("panel"));
-  const link = (await guarded(api.linkStatus)) ?? state.link;
+  await whenReady(() => api.setWindowMode("panel"));
+  const link = (await whenReady(api.linkStatus)) ?? state.link;
   update({ view: "wizard", wizardStep: link.state === "connected" ? 1 : 0 });
   await providers.load();
 }
@@ -463,12 +483,12 @@ async function main(): Promise<void> {
   await listen<StreamEvent>("group://event", (e) => onStreamEvent(e.payload));
   await listen<LinkStatus>("group://status", (e) => void onLink(e.payload));
   await listen<string>("group://open", (e) => (e.payload ? void openSession(e.payload) : void expand()));
-  const settings = await guarded(api.getSettings);
+  const settings = await whenReady(api.getSettings);
   if (settings) state = { ...state, settings };
   // First run: the assistant opens as soon as the settings are known, without waiting for
   // the daemon link (which may take a few seconds, or never come when nothing is paired).
   const wizard = settings && settings.wizard_done !== true ? startWizard() : Promise.resolve();
-  const link = await guarded(api.linkStatus);
+  const link = await whenReady(api.linkStatus);
   if (link) await onLink(link);
   await wizard;
 }
