@@ -91,7 +91,14 @@ function toast(message: string): void {
 
 function editing(): boolean {
   const active = document.activeElement;
-  return active instanceof HTMLElement && app.contains(active) && active.closest("form") !== null;
+  // Only a field being typed in holds a redraw back: a focused button (just clicked) must not,
+  // or the result of its own action (a new provider row, say) would stay invisible.
+  return (
+    active instanceof HTMLElement &&
+    app.contains(active) &&
+    active.matches("input, textarea, select, [contenteditable]") &&
+    active.closest("form") !== null
+  );
 }
 
 function render(): void {
