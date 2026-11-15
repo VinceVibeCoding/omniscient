@@ -58,6 +58,7 @@ class Chat:
     claude_session_id: str | None = None
     cost_usd: float | None = None
     messages: tuple[Message, ...] = ()
+    provider: str = "claude-code"  # or the id of a provider saved in providers.json
 
     def summary(self) -> dict[str, Any]:
         """The API view: no messages and no raw Claude session id (the --resume key);
@@ -70,6 +71,7 @@ class Chat:
             "state": self.state,
             "updated_at": iso(self.updated_at),
             "cost_usd": self.cost_usd,
+            "provider": self.provider,
             "session_id": session_id("claude", self.claude_session_id)
             if self.claude_session_id
             else None,
@@ -141,6 +143,7 @@ def load(text: str) -> Chat:
         claude_session_id=meta.get("claude_session_id"),
         cost_usd=meta.get("cost_usd"),
         messages=messages,
+        provider=meta.get("provider") or "claude-code",
     )
 
 

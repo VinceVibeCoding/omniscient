@@ -131,13 +131,26 @@ pub fn link_status(state: State<'_, AppState>) -> LinkStatus {
 pub fn save_settings(app: AppHandle, settings: Settings) -> CmdResult<Settings> {
     let state = app.state::<AppState>();
     // The webview does not own autostart_init: keep what Rust knows.
-    let autostart_init = lock(&state.settings).autostart_init;
-    let settings = Settings { autostart_init, ..settings }.validated()?;
+    let (autostart_init, wizard_done) = {
+        let known = lock(&state.settings);
+        (known.autostart_init, known.wizard_done)
+    };
+    let settings = Settings { autostart_init, wizard_done, ..settings }.validated()?;
     settings::save(&state.config_dir, &settings)?;
     *lock(&state.settings) = settings.clone();
     stream::restart(&app);
     crate::daemon_launch::ensure_later(&app);
     Ok(settings)
+}
+
+/// The first-run assistant is finished (or skipped): never shown again on its own.
+#[tauri::command]
+pub fn finish_wizard(app: AppHandle) -> CmdResult<()> {
+    let state = app.state::<AppState>();
+    let next = Settings { wizard_done: true, ..lock(&state.settings).clone() };
+    settings::save(&state.config_dir, &next)?;
+    *lock(&state.settings) = next;
+    Ok(())
 }
 
 fn anonymous(app: &AppHandle) -> CmdResult<Daemon> {

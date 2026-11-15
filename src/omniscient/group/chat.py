@@ -28,7 +28,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from omniscient.group import chat_runner
+from omniscient.group import chat_runner, llm_chat
 from omniscient.group.chat_runner import RunnerEvent, TurnHandle, TurnOutcome, TurnSpec
 from omniscient.group.chat_store import (
     Chat,
@@ -42,6 +42,7 @@ from omniscient.group.chat_store import (
 )
 from omniscient.group.credentials import secure_dir
 from omniscient.group.models import iso, utcnow
+from omniscient.group.providers import CLAUDE_CODE, ProviderStore
 from omniscient.home import Home
 from omniscient.redact import redact_secrets
 
@@ -123,8 +124,12 @@ class ChatManager:
         max_budget_usd: float | None = DEFAULT_MAX_BUDGET_USD,
         max_turns_per_hour: int = MAX_TURNS_PER_HOUR,
         clock: Callable[[], float] = time.monotonic,
+        providers: ProviderStore | None = None,
+        llm: Callable[..., str] = llm_chat.complete,
     ) -> None:
         self.home = home
+        self._providers = providers or ProviderStore(home.state)
+        self._llm = llm
         self._publish = publish
         self._claude = _resolve(claude)
         self._runner = runner
@@ -143,11 +148,27 @@ class ChatManager:
 
     # -- public API (raises ChatError) --
 
-    def create(self, project: str, text: Any) -> str:
-        ref = self._project(project)
+    def create(self, project: Any, text: Any, provider: Any = None) -> str:
+        """A new chat. `provider`: Claude Code (a project is required, it runs there) or a
+        saved provider id (plain chat, no tools; the project is optional). None = the
+        person's default provider."""
+        engine = self._engine(provider)
+        ref = (
+            self._project(project)
+            if engine == CLAUDE_CODE or project
+            else self._home_ref()
+        )
         prompt = _text(text)
         now = utcnow()
-        chat = Chat(str(uuid.uuid4()), ref.name, _title(prompt), "running", now, now)
+        chat = Chat(
+            str(uuid.uuid4()),
+            ref.name,
+            _title(prompt),
+            "running",
+            now,
+            now,
+            provider=engine,
+        )
         with self._lock:
             self._reserve_slot()
             self._chats[chat.chat_id] = chat.with_message(Message("user", prompt, now))
@@ -233,6 +254,33 @@ class ChatManager:
 
     # -- internals --
 
+    def _engine(self, requested: Any) -> str:
+        """The provider id to use: validated, with a key when it needs one."""
+        view = self._providers.listing()
+        engine = view["default"] if requested is None else requested
+        if not isinstance(engine, str):
+            raise ChatError(400, "provider : identifiant attendu")
+        if engine == CLAUDE_CODE:
+            return engine
+        found = self._providers.get(engine)
+        if found is None:
+            raise ChatError(
+                404, "Fournisseur inconnu : choisissez-en un dans les réglages."
+            )
+        provider, key = found
+        if key is None and provider.kind != "openai-compatible":
+            raise ChatError(400, "Ajoutez la clé de ce fournisseur dans les réglages.")
+        if not provider.model:
+            raise ChatError(
+                400, "Choisissez un modèle pour ce fournisseur dans les réglages."
+            )
+        return engine
+
+    def _home_ref(self) -> ProjectRef:
+        return next(
+            r for r in list_projects(self.home) if r.name == self.home.root.name
+        )
+
     def _project(self, name: Any) -> ProjectRef:
         if not isinstance(name, str):
             raise ChatError(400, "project : nom de projet attendu")
@@ -289,9 +337,12 @@ class ChatManager:
     ) -> None:
         self._save(chat_id)
         self._emit(chat_id, "state", state="running")
+        if self._chats[chat_id].provider == CLAUDE_CODE:
+            target, args = self._run, (chat_id, ref, prompt, resume, fork)
+        else:
+            target, args = self._run_plain, (chat_id,)
         thread = threading.Thread(
-            target=self._run, args=(chat_id, ref, prompt, resume, fork), daemon=True,
-            name=f"omnigroup-chat-{chat_id[:8]}",
+            target=target, args=args, daemon=True, name=f"omnigroup-chat-{chat_id[:8]}",
         )  # fmt: skip
         self._threads[chat_id] = thread
         thread.start()
@@ -311,6 +362,35 @@ class ChatManager:
             outcome = self._runner(spec, lambda e: self._on_event(chat_id, e), handle)
         except Exception as exc:  # never leave a chat stuck in "running"
             log.exception("omnigroup chat: turn crashed")
+            outcome = TurnOutcome(
+                False, error=f"Erreur interne du démon : {type(exc).__name__}"
+            )
+        self._finish(chat_id, outcome)
+
+    def _run_plain(self, chat_id: str) -> None:
+        """One turn with a non-Claude-Code provider: the whole conversation in, one reply out."""
+        handle = self._running[chat_id]
+        try:
+            with self._lock:
+                chat = self._chats[chat_id]
+            found = self._providers.get(chat.provider)
+            if found is None:
+                raise llm_chat.LlmError(
+                    "Ce fournisseur a été retiré : choisissez-en un autre."
+                )
+            provider, key = found
+            turns = llm_chat.build_turns(chat.messages)
+            reply = self._llm(provider, key, turns, resolver=self._providers.resolver)
+            if handle.stop_requested.is_set():
+                outcome = TurnOutcome(False, error="Tour arrêté.", stopped=True)
+            else:
+                self._on_event(chat_id, RunnerEvent("text", text=reply))
+                self._on_event(chat_id, RunnerEvent("result"))
+                outcome = TurnOutcome(True)
+        except llm_chat.LlmError as exc:
+            outcome = TurnOutcome(False, error=exc.message)
+        except Exception as exc:  # never leave a chat stuck in "running"
+            log.exception("omnigroup chat: provider turn crashed")
             outcome = TurnOutcome(
                 False, error=f"Erreur interne du démon : {type(exc).__name__}"
             )

@@ -128,6 +128,7 @@ function toChat(raw: unknown): Chat | null {
     state: oneOf(raw.state, CHAT_STATES, "idle"),
     updated_at: str(raw.updated_at),
     session_id: typeof raw.session_id === "string" && raw.session_id !== "" ? raw.session_id : null,
+    provider: str(raw.provider, "claude-code") || "claude-code",
   };
 }
 
@@ -172,8 +173,15 @@ export async function listProjects(): Promise<Project[]> {
     .map((p) => ({ name: String(p.name), path_label: str(p.path_label) }));
 }
 
-export async function chatCreate(project: string, text: string): Promise<string> {
-  const res = await invoke<unknown>("chat_create", { project, text });
+export interface ChatTarget {
+  /** Claude Code runs in a project (required there, ignored by plain providers). */
+  project?: string;
+  /** Provider id; omitted = the person's default. */
+  provider?: string;
+}
+
+export async function chatCreate(text: string, target: ChatTarget): Promise<string> {
+  const res = await invoke<unknown>("chat_create", { text, project: target.project, provider: target.provider });
   if (!isRecord(res) || typeof res.chat_id !== "string") throw new Error("Réponse du démon invalide.");
   return res.chat_id;
 }

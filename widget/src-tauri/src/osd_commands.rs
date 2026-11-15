@@ -5,6 +5,7 @@
 use crate::client::validate_id;
 use crate::commands::{daemon_for, get, post};
 use crate::context_menu::{self, popup, put_config};
+use crate::provider_commands::validate_provider_id;
 use crate::state::{lock, AppState};
 use serde_json::{json, Value};
 use tauri::{AppHandle, State};
@@ -93,8 +94,19 @@ pub async fn list_projects(state: State<'_, AppState>) -> CmdResult<Value> {
 }
 
 #[tauri::command]
-pub async fn chat_create(state: State<'_, AppState>, project: String, text: String) -> CmdResult<Value> {
-    let body = json!({ "project": validate_project(&project)?, "text": validate_text(&text)? });
+pub async fn chat_create(
+    state: State<'_, AppState>,
+    project: Option<String>,
+    provider: Option<String>,
+    text: String,
+) -> CmdResult<Value> {
+    let mut body = json!({ "text": validate_text(&text)? });
+    if let Some(project) = project.as_deref() {
+        body["project"] = json!(validate_project(project)?);
+    }
+    if let Some(provider) = provider.as_deref() {
+        body["provider"] = json!(if provider == "claude-code" { provider } else { validate_provider_id(provider)? });
+    }
     post(&state, &["chats"], &body).await
 }
 

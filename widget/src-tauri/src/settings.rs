@@ -27,6 +27,8 @@ pub struct Settings {
     pub wsl_home: String,
     /// Launch at Windows login was switched on once (first run); the owner may undo it.
     pub autostart_init: bool,
+    /// The first-run assistant (pairing, AI provider, look) was finished or skipped.
+    pub wizard_done: bool,
 }
 
 impl Default for Settings {
@@ -36,6 +38,7 @@ impl Default for Settings {
             start_daemon: false,
             wsl_home: String::new(),
             autostart_init: false,
+            wizard_done: false,
         }
     }
 }
@@ -52,6 +55,7 @@ impl Settings {
             start_daemon: self.start_daemon,
             wsl_home,
             autostart_init: self.autostart_init,
+            wizard_done: self.wizard_done,
         })
     }
 }
@@ -170,6 +174,7 @@ mod tests {
     fn older_files_load_with_new_defaults() {
         let parsed: Settings = serde_json::from_str(r#"{"daemon_url":"http://127.0.0.1:7341"}"#).unwrap();
         assert!(!parsed.start_daemon && !parsed.autostart_init && parsed.wsl_home.is_empty());
+        assert!(!parsed.wizard_done);
     }
 
     #[test]

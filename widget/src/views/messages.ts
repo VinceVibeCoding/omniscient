@@ -16,8 +16,9 @@ const ROLE_LABEL: Record<ChatMessage["role"], string> = {
   error: "Erreur",
 };
 
-function bubble(m: ChatMessage): HTMLElement {
-  const who = m.role === "tool" && m.tool ? `${ROLE_LABEL.tool} · ${m.tool}` : ROLE_LABEL[m.role];
+function bubble(m: ChatMessage, assistant: string): HTMLElement {
+  const base = m.role === "assistant" ? assistant : ROLE_LABEL[m.role];
+  const who = m.role === "tool" && m.tool ? `${ROLE_LABEL.tool} · ${m.tool}` : base;
   return h(
     "li",
     { class: `msg msg--${m.role}` },
@@ -26,9 +27,10 @@ function bubble(m: ChatMessage): HTMLElement {
   );
 }
 
-export function messageLog(messages: readonly ChatMessage[], empty: string, key: string): HTMLElement {
+/** `assistant`: who answers (« Claude », or the name of another provider). */
+export function messageLog(messages: readonly ChatMessage[], empty: string, key: string, assistant = ROLE_LABEL.assistant): HTMLElement {
   if (messages.length === 0) return h("p", { class: "empty chat__empty" }, empty);
-  return h("ol", { class: "chat__log", "data-scroll": key, "aria-label": "Messages" }, ...messages.map(bubble));
+  return h("ol", { class: "chat__log", "data-scroll": key, "aria-label": "Messages" }, ...messages.map((m) => bubble(m, assistant)));
 }
 
 export interface ComposerOptions {

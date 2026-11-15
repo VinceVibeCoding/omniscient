@@ -30,6 +30,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* beats display:flex rules such as .setting */
 
 /* The window is transparent: only the pill / panel paint a background. */
 html, body {
@@ -289,3 +290,20 @@ html[data-theme="dashboard"] .ustrip__pct { font-size: 13px; }
 /* Permission cards of a widget chat, right above its reply box. */
 .chat__approvals:empty { display: none; }
 .chat__approvals { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+
+/* ---- AI providers (views/providers.ts) and the first-run assistant (views/wizard.ts) ---- */
+.prov { display: flex; flex-direction: column; gap: 10px; }
+.prov__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.prov__row { padding: 8px 10px; border: 1px solid var(--border); border-radius: calc(var(--radius) - 6px); background: var(--raised); display: flex; flex-direction: column; gap: 6px; }
+.prov__main { display: flex; flex-direction: column; gap: 2px; }
+.prov__name { font-weight: 600; }
+.prov__status, .prov__model { color: var(--muted); font-size: 11.5px; }
+.prov__select { width: 100%; }
+.prov__add { border-top: 1px solid var(--border); padding-top: 10px; }
+.wizard__steps { list-style: none; display: flex; gap: 6px; margin: 0 12px 6px; padding: 0; font-size: 11.5px; color: var(--muted); }
+.wizard__step { flex: 1; padding: 4px 6px; border-bottom: 2px solid var(--border); }
+.wizard__step--on { color: var(--foreground); border-bottom-color: var(--accent); font-weight: 600; }
+.wizard__skins { display: flex; flex-direction: column; gap: 8px; }
+.wizard__skin { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.wizard__skin small { color: var(--muted); }
+.wizard__nav { padding: 8px 12px; justify-content: flex-end; }

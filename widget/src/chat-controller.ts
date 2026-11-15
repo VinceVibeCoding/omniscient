@@ -2,7 +2,9 @@
 // `changed()` so main.ts re-renders. Streamed `chat` events are appended at once, then
 // the conversation is re-read from the daemon when a turn ends (source of truth).
 import * as osdApi from "./api-osd";
-import type { Chat, ChatEvent, ChatMessage } from "./types";
+import * as providerApi from "./api-providers";
+import type { Chat, ChatEvent, ChatMessage, Provider } from "./types";
+import { providerReady } from "./views/chat";
 import type { ChatHandlers, ChatModel } from "./views/chat";
 
 const RELOAD_DEBOUNCE_MS = 300;
@@ -10,6 +12,8 @@ const RELOAD_DEBOUNCE_MS = 300;
 export class ChatController {
   private model: ChatModel = {
     projects: [],
+    providers: [],
+    provider: "claude-code",
     chats: [],
     project: "",
     activeId: null,
@@ -29,6 +33,7 @@ export class ChatController {
       open: (id) => void this.open(id),
       close: () => this.set({ activeId: null, active: null, messages: [], draft: "" }),
       setProject: (project) => this.set({ project }),
+      setProvider: (provider) => this.set({ provider }),
       setDraft: (draft) => {
         this.model = { ...this.model, draft }; // no re-render while typing
       },
@@ -59,11 +64,19 @@ export class ChatController {
   /** Projects + conversation list (called when the Chat tab opens). */
   async load(): Promise<void> {
     await this.guard(async () => {
-      const [projects, chats] = await Promise.all([osdApi.listProjects(), osdApi.chatList()]);
+      const [projects, chats, list] = await Promise.all([osdApi.listProjects(), osdApi.chatList(), providerApi.listProviders()]);
       const project = projects.some((p) => p.name === this.model.project) ? this.model.project : (projects[0]?.name ?? "");
       const active = chats.find((c) => c.chat_id === this.model.activeId) ?? this.model.active;
-      this.set({ projects, chats, project, active });
+      const providers = list.providers;
+      this.set({ projects, chats, project, active, providers, provider: this.pickProvider(providers, list.default) });
     });
+  }
+
+  /** Keeps the person's choice while it is still usable, else their default, else Claude Code. */
+  private pickProvider(providers: readonly Provider[], preferred: string): string {
+    const usable = (id: string): boolean => providers.some((p) => p.id === id && providerReady(p));
+    if (usable(this.model.provider) && this.model.provider !== "claude-code") return this.model.provider;
+    return usable(preferred) ? preferred : "claude-code";
   }
 
   private async open(chatId: string): Promise<void> {
@@ -104,12 +117,15 @@ export class ChatController {
       if (id) {
         await osdApi.chatSend(id, text);
       } else {
-        if (!this.model.project) throw new Error("Choisissez un projet.");
-        const chatId = await osdApi.chatCreate(this.model.project, text);
+        const provider = this.model.provider;
+        const claude = provider === "claude-code";
+        if (claude && !this.model.project) throw new Error("Choisissez un projet.");
+        const chatId = await osdApi.chatCreate(text, claude ? { project: this.model.project, provider } : { provider });
         const now = new Date().toISOString();
         const active: Chat = {
           chat_id: chatId,
-          project: this.model.project,
+          provider,
+          project: claude ? this.model.project : "",
           title: text.slice(0, 80),
           state: "running",
           updated_at: now,
@@ -135,6 +151,7 @@ export class ChatController {
         state: "running",
         updated_at: now,
         session_id: null,
+        provider: "claude-code",
       };
       this.set({ activeId: chatId, active, messages: [this.userMessage(text)], draft: "", busy: false });
       ok = true;

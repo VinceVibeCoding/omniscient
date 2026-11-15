@@ -81,6 +81,7 @@ class App:
     allow_terminal_pairing: bool = False
     osd: Any = None  # osd.OsdState: limits, live tok/min, ticker, widget config
     chat: Any = None  # chat.ChatManager: headless Claude chats from the widget
+    providers: Any = None  # providers.ProviderStore: other LLM providers and their keys
 
 
 # ---- HTTP ------------------------------------------------------------------------------
@@ -349,8 +350,10 @@ def create_server(
     secure_dir(home.state)
     from omniscient.group.chat import ChatManager
     from omniscient.group.osd import OsdState
+    from omniscient.group.providers import ProviderStore
 
     store = Store(db_path(home))
+    providers = ProviderStore(home.state)
     app = App(
         home=home,
         hook_token=load_or_create_hook_token(home),
@@ -363,7 +366,8 @@ def create_server(
         show_code=show_code or show_code_on_windows,
         allow_terminal_pairing=allow_terminal_pairing,
         osd=OsdState(state_dir=home.state),
-        chat=ChatManager(home, store._publish),
+        chat=ChatManager(home, store._publish, providers=providers),
+        providers=providers,
     )
     return GroupServer(app, port)
 

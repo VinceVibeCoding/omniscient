@@ -90,6 +90,8 @@ export interface Settings {
   start_daemon: boolean;
   /** The Omniscient folder in WSL (~/… or /…). */
   wsl_home: string;
+  /** The first-run assistant was finished or skipped (set by Rust, read-only here). */
+  wizard_done?: boolean;
 }
 
 export type LinkState = "connecting" | "connected" | "unpaired" | "unauthorized" | "offline";
@@ -175,6 +177,29 @@ export interface Chat {
   updated_at: string;
   /** The omnigroup session (as in /sessions) whose approvals belong to this chat. */
   session_id: string | null;
+  /** "claude-code" or the id of a saved provider. */
+  provider: string;
+}
+
+// ---- LLM providers (GET/PUT /providers) -------------------------------------
+
+export type ProviderKind = "claude-code" | "openai" | "gemini" | "anthropic" | "openai-compatible";
+
+export interface Provider {
+  id: string;
+  kind: ProviderKind;
+  label: string;
+  base_url: string;
+  model: string;
+  builtin: boolean;
+  has_key: boolean;
+  /** Last 4 characters of the key: the key itself never comes back. */
+  key_hint: string;
+}
+
+export interface ProviderList {
+  providers: Provider[];
+  default: string;
 }
 
 export interface Project {
