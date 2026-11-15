@@ -10,6 +10,8 @@ export interface SettingsHandlers {
   pairFinish(code: string): void;
   unpair(): void;
   autostart(enabled: boolean): void;
+  /** Open the first-run assistant again. */
+  wizard(): void;
 }
 
 function checkbox(name: string, checked: boolean): HTMLInputElement {
@@ -114,6 +116,12 @@ export function settingsView(
       form,
       h("h2", { class: "section-title" }, "Démarrage"),
       startupSection(autostart, on),
+      h(
+        "div",
+        { class: "card__actions" },
+        h("button", { class: "btn", type: "button", onclick: () => on.wizard() }, "Relancer l'assistant"),
+        h("span", { class: "setting__hint" }, current.wizard_done === true ? "Assistant déjà passé." : "Assistant pas encore passé."),
+      ),
       h("h2", { class: "section-title" }, "Couplage"),
       pairingForm(on),
     ),

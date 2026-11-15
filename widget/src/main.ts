@@ -330,6 +330,7 @@ const detailHandlers = {
 
 const settingsHandlers = {
   back: () => update({ view: "list" }),
+  wizard: () => void startWizard(),
   autostart: (enabled: boolean) =>
     void guarded(async () => {
       const now = await api.setAutostart(enabled);
