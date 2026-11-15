@@ -100,6 +100,7 @@ def build_argv(
     resume: str | None = None,
     max_budget_usd: float | None = None,
     fork: bool = False,
+    tools_off: bool = False,
 ) -> list[str]:
     """`fork`: resume a COPY of the session (--fork-session), so a session that is still
     open in a terminal or IDE is never written to from here."""
@@ -113,6 +114,8 @@ def build_argv(
         argv += ["--resume", resume]
         if fork:
             argv += ["--fork-session"]
+    if tools_off:  # a web page is attached: its text is untrusted, so no tool at all
+        argv += ["--tools", ""]
     if max_budget_usd is not None:
         argv += ["--max-budget-usd", f"{float(max_budget_usd):g}"]
     return argv

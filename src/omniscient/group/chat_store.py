@@ -59,6 +59,9 @@ class Chat:
     cost_usd: float | None = None
     messages: tuple[Message, ...] = ()
     provider: str = "claude-code"  # or the id of a provider saved in providers.json
+    read_only: bool = False  # a web page is attached: no tool may run in this chat
+    page_url: str | None = None
+    page_title: str | None = None
 
     def summary(self) -> dict[str, Any]:
         """The API view: no messages and no raw Claude session id (the --resume key);
@@ -72,6 +75,12 @@ class Chat:
             "updated_at": iso(self.updated_at),
             "cost_usd": self.cost_usd,
             "provider": self.provider,
+            "read_only": self.read_only,
+            "page": (
+                {"url": self.page_url, "title": self.page_title or ""}
+                if self.page_url
+                else None
+            ),
             "session_id": session_id("claude", self.claude_session_id)
             if self.claude_session_id
             else None,
@@ -144,6 +153,9 @@ def load(text: str) -> Chat:
         cost_usd=meta.get("cost_usd"),
         messages=messages,
         provider=meta.get("provider") or "claude-code",
+        read_only=meta.get("read_only") is True,
+        page_url=(meta.get("page") or {}).get("url"),
+        page_title=(meta.get("page") or {}).get("title"),
     )
 
 

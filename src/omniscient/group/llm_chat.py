@@ -61,12 +61,15 @@ def build_turns(messages: Iterable[Message]) -> list[Turn]:
     oldest end, always starting with a user turn (what every provider requires)."""
     turns: list[Turn] = []
     for m in messages:
-        if m.role not in ("user", "assistant") or not m.text.strip():
+        role = (
+            "user" if m.role == "context" else m.role
+        )  # an attached page goes with the question
+        if role not in ("user", "assistant") or not m.text.strip():
             continue
-        if turns and turns[-1].role == m.role:
-            turns[-1] = Turn(m.role, f"{turns[-1].text}\n\n{m.text}")
+        if turns and turns[-1].role == role:
+            turns[-1] = Turn(role, f"{turns[-1].text}\n\n{m.text}")
         else:
-            turns.append(Turn(m.role, m.text))
+            turns.append(Turn(role, m.text))
     while turns and (
         turns[0].role != "user" or sum(len(t.text) for t in turns) > MAX_HISTORY_CHARS
     ):
