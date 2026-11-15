@@ -1,0 +1,21 @@
+{
+  "name": "omnigroup-extension",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Omnigroup for Chrome and Edge: chat with your local Omniscient daemon in a side panel, with the page you are on as context (per-site consent).",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "tsc -p . && node --test \"build/test/*.test.js\"",
+    "build": "tsc -p . && node build.mjs"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.3.7",
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

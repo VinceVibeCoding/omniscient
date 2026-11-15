@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Omnigroup</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <span class="title">Omnigroup</span>
+      <span id="link" class="link" role="img" aria-label="Démon"></span>
+    </header>
+
+    <section id="pair" class="card" hidden>
+      <h2>Coupler l'extension</h2>
+      <p>Même code que pour le widget : il s'affiche sur le bureau Windows (2 minutes, 5 essais).</p>
+      <label class="field">Adresse du démon <input id="daemon" spellcheck="false" autocomplete="off" /></label>
+      <button id="pair-start" type="button">1. Demander un code</button>
+      <label class="field">2. Code affiché <input id="pair-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456" /></label>
+      <button id="pair-finish" type="button" class="primary">Coupler</button>
+    </section>
+
+    <main id="main" hidden>
+      <section id="site" class="card" aria-live="polite"></section>
+      <section class="card controls">
+        <label class="field">Fournisseur IA <select id="provider"></select></label>
+        <label class="field" id="project-row">Projet <select id="project"></select></label>
+      </section>
+      <ol id="log" class="log" aria-label="Conversation" aria-live="polite"></ol>
+      <form id="composer" class="composer">
+        <label class="check" id="attach-row"><input type="checkbox" id="attach" /> <span id="attach-label">Joindre cette page</span></label>
+        <textarea id="text" rows="3" placeholder="Demander quelque chose…" aria-label="Message"></textarea>
+        <div class="row">
+          <button type="button" id="new-chat" class="ghost">Nouvelle conversation</button>
+          <button type="submit" id="send" class="primary">Envoyer</button>
+        </div>
+      </form>
+    </main>
+
+    <p id="status" class="status" role="status"></p>
+    <script type="module" src="panel.js"></script>
+  </body>
+</html>

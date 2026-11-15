@@ -22,13 +22,19 @@ news ──▶ ideas ──▶ council (debate + score) ──▶ game plan ─�
 
 | Tool | Needed for | Required? |
 |---|---|---|
-| [uv](https://docs.astral.sh/uv/) and Python 3.12+ | installing and running | yes |
+| [uv](https://docs.astral.sh/uv/) and Python 3.12+ (tested on 3.12 and 3.14) | installing and running | yes |
 | git | project registry, prototypes | yes |
 | herdr | the studio (ateliers are herdr workspaces) | for `studio` |
 | [Claude Code](https://claude.com/claude-code) | the default atelier agent | for ateliers |
 | [AgentRun](https://pypi.org/project/parcha-agentrun/) server on `127.0.0.1:7340` + Docker | the factory loops (news, ideas, council, plan, builds) | for the factory |
 | Anthropic API key | the factory loops (AgentRun calls the models) | for the factory |
 | Slack app (Socket Mode) | daily digest, buttons, debate threads | optional |
+| Windows 10/11 x64 (WebView2, installed by the installer if missing) | the Omnigroup widget | for the widget |
+| Chrome or Edge 116+ | the Omnigroup browser extension ([extension/README.md](extension/README.md)) | optional |
+| Another LLM provider key (Gemini, OpenAI, Anthropic API) or a local model (Ollama, LM Studio) | chatting without Claude Code | optional |
+
+Node, TypeScript and Rust are only needed to build the widget or the extension from source:
+people who install Omniscient get built files.
 
 `omniscient init` checks these for you and never installs anything. Linux and WSL2 are
 the tested platforms; `scripts/install-docker-wsl.sh` and `scripts/agentrun-up.sh` help on WSL2.
