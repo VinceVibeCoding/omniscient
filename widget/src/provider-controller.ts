@@ -4,8 +4,16 @@
 import * as api from "./api-providers";
 import type { ProviderList } from "./types";
 
+/** What the add form shows: survives re-renders. The API key is deliberately not here. */
+export interface AddDraft {
+  kind: NewProvider["kind"];
+  label: string;
+  base_url: string;
+}
+
 export interface ProviderModel {
   list: ProviderList;
+  draft: AddDraft;
   /** Models the last test found, by provider id. */
   models: Readonly<Record<string, readonly string[]>>;
   busy: boolean;
@@ -25,6 +33,7 @@ export interface ProviderHandlers {
   remove(id: string): void;
   makeDefault(id: string): void;
   chooseModel(id: string, model: string): void;
+  setDraft(patch: Partial<AddDraft>): void;
 }
 
 const EMPTY: ProviderList = { providers: [], default: "claude-code" };
@@ -37,7 +46,13 @@ export function freshId(kind: string, taken: readonly string[]): string {
 }
 
 export class ProviderController {
-  private state: ProviderModel = { list: EMPTY, models: {}, busy: false, notice: "" };
+  private state: ProviderModel = {
+    list: EMPTY,
+    draft: { kind: "gemini", label: "", base_url: "" },
+    models: {},
+    busy: false,
+    notice: "",
+  };
   readonly handlers: ProviderHandlers;
 
   constructor(
@@ -50,6 +65,9 @@ export class ProviderController {
       remove: (id) => void this.run(async () => this.set({ list: await api.removeProvider(id) })),
       makeDefault: (id) => void this.makeDefault(id),
       chooseModel: (id, model) => void this.run(async () => this.set({ list: await api.saveProvider(id, { model }) })),
+      setDraft: (patch) => {
+        this.state = { ...this.state, draft: { ...this.state.draft, ...patch } }; // no re-render while typing
+      },
     };
   }
 
@@ -93,7 +111,7 @@ export class ProviderController {
     if (form.kind === "openai-compatible" && !form.api_key) delete patch.api_key; // local models need none
     this.set({ busy: true, notice: "" });
     await this.run(async () => {
-      this.set({ list: await api.saveProvider(id, patch) });
+      this.set({ list: await api.saveProvider(id, patch), draft: { kind: form.kind, label: "", base_url: "" } });
       await this.test(id);
     });
     this.set({ busy: false });

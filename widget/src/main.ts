@@ -258,9 +258,10 @@ async function openSettings(): Promise<void> {
 
 /** First run: the assistant (connect → AI provider → look) in the expanded panel. */
 async function startWizard(): Promise<void> {
-  await providers.load();
   await guarded(() => api.setWindowMode("panel"));
-  update({ view: "wizard", wizardStep: state.link.state === "connected" ? 1 : 0 });
+  const link = (await guarded(api.linkStatus)) ?? state.link;
+  update({ view: "wizard", wizardStep: link.state === "connected" ? 1 : 0 });
+  await providers.load();
 }
 
 const wizardHandlers = {
@@ -463,9 +464,14 @@ async function main(): Promise<void> {
   await listen<string>("group://open", (e) => (e.payload ? void openSession(e.payload) : void expand()));
   const settings = await guarded(api.getSettings);
   if (settings) state = { ...state, settings };
+  // First run: the assistant opens as soon as the settings are known, without waiting for
+  // the daemon link (which may take a few seconds, or never come when nothing is paired).
+  const wizard = settings && settings.wizard_done !== true ? startWizard() : Promise.resolve();
   const link = await guarded(api.linkStatus);
   if (link) await onLink(link);
-  if (state.settings && state.settings.wizard_done !== true) await startWizard();
+  await wizard;
 }
 
-void main();
+main().catch((err: unknown) => {
+  console.error("omnigroup: start-up failed", err);
+});

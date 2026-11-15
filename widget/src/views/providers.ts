@@ -56,11 +56,17 @@ function row(p: Provider, m: ProviderModel, on: ProviderHandlers): HTMLElement {
 }
 
 function addForm(m: ProviderModel, on: ProviderHandlers): HTMLElement {
+  const local = m.draft.kind === "openai-compatible";
   const kind = h("select", { name: "kind", "aria-label": "Fournisseur" });
-  for (const k of KIND_CHOICES) kind.append(h("option", { value: k.id }, k.label));
-  const hint = h("span", { class: "setting__hint" }, KIND_CHOICES[0]?.hint ?? "");
-  const url = h("input", { name: "base_url", placeholder: "http://127.0.0.1:11434/v1", spellcheck: "false", autocomplete: "off" });
-  const urlField = h("label", { class: "setting", hidden: true }, h("span", { class: "setting__label" }, "Adresse du serveur"), url);
+  for (const k of KIND_CHOICES) {
+    const option = h("option", { value: k.id }, k.label);
+    option.selected = k.id === m.draft.kind;
+    kind.append(option);
+  }
+  const hint = h("span", { class: "setting__hint" }, KIND_CHOICES.find((k) => k.id === m.draft.kind)?.hint ?? "");
+  const url = h("input", { name: "base_url", value: m.draft.base_url, placeholder: "http://127.0.0.1:11434/v1", spellcheck: "false", autocomplete: "off" });
+  url.addEventListener("input", () => on.setDraft({ base_url: url.value }));
+  const urlField = h("label", { class: "setting", hidden: !local }, h("span", { class: "setting__label" }, "Adresse du serveur"), url);
   const key = h("input", {
     name: "api_key",
     type: "password",
@@ -69,13 +75,15 @@ function addForm(m: ProviderModel, on: ProviderHandlers): HTMLElement {
     placeholder: "Collez la clé ici",
     "aria-label": "Clé API",
   });
-  const keyLabel = h("span", { class: "setting__label" }, "Clé API");
-  const label = h("input", { name: "label", placeholder: "Nom (facultatif)", maxlength: 60, autocomplete: "off" });
+  const keyLabel = h("span", { class: "setting__label" }, local ? "Clé API (facultative en local)" : "Clé API");
+  const label = h("input", { name: "label", value: m.draft.label, placeholder: "Nom (facultatif)", maxlength: 60, autocomplete: "off" });
+  label.addEventListener("input", () => on.setDraft({ label: label.value }));
   kind.addEventListener("change", () => {
-    const local = kind.value === "openai-compatible";
-    urlField.hidden = !local;
-    keyLabel.textContent = local ? "Clé API (facultative en local)" : "Clé API";
+    const isLocal = kind.value === "openai-compatible";
+    urlField.hidden = !isLocal;
+    keyLabel.textContent = isLocal ? "Clé API (facultative en local)" : "Clé API";
     hint.textContent = KIND_CHOICES.find((k) => k.id === kind.value)?.hint ?? "";
+    on.setDraft({ kind: kind.value as NewProvider["kind"] });
   });
   const form = h(
     "form",

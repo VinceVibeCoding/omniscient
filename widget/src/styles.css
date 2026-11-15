@@ -30,6 +30,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* beats display:flex rules such as .setting */
 
 /* The window is transparent: only the pill / panel paint a background. */
 html, body {
