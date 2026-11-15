@@ -93,7 +93,7 @@ function home(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
     m.provider === "claude-code" ? projectPicker(m, on) : null,
     composer({
       key: "chat-new",
-      placeholder: "Demander quelque chose à Claude…",
+      placeholder: m.provider === "claude-code" ? "Demander quelque chose à Claude…" : "Écrire votre message…",
       label: "Premier message",
       draft: m.draft,
       busy: m.busy || (m.provider === "claude-code" && m.projects.length === 0),
@@ -110,6 +110,12 @@ function home(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
       ? h("p", { class: "empty" }, "Aucune conversation pour l'instant.")
       : h("ul", { class: "list" }, ...m.chats.map((c) => chatRow(c, on))),
   ];
+}
+
+/** Who answers in the active chat: « Claude », or the provider's name. */
+function assistantName(m: ChatModel): string {
+  const id = m.active?.provider ?? "claude-code";
+  return id === "claude-code" ? "Claude" : (m.providers.find((p) => p.id === id)?.label ?? id);
 }
 
 /** « omniscient » for a Claude Code chat, the provider's name for a plain one. */
@@ -130,11 +136,11 @@ function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (
       running ? h("button", { class: "btn btn--danger", type: "button", onclick: on.stop }, "Arrêter") : null,
     ),
     m.active ? h("p", { class: "meta" }, `${clip(m.active.title, 80)} · ${conversationWhere(m)}`) : null,
-    messageLog(m.messages, "Envoi en cours…", "chat"),
+    messageLog(m.messages, "Envoi en cours…", "chat", assistantName(m)),
     approvals,
     composer({
       key: `chat-${m.activeId ?? ""}`,
-      placeholder: running ? "Claude répond… (vous pouvez préparer la suite)" : "Répondre…",
+      placeholder: running ? `${assistantName(m)} répond… (vous pouvez préparer la suite)` : "Répondre…",
       label: "Message à Claude",
       draft: m.draft,
       busy: m.busy || running,
