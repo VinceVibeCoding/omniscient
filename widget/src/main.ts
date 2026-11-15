@@ -3,8 +3,10 @@ import { listen } from "@tauri-apps/api/event";
 import * as api from "./api";
 import * as osdApi from "./api-osd";
 import { ChatController } from "./chat-controller";
+import { AccountController } from "./account-controller";
 import * as providerApi from "./api-providers";
 import { ProviderController } from "./provider-controller";
+import { accountSection } from "./views/account";
 import { providersSection } from "./views/providers";
 import { wizardView } from "./views/wizard";
 import { h, replace } from "./dom";
@@ -66,6 +68,11 @@ let refreshTimer: number | undefined;
 let transcriptTimer: number | undefined;
 let toastTimer: number | undefined;
 let sessionDraft = "";
+
+const account = new AccountController(
+  () => (state.view === "settings" || state.view === "wizard") && render(),
+  (err) => toast(api.errorText(err)),
+);
 
 const providers = new ProviderController(
   () => (state.view === "settings" || state.view === "wizard") && render(),
@@ -161,7 +168,7 @@ function viewFor(s: AppState): HTMLElement {
       return settingsPanel(s);
     case "wizard":
       return wizardView(
-        { step: s.wizardStep, link: s.link, providers: providers.view, skin: s.config?.config.theme ?? "default" },
+        { step: s.wizardStep, link: s.link, providers: providers.view, account: account.view, skin: s.config?.config.theme ?? "default" },
         wizardHandlers,
       );
     case "chat":
@@ -175,6 +182,7 @@ function settingsPanel(s: AppState): HTMLElement {
   const panel = settingsView({ ...DEFAULT_SETTINGS, ...s.settings }, s.link, settingsHandlers, s.autostart);
   const body = panel.querySelector(".panel__body");
   body?.prepend(h("h2", { class: "section-title" }, "Fournisseurs IA"), providersSection(providers.view, providers.handlers));
+  body?.prepend(h("h2", { class: "section-title" }, "Compte"), accountSection(account.view, account.handlers));
   body?.prepend(displaySection(s.config, changeConfig));
   return withTabs(panel, tabBar("settings", selectTab));
 }
@@ -281,6 +289,7 @@ async function openSettings(): Promise<void> {
   const autostart = await guarded(api.getAutostart);
   update({ view: "settings", settings: settings ?? state.settings, autostart: autostart ?? null });
   void providers.load();
+  void account.load();
 }
 
 /** First run: the assistant (connect → AI provider → look) in the expanded panel. */
@@ -289,6 +298,7 @@ async function startWizard(): Promise<void> {
   const link = (await whenReady(api.linkStatus)) ?? state.link;
   update({ view: "wizard", wizardStep: link.state === "connected" ? 1 : 0 });
   await providers.load();
+  await account.load();
 }
 
 const wizardHandlers = {
@@ -313,6 +323,7 @@ const wizardHandlers = {
       }),
   },
   providers: providers.handlers,
+  account: account.handlers,
   setSkin: (skin: Skin) => changeConfig({ theme: skin }),
 };
 
@@ -422,6 +433,8 @@ function onStreamEvent(event: StreamEvent): void {
       return onOsd(event.data);
     case "config":
       return applyConfig(osdApi.toConfigView(event.data));
+    case "auth":
+      return account.onEvent(event.data);
     case "chat": {
       const chatEvent = osdApi.toChatEvent(event.data);
       if (chatEvent) chat.onEvent(chatEvent);

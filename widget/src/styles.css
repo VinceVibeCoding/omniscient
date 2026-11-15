@@ -307,3 +307,11 @@ html[data-theme="dashboard"] .ustrip__pct { font-size: 13px; }
 .wizard__skin { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
 .wizard__skin small { color: var(--muted); }
 .wizard__nav { padding: 8px 12px; justify-content: flex-end; }
+
+/* ---- account (views/account.ts) ---- */
+.acct { display: flex; flex-direction: column; gap: 10px; }
+.acct__provider { width: 100%; justify-content: center; }
+.acct__or { text-align: center; margin: 2px 0; }
+.acct__form { border-top: 1px solid var(--border); padding-top: 10px; }
+.acct__switch { align-self: flex-start; }
+.notice--error { border-color: var(--error); color: var(--error); }
