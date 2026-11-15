@@ -17,6 +17,7 @@ import { osdView } from "./views/osd";
 import { settingsView } from "./views/settings";
 import { type Tab, tabBar, withTabs } from "./views/tabs";
 import { transcriptSection } from "./views/transcript";
+import { STRIP_CLASS, usageStrip, withUsageStrip } from "./views/usage-strip";
 
 type View = "osd" | "list" | "detail" | "settings" | "chat";
 
@@ -88,8 +89,18 @@ function render(): void {
   deferredRender = false;
   document.body.dataset.view = state.view;
   const kept = keepUiState(app);
-  replace(app, viewFor(state));
+  const view = viewFor(state);
+  replace(app, state.view === "osd" ? view : withUsageStrip(view, strip()));
   restoreUiState(app, kept);
+}
+
+function strip(): HTMLElement {
+  return usageStrip(state.osd, state.config?.config.theme ?? "default");
+}
+
+/** Panel open: refresh only the usage strip (forms and scroll positions stay as they are). */
+function refreshStrip(): void {
+  app.querySelector(`.${STRIP_CLASS}`)?.replaceWith(strip());
 }
 
 function selectTab(tab: Tab): void {
@@ -291,7 +302,10 @@ function onOsd(data: unknown): void {
   const osd = osdApi.toOsd(data);
   if (!osd) return;
   if (state.view === "osd") update({ osd });
-  else state = { ...state, osd }; // no re-render of an open panel every 2 s
+  else {
+    state = { ...state, osd }; // no full re-render of an open panel every 2 s
+    refreshStrip();
+  }
 }
 
 function onStreamEvent(event: StreamEvent): void {

@@ -259,3 +259,29 @@ body[data-view="osd"] #toast { display: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---- usage strip at the top of the panel (views/usage-strip.ts) ----------- */
+.ustrip {
+  margin: 8px 12px 6px; padding: 7px 10px; border-radius: calc(var(--radius) - 6px);
+  border: 1px solid var(--border); background: color-mix(in srgb, var(--background) 55%, transparent);
+  display: flex; flex-direction: column; gap: 4px; font-size: 11.5px;
+}
+.ustrip__rows { display: flex; flex-direction: column; gap: 3px; }
+.ustrip__row { display: grid; grid-template-columns: 56px 1fr 36px auto; align-items: center; gap: 8px; }
+.ustrip__label { color: var(--muted); }
+.ustrip__track { height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 22%, transparent); overflow: hidden; }
+.ustrip__fill { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width 300ms ease; }
+.ustrip__row--warn .ustrip__fill { background: var(--warning); }
+.ustrip__row--high .ustrip__fill { background: var(--error); }
+.ustrip__pct { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ustrip__reset { color: var(--muted); font-size: 11px; min-width: 64px; text-align: right; }
+.ustrip__ascii { font-family: "Cascadia Code", ui-monospace, monospace; color: var(--muted); letter-spacing: -0.5px; overflow: hidden; white-space: nowrap; }
+.ustrip__ascii-fill { color: var(--primary); }
+.ustrip__row--warn .ustrip__ascii-fill { color: var(--warning); }
+.ustrip__row--high .ustrip__ascii-fill { color: var(--error); }
+.ustrip__meta { display: flex; gap: 10px; color: var(--muted); font-size: 11px; flex-wrap: wrap; }
+.ustrip__live { color: var(--success); }
+.ustrip__hint { margin: 0; color: var(--muted); }
+html[data-theme="terminal"] .ustrip__label { text-transform: lowercase; }
+html[data-theme="dashboard"] .ustrip__label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 10.5px; }
+html[data-theme="dashboard"] .ustrip__pct { font-size: 13px; }
