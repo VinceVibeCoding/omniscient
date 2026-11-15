@@ -173,6 +173,8 @@ export interface Chat {
   title: string;
   state: ChatState;
   updated_at: string;
+  /** The omnigroup session (as in /sessions) whose approvals belong to this chat. */
+  session_id: string | null;
 }
 
 export interface Project {

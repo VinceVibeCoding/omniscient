@@ -1,6 +1,6 @@
 // Chat tab (mode A): talk to Claude Code from the widget. The daemon runs a headless
-// Claude session in the chosen project and streams its replies; tool permissions still
-// arrive as approvals in the Sessions tab.
+// Claude session in the chosen project and streams its replies; its tool permissions are
+// shown right above the reply box (and in the Sessions tab), answered in place.
 import { h } from "../dom";
 import { age, clip } from "../format";
 import type { Chat, ChatMessage, ChatState, Project } from "../types";
@@ -84,7 +84,7 @@ function home(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
   ];
 }
 
-function conversation(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
+function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (HTMLElement | null)[] {
   const running = m.active?.state === "running";
   return [
     h(
@@ -96,6 +96,7 @@ function conversation(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
     ),
     m.active ? h("p", { class: "meta" }, `${clip(m.active.title, 80)} · ${m.active.project}`) : null,
     messageLog(m.messages, "Envoi en cours…", "chat"),
+    approvals,
     composer({
       key: `chat-${m.activeId ?? ""}`,
       placeholder: running ? "Claude répond… (vous pouvez préparer la suite)" : "Répondre…",
@@ -108,7 +109,8 @@ function conversation(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
   ];
 }
 
-export function chatView(m: ChatModel, on: ChatHandlers, head: HTMLElement): HTMLElement {
-  const body = m.activeId ? conversation(m, on) : home(m, on);
+/** `approvals`: the chat session's open permission cards (main.ts refreshes it in place). */
+export function chatView(m: ChatModel, on: ChatHandlers, head: HTMLElement, approvals: HTMLElement): HTMLElement {
+  const body = m.activeId ? conversation(m, on, approvals) : home(m, on);
   return h("section", { class: "panel panel--chat", "aria-label": "Chat" }, head, h("div", { class: "panel__body chat" }, ...body));
 }

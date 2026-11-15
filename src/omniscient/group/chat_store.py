@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from omniscient.group.credentials import write_atomic
-from omniscient.group.models import iso
+from omniscient.group.models import iso, session_id
 from omniscient.home import Home
 from omniscient.registry.core import RegistryError, load_registry
 
@@ -60,7 +60,9 @@ class Chat:
     messages: tuple[Message, ...] = ()
 
     def summary(self) -> dict[str, Any]:
-        """The API view: no Claude session id, no messages."""
+        """The API view: no messages and no raw Claude session id (the --resume key);
+        `session_id` is the omnigroup session id the widget already gets from /sessions,
+        so it can show that session's approvals inside the chat."""
         return {
             "chat_id": self.chat_id,
             "project": self.project,
@@ -68,6 +70,9 @@ class Chat:
             "state": self.state,
             "updated_at": iso(self.updated_at),
             "cost_usd": self.cost_usd,
+            "session_id": session_id("claude", self.claude_session_id)
+            if self.claude_session_id
+            else None,
         }
 
     def with_message(self, message: Message) -> Chat:

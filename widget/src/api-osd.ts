@@ -127,6 +127,7 @@ function toChat(raw: unknown): Chat | null {
     title: str(raw.title, "Conversation"),
     state: oneOf(raw.state, CHAT_STATES, "idle"),
     updated_at: str(raw.updated_at),
+    session_id: typeof raw.session_id === "string" && raw.session_id !== "" ? raw.session_id : null,
   };
 }
 

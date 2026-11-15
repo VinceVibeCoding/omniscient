@@ -285,3 +285,7 @@ body[data-view="osd"] #toast { display: none; }
 html[data-theme="terminal"] .ustrip__label { text-transform: lowercase; }
 html[data-theme="dashboard"] .ustrip__label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 10.5px; }
 html[data-theme="dashboard"] .ustrip__pct { font-size: 13px; }
+
+/* Permission cards of a widget chat, right above its reply box. */
+.chat__approvals:empty { display: none; }
+.chat__approvals { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
