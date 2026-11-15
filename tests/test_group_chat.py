@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import stat
 import threading
@@ -215,6 +216,159 @@ def test_a_failed_fork_never_resumes_the_original(home: Home, tmp_path: Path) ->
     mgr.send(chat_id, "again")
     mgr.join(chat_id, 5)
     assert "--resume" not in list(runner.specs[1].argv)
+
+
+class FakeLlm:
+    """Stands in for llm_chat.complete: records what each turn was given."""
+
+    def __init__(
+        self, reply: str = "Salut depuis Gemini", fail: str | None = None
+    ) -> None:
+        self.calls: list[tuple[Any, Any, list]] = []
+        self.reply, self.fail = reply, fail
+
+    def __call__(self, provider: Any, key: Any, turns: list, **kw: Any) -> str:
+        from omniscient.group.llm_chat import LlmError
+
+        self.calls.append((provider, key, list(turns)))
+        if self.fail:
+            raise LlmError(self.fail)
+        return self.reply
+
+
+KEY = "sk-test-0123456789abcdefghij"
+
+
+def with_gemini(
+    home: Home, **kw: Any
+) -> tuple[ch.ChatManager, FakeLlm, FakeRunner, list]:
+    from omniscient.group.providers import ProviderStore
+
+    events: list = []
+    llm, runner = FakeLlm(**kw), FakeRunner()
+    store = ProviderStore(
+        home.state, resolver=lambda h, p, *a, **k: [(2, 1, 6, "", ("93.184.216.34", p))]
+    )
+    store.upsert("gem", {"kind": "gemini", "model": "gemini-x", "api_key": KEY})
+    mgr = manager(home, runner, events, providers=store, llm=llm)
+    return mgr, llm, runner, events
+
+
+def test_a_chat_can_use_another_provider_without_claude_code(home: Home) -> None:
+    mgr, llm, runner, events = with_gemini(home)
+    chat_id = mgr.create(None, "Bonjour", provider="gem")
+    mgr.join(chat_id, 5)
+    assert runner.specs == []  # Claude Code never ran
+    provider, key, turns = llm.calls[0]
+    assert (
+        provider.kind == "gemini"
+        and key == KEY
+        and [t.text for t in turns] == ["Bonjour"]
+    )
+    _, detail = mgr.get(chat_id)
+    assert [m["role"] for m in detail["messages"]] == ["user", "assistant"]
+    assert detail["messages"][1]["text"] == "Salut depuis Gemini"
+    assert detail["chat"]["provider"] == "gem" and detail["chat"]["state"] == "idle"
+    assert KEY not in json.dumps(detail)
+    kinds = [d["kind"] for k, d in events if k == "chat"]
+    assert "text" in kinds and kinds[-1] == "state"
+
+
+def test_follow_ups_send_the_whole_conversation(home: Home) -> None:
+    mgr, llm, _, _ = with_gemini(home)
+    chat_id = mgr.create(None, "un", provider="gem")
+    mgr.join(chat_id, 5)
+    mgr.send(chat_id, "deux")
+    mgr.join(chat_id, 5)
+    roles = [t.role for t in llm.calls[1][2]]
+    assert roles == ["user", "assistant", "user"]
+
+
+def test_provider_chats_survive_a_restart_and_keep_their_provider(home: Home) -> None:
+    mgr, _, _, _ = with_gemini(home)
+    chat_id = mgr.create(None, "un", provider="gem")
+    mgr.join(chat_id, 5)
+    again = manager(home, FakeRunner(), providers=mgr._providers, llm=FakeLlm())
+    assert again.get(chat_id)[1]["chat"]["provider"] == "gem"
+    legacy = {
+        "chat": {
+            "chat_id": chat_id, "project": "p", "title": "t", "state": "idle",
+            "created_at": "2026-11-14T10:00:00+00:00",
+            "updated_at": "2026-11-14T10:00:00+00:00",
+        },
+        "messages": [],
+    }  # fmt: skip
+    old_style = ch.load(json.dumps(legacy))
+    assert old_style.provider == "claude-code"
+
+
+def test_provider_errors_show_up_as_a_chat_error(home: Home) -> None:
+    mgr, _, _, _ = with_gemini(home, fail="Clé refusée par Gemini")
+    chat_id = mgr.create(None, "x", provider="gem")
+    mgr.join(chat_id, 5)
+    _, detail = mgr.get(chat_id)
+    assert detail["chat"]["state"] == "error"
+    assert detail["messages"][-1] == {
+        **detail["messages"][-1],
+        "role": "error",
+        "text": "Clé refusée par Gemini",
+    }
+
+
+def test_default_provider_is_used_when_none_is_named(home: Home) -> None:
+    mgr, llm, runner, _ = with_gemini(home)
+    mgr._providers.upsert("gem", {"default": True})
+    chat_id = mgr.create(None, "x")
+    mgr.join(chat_id, 5)
+    assert llm.calls and not runner.specs
+
+
+def test_claude_code_still_needs_a_project(home: Home) -> None:
+    mgr, _, _, _ = with_gemini(home)
+    with pytest.raises(ch.ChatError) as err:
+        mgr.create(None, "x", provider="claude-code")
+    assert err.value.status == 400
+
+
+def test_unknown_removed_or_keyless_providers_are_refused(home: Home) -> None:
+    mgr, _, _, _ = with_gemini(home)
+    with pytest.raises(ch.ChatError) as err:
+        mgr.create(None, "x", provider="nope")
+    assert err.value.status == 404
+    chat_id = mgr.create(None, "x", provider="gem")
+    mgr.join(chat_id, 5)
+    mgr._providers.remove("gem")
+    mgr.send(chat_id, "encore")
+    mgr.join(chat_id, 5)
+    _, detail = mgr.get(chat_id)
+    assert (
+        detail["chat"]["state"] == "error"
+        and "retiré" in detail["messages"][-1]["text"]
+    )
+
+
+def test_stopping_a_provider_turn_drops_its_reply(home: Home) -> None:
+    gate = threading.Event()
+
+    class Slow(FakeLlm):
+        def __call__(self, *a: Any, **k: Any) -> str:
+            gate.wait(5)
+            return "trop tard"
+
+    from omniscient.group.providers import ProviderStore
+
+    store = ProviderStore(
+        home.state, resolver=lambda h, p, *a, **k: [(2, 1, 6, "", ("93.184.216.34", p))]
+    )
+    store.upsert("gem", {"kind": "gemini", "model": "m", "api_key": KEY})
+    mgr = manager(home, FakeRunner(), providers=store, llm=Slow())
+    chat_id = mgr.create(None, "x", provider="gem")
+    assert mgr.stop(chat_id) is True
+    gate.set()
+    mgr.join(chat_id, 5)
+    _, detail = mgr.get(chat_id)
+    assert detail["chat"]["state"] == "idle"
+    assert [m["role"] for m in detail["messages"]] == ["user"]
 
 
 def test_validation_errors(home: Home) -> None:
