@@ -3,12 +3,16 @@ import { listen } from "@tauri-apps/api/event";
 import * as api from "./api";
 import * as osdApi from "./api-osd";
 import { ChatController } from "./chat-controller";
+import * as providerApi from "./api-providers";
+import { ProviderController } from "./provider-controller";
+import { providersSection } from "./views/providers";
+import { wizardView } from "./views/wizard";
 import { h, replace } from "./dom";
 import { installDrag } from "./drag";
 import { installResize } from "./resize";
 import { keepUiState, restoreUiState } from "./keep";
 import { applySkin, applyTheme } from "./theme";
-import type { ConfigPatch, ConfigView, LinkStatus, Osd, Pending, Session, SessionDetail, Settings, Step, StreamEvent, Transcript, Usage, WidgetConfig } from "./types";
+import type { ConfigPatch, Skin, ConfigView, LinkStatus, Osd, Pending, Session, SessionDetail, Settings, Step, StreamEvent, Transcript, Usage, WidgetConfig } from "./types";
 import { chatView } from "./views/chat";
 import { detailView } from "./views/detail";
 import { displaySection } from "./views/display";
@@ -20,7 +24,7 @@ import { transcriptSection } from "./views/transcript";
 import { pendingCard } from "./views/pending";
 import { STRIP_CLASS, usageStrip, withUsageStrip } from "./views/usage-strip";
 
-type View = "osd" | "list" | "detail" | "settings" | "chat";
+type View = "osd" | "list" | "detail" | "settings" | "chat" | "wizard";
 
 interface AppState {
   readonly view: View;
@@ -32,6 +36,7 @@ interface AppState {
   readonly osd: Osd | null;
   readonly config: ConfigView | null;
   readonly autostart: boolean | null;
+  readonly wizardStep: number;
 }
 
 const REFRESH_DEBOUNCE_MS = 250;
@@ -54,12 +59,18 @@ let state: AppState = {
   osd: null,
   config: null,
   autostart: null,
+  wizardStep: 0,
 };
 let deferredRender = false;
 let refreshTimer: number | undefined;
 let transcriptTimer: number | undefined;
 let toastTimer: number | undefined;
 let sessionDraft = "";
+
+const providers = new ProviderController(
+  () => (state.view === "settings" || state.view === "wizard") && render(),
+  (err) => toast(api.errorText(err)),
+);
 
 const chat = new ChatController(
   () => state.view === "chat" && render(),
@@ -141,6 +152,11 @@ function viewFor(s: AppState): HTMLElement {
       return withTabs(listView(sessions, s.link, nav), tabBar("sessions", selectTab));
     case "settings":
       return settingsPanel(s);
+    case "wizard":
+      return wizardView(
+        { step: s.wizardStep, link: s.link, providers: providers.view, skin: s.config?.config.theme ?? "default" },
+        wizardHandlers,
+      );
     case "chat":
       return withTabs(chatView(chat.view, chat.handlers, header(s.link, nav, "Chat"), chatApprovals()), tabBar("chat", selectTab));
     default:
@@ -150,7 +166,9 @@ function viewFor(s: AppState): HTMLElement {
 
 function settingsPanel(s: AppState): HTMLElement {
   const panel = settingsView({ ...DEFAULT_SETTINGS, ...s.settings }, s.link, settingsHandlers, s.autostart);
-  panel.querySelector(".panel__body")?.prepend(displaySection(s.config, changeConfig));
+  const body = panel.querySelector(".panel__body");
+  body?.prepend(h("h2", { class: "section-title" }, "Fournisseurs IA"), providersSection(providers.view, providers.handlers));
+  body?.prepend(displaySection(s.config, changeConfig));
   return withTabs(panel, tabBar("settings", selectTab));
 }
 
@@ -235,7 +253,40 @@ async function openSettings(): Promise<void> {
   const settings = await guarded(api.getSettings);
   const autostart = await guarded(api.getAutostart);
   update({ view: "settings", settings: settings ?? state.settings, autostart: autostart ?? null });
+  void providers.load();
 }
+
+/** First run: the assistant (connect → AI provider → look) in the expanded panel. */
+async function startWizard(): Promise<void> {
+  await providers.load();
+  await guarded(() => api.setWindowMode("panel"));
+  update({ view: "wizard", wizardStep: state.link.state === "connected" ? 1 : 0 });
+}
+
+const wizardHandlers = {
+  go: (step: number) => update({ wizardStep: step }),
+  finish: () =>
+    void guarded(async () => {
+      await providerApi.finishWizard();
+      update({ view: state.link.state === "connected" ? "list" : "settings", settings: state.settings && { ...state.settings, wizard_done: true } });
+    }),
+  pair: {
+    pairStart: () => settingsHandlers.pairStart(),
+    unpair: () => settingsHandlers.unpair(),
+    pairFinish: (code: string) =>
+      void guarded(async () => {
+        if (!/^[0-9]{6}$/.test(code)) {
+          toast("Le code de couplage fait 6 chiffres.");
+          return;
+        }
+        toast(await api.pairFinish(code));
+        (document.activeElement as HTMLElement | null)?.blur();
+        render(); // stays in the assistant: the link event moves the step forward
+      }),
+  },
+  providers: providers.handlers,
+  setSkin: (skin: Skin) => changeConfig({ theme: skin }),
+};
 
 function applyConfig(view: ConfigView | null): void {
   if (!view) return;
@@ -414,6 +465,7 @@ async function main(): Promise<void> {
   if (settings) state = { ...state, settings };
   const link = await guarded(api.linkStatus);
   if (link) await onLink(link);
+  if (state.settings && state.settings.wizard_done !== true) await startWizard();
 }
 
 void main();

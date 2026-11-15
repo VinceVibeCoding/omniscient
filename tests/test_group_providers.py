@@ -87,6 +87,15 @@ def test_validation_of_ids_kinds_models_and_keys(store: pv.ProviderStore) -> Non
     assert store.listing()["providers"][1:] == []
 
 
+def test_the_model_can_be_chosen_after_the_key_is_tested(
+    store: pv.ProviderStore,
+) -> None:
+    saved = store.upsert("g", {"kind": "gemini", "api_key": KEY})
+    assert saved["model"] == "" and saved["has_key"] is True
+    assert store.upsert("g", {"model": "gemini-x"})["model"] == "gemini-x"
+    assert store.get("g")[1] == KEY
+
+
 def test_local_models_need_no_key(store: pv.ProviderStore) -> None:
     saved = store.upsert(
         "ollama",

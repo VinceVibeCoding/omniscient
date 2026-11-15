@@ -221,6 +221,30 @@ utile Copilot (`sessionId` en camelCase, pas de `session_id`) :
   rapporte l'événement : une seule fois) ;
 - sinon il le rapporte comme session Copilot, en suivi seulement (pas de décision).
 
+## Fournisseurs IA (chat du widget)
+
+Claude Code reste le moteur par défaut du chat : il agit dans un projet, avec ses outils et
+ses autorisations. Quelqu'un qui n'a qu'une clé Gemini, OpenAI ou Anthropic (ou un serveur
+local compatible OpenAI, comme Ollama ou LM Studio) peut l'ajouter dans **Réglages ›
+Fournisseurs IA** (ou à l'assistant du premier lancement) et discuter avec : un simple
+échange, **sans outils**, une requête par tour avec l'historique (plafonné).
+
+- **Clés.** Elles vivent dans `<home>/.omniscient/provider_keys.json` (0600, dossier 0700),
+  séparées de `providers.json`. Aucune route ne les renvoie : seulement « a une clé » et les
+  4 derniers caractères. Elles ne passent jamais dans une URL, un journal ou un message
+  d'erreur.
+- **Adresses.** Une adresse est un endroit où le démon envoie la clé : `https://` vers un hôte
+  public, ou la machine elle-même (`localhost`, `127.0.0.1`, `::1`, pour un modèle local).
+  Réseaux privés, adresses link-local ou de métadonnées cloud, et noms qui y mènent sont
+  refusés à l'enregistrement et juste avant chaque appel ; les redirections ne sont pas suivies.
+- **Modèle.** Ajoutez la clé, « Tester » liste les modèles disponibles, choisissez-en un.
+- **Routes** (jeton widget) : `GET /providers`, `PUT /providers/{id}`,
+  `POST /providers/{id}/test`, `POST /providers/{id}/remove`, et `POST /chats` accepte
+  `provider`.
+
+Le pipeline d'Omniscient lui-même (idées, conseil, builder) passe par AgentRun et
+`config/routing.toml` : il suit une autre voie que ce chat.
+
 ## Usage et contexte
 
 Les hooks ne portent pas l'usage, seulement `transcript_path`. Le démon (jamais le hook)

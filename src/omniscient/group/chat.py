@@ -270,6 +270,10 @@ class ChatManager:
         provider, key = found
         if key is None and provider.kind != "openai-compatible":
             raise ChatError(400, "Ajoutez la clé de ce fournisseur dans les réglages.")
+        if not provider.model:
+            raise ChatError(
+                400, "Choisissez un modèle pour ce fournisseur dans les réglages."
+            )
         return engine
 
     def _home_ref(self) -> ProjectRef:

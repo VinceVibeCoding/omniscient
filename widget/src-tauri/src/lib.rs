@@ -11,6 +11,7 @@ mod osd_config;
 mod pairing;
 mod position;
 mod proof;
+mod provider_commands;
 mod scale;
 mod settings;
 mod sse;
@@ -83,6 +84,7 @@ pub fn run() {
             commands::get_settings,
             commands::link_status,
             commands::save_settings,
+            commands::finish_wizard,
             commands::pair_start,
             commands::pair_finish,
             commands::unpair,
@@ -105,6 +107,10 @@ pub fn run() {
             osd_commands::list_projects,
             osd_commands::chat_create,
             osd_commands::chat_fork,
+            provider_commands::providers_list,
+            provider_commands::provider_save,
+            provider_commands::provider_remove,
+            provider_commands::provider_test,
             osd_commands::chat_send,
             osd_commands::chat_stop,
             osd_commands::chat_list,

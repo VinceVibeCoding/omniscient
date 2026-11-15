@@ -330,6 +330,14 @@ def test_claude_code_still_needs_a_project(home: Home) -> None:
     assert err.value.status == 400
 
 
+def test_a_provider_without_a_model_is_refused_with_a_hint(home: Home) -> None:
+    mgr, _, _, _ = with_gemini(home)
+    mgr._providers.upsert("nomodel", {"kind": "openai", "api_key": KEY})
+    with pytest.raises(ch.ChatError) as err:
+        mgr.create(None, "x", provider="nomodel")
+    assert err.value.status == 400 and "modèle" in err.value.message
+
+
 def test_unknown_removed_or_keyless_providers_are_refused(home: Home) -> None:
     mgr, _, _, _ = with_gemini(home)
     with pytest.raises(ch.ChatError) as err:

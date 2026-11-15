@@ -3,11 +3,14 @@
 // shown right above the reply box (and in the Sessions tab), answered in place.
 import { h } from "../dom";
 import { age, clip } from "../format";
-import type { Chat, ChatMessage, ChatState, Project } from "../types";
+import type { Chat, ChatMessage, ChatState, Project, Provider } from "../types";
 import { composer, messageLog } from "./messages";
 
 export interface ChatModel {
   projects: readonly Project[];
+  providers: readonly Provider[];
+  /** The provider a new conversation will use ("claude-code" or a saved provider id). */
+  provider: string;
   chats: readonly Chat[];
   project: string;
   activeId: string | null;
@@ -21,6 +24,7 @@ export interface ChatHandlers {
   open(chatId: string): void;
   close(): void;
   setProject(name: string): void;
+  setProvider(id: string): void;
   setDraft(text: string): void;
   send(text: string): void;
   stop(): void;
@@ -29,6 +33,23 @@ export interface ChatHandlers {
 
 const STATE_LABEL: Record<ChatState, string> = { running: "en cours", idle: "prête", error: "erreur" };
 const CHIP: Record<ChatState, string> = { running: "working", idle: "idle", error: "error" };
+
+/** Claude Code always works; another provider needs its key (unless local) and a model. */
+export function providerReady(p: Provider): boolean {
+  return p.builtin || (p.model !== "" && (p.has_key || p.kind === "openai-compatible"));
+}
+
+function providerPicker(m: ChatModel, on: ChatHandlers): HTMLElement | null {
+  if (m.providers.length <= 1) return null; // only Claude Code: nothing to choose
+  const select = h("select", { class: "chat__project", "aria-label": "Fournisseur IA" });
+  for (const p of m.providers) {
+    const option = h("option", { value: p.id, disabled: !providerReady(p) }, providerReady(p) ? p.label : `${p.label} (à configurer)`);
+    option.selected = p.id === m.provider;
+    select.append(option);
+  }
+  select.addEventListener("change", () => on.setProvider(select.value));
+  return h("label", { class: "chat__picker" }, h("span", { class: "setting__label" }, "Fournisseur IA"), select);
+}
 
 function projectPicker(m: ChatModel, on: ChatHandlers): HTMLElement {
   const select = h("select", { class: "chat__project", "aria-label": "Projet" });
@@ -61,14 +82,21 @@ function chatRow(c: Chat, on: ChatHandlers): HTMLElement {
 
 function home(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
   return [
-    h("p", { class: "setting__hint" }, "Nouvelle conversation avec Claude Code dans le projet choisi."),
-    projectPicker(m, on),
+    h(
+      "p",
+      { class: "setting__hint" },
+      m.provider === "claude-code"
+        ? "Nouvelle conversation avec Claude Code dans le projet choisi."
+        : "Nouvelle conversation : un simple échange, sans outils ni accès à vos fichiers.",
+    ),
+    providerPicker(m, on),
+    m.provider === "claude-code" ? projectPicker(m, on) : null,
     composer({
       key: "chat-new",
       placeholder: "Demander quelque chose à Claude…",
       label: "Premier message",
       draft: m.draft,
-      busy: m.busy || m.projects.length === 0,
+      busy: m.busy || (m.provider === "claude-code" && m.projects.length === 0),
       onDraft: on.setDraft,
       onSend: on.send,
     }),
@@ -84,6 +112,13 @@ function home(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
   ];
 }
 
+/** « omniscient » for a Claude Code chat, the provider's name for a plain one. */
+function conversationWhere(m: ChatModel): string {
+  const active = m.active;
+  if (!active || active.provider === "claude-code") return active?.project ?? "";
+  return m.providers.find((p) => p.id === active.provider)?.label ?? active.provider;
+}
+
 function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (HTMLElement | null)[] {
   const running = m.active?.state === "running";
   return [
@@ -94,7 +129,7 @@ function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (
       m.active ? h("span", { class: `chip chip--${CHIP[m.active.state]}` }, STATE_LABEL[m.active.state]) : null,
       running ? h("button", { class: "btn btn--danger", type: "button", onclick: on.stop }, "Arrêter") : null,
     ),
-    m.active ? h("p", { class: "meta" }, `${clip(m.active.title, 80)} · ${m.active.project}`) : null,
+    m.active ? h("p", { class: "meta" }, `${clip(m.active.title, 80)} · ${conversationWhere(m)}`) : null,
     messageLog(m.messages, "Envoi en cours…", "chat"),
     approvals,
     composer({

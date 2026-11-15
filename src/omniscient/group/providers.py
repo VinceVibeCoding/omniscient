@@ -166,7 +166,8 @@ def _clean(body: dict[str, Any], old: Provider | None, resolver: Resolver) -> Pr
     ):
         raise ProviderError(400, f"Nom invalide ({LABEL_MAX} caractères au plus).")
     model = body.get("model", old.model if old else "")
-    if not isinstance(model, str) or not MODEL.match(model):
+    # "" = not chosen yet: add the key, test it to list the models, then pick one.
+    if not isinstance(model, str) or (model != "" and not MODEL.match(model)):
         raise ProviderError(
             400, "Modèle invalide : lettres, chiffres et . _ : / @ + - seulement."
         )
