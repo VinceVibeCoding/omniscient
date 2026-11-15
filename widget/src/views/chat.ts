@@ -3,7 +3,7 @@
 // shown right above the reply box (and in the Sessions tab), answered in place.
 import { h } from "../dom";
 import { age, clip } from "../format";
-import type { Chat, ChatMessage, ChatState, Project, Provider } from "../types";
+import type { BrowserPage, Chat, ChatMessage, ChatState, Project, Provider } from "../types";
 import { composer, messageLog } from "./messages";
 
 export interface ChatModel {
@@ -11,6 +11,9 @@ export interface ChatModel {
   providers: readonly Provider[];
   /** The provider a new conversation will use ("claude-code" or a saved provider id). */
   provider: string;
+  /** The page open in the browser (from the extension), and whether to attach it. */
+  browser: BrowserPage | null;
+  attachBrowser: boolean;
   chats: readonly Chat[];
   project: string;
   activeId: string | null;
@@ -25,6 +28,7 @@ export interface ChatHandlers {
   close(): void;
   setProject(name: string): void;
   setProvider(id: string): void;
+  setAttachBrowser(attach: boolean): void;
   setDraft(text: string): void;
   send(text: string): void;
   stop(): void;
@@ -49,6 +53,28 @@ function providerPicker(m: ChatModel, on: ChatHandlers): HTMLElement | null {
   }
   select.addEventListener("change", () => on.setProvider(select.value));
   return h("label", { class: "chat__picker" }, h("span", { class: "setting__label" }, "Fournisseur IA"), select);
+}
+
+/** True when a new conversation will carry the browser page (and so needs no project). */
+export function attachingBrowser(m: ChatModel): boolean {
+  return m.attachBrowser && m.browser !== null && !m.browser.excluded;
+}
+
+/** « Page du navigateur » : ticked by default, what will be attached, or why nothing will. */
+function browserRow(m: ChatModel, on: ChatHandlers): HTMLElement | null {
+  const page = m.browser;
+  if (!page) return null;
+  if (page.excluded) {
+    return h("p", { class: "setting__hint chat__browser" }, `Page du navigateur non jointe (décochée dans l'extension) : ${page.origin}`);
+  }
+  const box = h("input", { type: "checkbox", checked: m.attachBrowser, "aria-label": "Joindre la page du navigateur" });
+  box.addEventListener("change", () => on.setAttachBrowser(box.checked));
+  return h(
+    "label",
+    { class: "setting setting--check chat__browser", title: page.url },
+    box,
+    h("span", { class: "setting__label" }, `Joindre la page du navigateur : ${clip(page.title || page.origin, 60)} (${page.origin})`),
+  );
 }
 
 function projectPicker(m: ChatModel, on: ChatHandlers): HTMLElement {
@@ -85,12 +111,15 @@ function home(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
     h(
       "p",
       { class: "setting__hint" },
-      m.provider === "claude-code"
-        ? "Nouvelle conversation avec Claude Code dans le projet choisi."
-        : "Nouvelle conversation : un simple échange, sans outils ni accès à vos fichiers.",
+      attachingBrowser(m)
+        ? "Nouvelle conversation avec la page du navigateur : elle répond sans outils (une page web n'est pas fiable)."
+        : m.provider === "claude-code"
+          ? "Nouvelle conversation avec Claude Code dans le projet choisi."
+          : "Nouvelle conversation : un simple échange, sans outils ni accès à vos fichiers.",
     ),
     providerPicker(m, on),
-    m.provider === "claude-code" ? projectPicker(m, on) : null,
+    browserRow(m, on),
+    m.provider === "claude-code" && !attachingBrowser(m) ? projectPicker(m, on) : null,
     composer({
       key: "chat-new",
       placeholder: m.provider === "claude-code" ? "Demander quelque chose à Claude…" : "Écrire votre message…",

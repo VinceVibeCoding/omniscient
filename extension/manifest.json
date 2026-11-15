@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Omnigroup",
-  "version": "0.2.0",
-  "description": "Discutez avec votre démon Omniscient local, avec la page en cours comme contexte (décochez pour ne pas joindre une page).",
+  "version": "0.3.0",
+  "description": "Montre au widget Omnigroup la page que vous regardez, pour qu'il puisse la joindre à vos questions (décochez pour la garder pour vous).",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmP0d4/Zo9HusiZtmRXuWVqEto39EEh4raOWWDYP1WoPzqij2GpE/VOKGZDYn+vTaFCnyTp2Fp0eA0wbyxgwvXs+wyTp/ivr4ukJra/86wz3RoPjpGtRLc7h+esJvPckyQOd7CHkiugr+U4TcEC+eMua65NVDiPV9qT9aTcOWIOuIWdv9AJGalJgrYfYlID5A2DPhiFR0jZLGiumzRToxMndX9xBXm+hluStq+NU4Pn5N6I+ww6d5Y/BJDO4Q+FXYT3RUb0PzX0En3SG6vVWDyadDDjfDTUQcw6UOpgAViYP4FAoG6JX6Pd1DIa+F/smhoMO8sQJkBRVyl84L986IPQIDAQAB",
   "minimum_chrome_version": "116",
   "icons": {
@@ -11,22 +11,18 @@
   },
   "action": {
     "default_title": "Omnigroup",
+    "default_popup": "popup.html",
     "default_icon": {
       "32": "icons/32x32.png"
     }
-  },
-  "side_panel": {
-    "default_path": "panel.html"
   },
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
   "permissions": [
-    "sidePanel",
     "storage",
     "scripting",
-    "activeTab",
     "webRequest"
   ],
   "host_permissions": [
@@ -44,6 +40,16 @@
       ],
       "run_at": "document_start",
       "world": "MAIN"
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "watch.js"
+      ],
+      "run_at": "document_idle"
     }
   ]
 }

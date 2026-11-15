@@ -108,6 +108,7 @@ pub fn run() {
             osd_commands::list_projects,
             osd_commands::chat_create,
             osd_commands::chat_fork,
+            osd_commands::browser_page,
             auth_commands::auth_status,
             auth_commands::auth_start,
             auth_commands::auth_password,

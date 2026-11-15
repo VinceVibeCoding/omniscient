@@ -435,6 +435,8 @@ function onStreamEvent(event: StreamEvent): void {
       return applyConfig(osdApi.toConfigView(event.data));
     case "auth":
       return account.onEvent(event.data);
+    case "browser_page":
+      return chat.onBrowserPage(event.data);
     case "chat": {
       const chatEvent = osdApi.toChatEvent(event.data);
       if (chatEvent) chat.onEvent(chatEvent);

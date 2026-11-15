@@ -19,6 +19,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.request
 from http.server import (
     BaseHTTPRequestHandler,
@@ -153,6 +154,65 @@ def pairing_code(home: Path) -> str:
     return codes[0]
 
 
+def api(
+    token: str, method: str, path: str, body: dict | None = None
+) -> tuple[int, dict]:
+    """The daemon, as the widget calls it."""
+    data = json.dumps(body).encode() if body is not None else None
+    headers = {"Authorization": f"Bearer {token}"}
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{DAEMON_PORT}{path}",
+        data=data,
+        method=method,
+        headers=headers,
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.status, json.loads(resp.read() or b"{}")
+    except urllib.error.HTTPError as exc:
+        return exc.code, json.loads(exc.read() or b"{}")
+
+
+def widget_token(home: Path) -> str:
+    """Pairs a second client, standing in for the Windows widget."""
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{DAEMON_PORT}/pair/finish",
+        data=json.dumps(
+            {"code": pairing_code(home), "client_name": "e2e widget"}
+        ).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read())["token"]
+
+
+def poll(fn, until, seconds: float = 20):
+    deadline = time.monotonic() + seconds
+    value = fn()
+    while not until(value) and time.monotonic() < deadline:
+        time.sleep(0.4)
+        value = fn()
+    return value
+
+
+def ask(token: str, text: str) -> tuple[int, dict, str]:
+    """A widget chat with « Joindre la page du navigateur »: (status, body, reply)."""
+    status, body = api(
+        token, "POST", "/chats", {"text": text, "provider": "e2e", "browser_page": True}
+    )
+    if status != 202:
+        return status, body, ""
+    chat = poll(
+        lambda: api(token, "GET", f"/chats/{body['chat_id']}")[1],
+        lambda c: c["chat"]["state"] != "running",
+    )
+    replies = [m["text"] for m in chat["messages"] if m["role"] == "assistant"]
+    return status, chat, replies[-1] if replies else ""
+
+
 def run_checks(ctx, home: Path, check) -> None:
     sw = (
         ctx.service_workers[0]
@@ -161,75 +221,74 @@ def run_checks(ctx, home: Path, check) -> None:
     )
     ext_id = sw.url.split("/")[2]
     check("extension ID is the pinned one", ext_id == PINNED, ext_id)
-    page = ctx.new_page()
-    page.goto(f"http://localhost:{SITE_PORT}/")
-    panel = ctx.new_page()
-    panel.goto(f"chrome-extension://{ext_id}/panel.html")
-    expect(panel.locator("#pair")).to_be_visible(timeout=10_000)
+    popup = ctx.new_page()
+    popup.goto(f"chrome-extension://{ext_id}/popup.html")
+    expect(popup.locator("#pair")).to_be_visible(timeout=10_000)
     check("an unpaired extension asks to pair", True)
-    panel.evaluate(
+    popup.evaluate(
         f"chrome.storage.local.set({{base: 'http://127.0.0.1:{DAEMON_PORT}'}})"
     )
-    panel.fill("#daemon", f"http://127.0.0.1:{DAEMON_PORT}")
-    panel.fill("#pair-code", pairing_code(home))
-    panel.click("#pair-finish")
-    expect(panel.locator("#main")).to_be_visible(timeout=15_000)
+    popup.fill("#daemon", f"http://127.0.0.1:{DAEMON_PORT}")
+    popup.fill("#pair-code", pairing_code(home))
+    popup.click("#pair-finish")
+    expect(popup.locator("#main")).to_be_visible(timeout=15_000)
     check("pairing with the 6-digit code works", True)
-    page.reload()  # the console collector is a static content script: errors from the start
-    time.sleep(1.5)
+
+    token = widget_token(home)
+    page = ctx.new_page()
+    page.goto(f"http://localhost:{SITE_PORT}/")
     page.bring_to_front()
-    site = panel.locator("#site")
-    attach = panel.locator("#attach")
-    expect(site).to_contain_text(
-        f"Page jointe à vos questions : http://localhost:{SITE_PORT}", timeout=10_000
+    meta = poll(
+        lambda: api(token, "GET", "/browser/page")[1],
+        lambda m: m.get("title") == "Boutique de test",
     )
-    check("any web page is attached by default", attach.is_checked())
-    panel.select_option("#provider", "e2e")
-    ask(panel, "Pourquoi le paiement échoue ?")
-    text = last_reply(panel)
+    check(
+        "the extension reports the page you are on",
+        meta.get("title") == "Boutique de test",
+        str(meta),
+    )
+    check(
+        "the widget only sees metadata",
+        "text" not in meta and "errors" not in meta,
+        str(meta),
+    )
+    time.sleep(2)  # let the console error and the failed request be reported too
+    status, chat, reply = ask(token, "Pourquoi le paiement échoue ?")
+    check("a widget chat can attach the browser page", status == 202, str(chat))
     for flag in ("page", "errors", "failed", "injection_inside", "secret_masked"):
-        check(f"the provider got {flag}", f"{flag}=yes" in text, text)
-    expect(panel.locator("#status")).to_contain_text("sans outils", timeout=10_000)
-    check("the chat says it runs without tools", True)
-    check(
-        "the history shows the page as one line",
-        "Page jointe" in panel.locator(".msg--tool").first.inner_text(),
-    )
+        check(f"the provider got {flag}", f"{flag}=yes" in reply, reply)
+    check("that chat runs without tools", chat.get("chat", {}).get("read_only") is True)
 
-    panel.locator("#new-chat").click()
+    popup.reload()
+    attach = popup.locator("#attach")
     expect(attach).to_be_checked(timeout=10_000)
+    check("any web page is attachable by default", True)
     attach.uncheck()
-    expect(site).to_contain_text("Page non jointe", timeout=10_000)
-    ask(panel, "Et sans la page ?")
-    check(
-        "an unticked page is not sent",
-        "page=no" in last_reply(panel),
-        last_reply(panel),
+    meta = poll(
+        lambda: api(token, "GET", "/browser/page")[1],
+        lambda m: m.get("excluded") is True,
     )
-    panel.locator("#new-chat").click()
-    expect(site).to_contain_text("Page non jointe", timeout=10_000)
-    check("the untick holds for this page", not attach.is_checked())
+    check(
+        "unticking it in the extension tells the widget",
+        meta.get("excluded") is True,
+        str(meta),
+    )
+    status, body, _ = ask(token, "Et maintenant ?")
+    check("an unticked page cannot be attached", status == 409, f"{status} {body}")
+
     page.goto(f"http://localhost:{SITE_PORT}/index.html")  # another page
-    page.bring_to_front()
-    expect(attach).to_be_checked(timeout=10_000)
-    check("a new page starts ticked again", True)
+    meta = poll(
+        lambda: api(token, "GET", "/browser/page")[1],
+        lambda m: (
+            m.get("url", "").endswith("/index.html") and m.get("excluded") is False
+        ),
+    )
+    check("a new page starts ticked again", meta.get("excluded") is False, str(meta))
 
-    daemon_page = ctx.new_page()
-    daemon_page.goto(f"http://127.0.0.1:{DAEMON_PORT}/health")
-    daemon_page.bring_to_front()
-    expect(attach).to_be_disabled(timeout=10_000)
-    check("the daemon's own pages are never attached", not attach.is_checked())
-
-
-def ask(panel, text: str) -> None:
-    before = panel.locator(".msg--assistant").count()
-    panel.fill("#text", text)
-    panel.click("#send")
-    expect(panel.locator(".msg--assistant")).to_have_count(before + 1, timeout=20_000)
-
-
-def last_reply(panel) -> str:
-    return panel.locator(".msg--assistant").last.inner_text()
+    page.goto(f"http://127.0.0.1:{DAEMON_PORT}/health")
+    popup.reload()
+    expect(popup.locator("#attach")).to_be_disabled(timeout=10_000)
+    check("the daemon's own pages are never attached", True)
 
 
 def main() -> int:

@@ -4,7 +4,7 @@
 import * as osdApi from "./api-osd";
 import * as providerApi from "./api-providers";
 import type { Chat, ChatEvent, ChatMessage, Provider } from "./types";
-import { providerReady } from "./views/chat";
+import { attachingBrowser, providerReady } from "./views/chat";
 import type { ChatHandlers, ChatModel } from "./views/chat";
 
 const RELOAD_DEBOUNCE_MS = 300;
@@ -14,6 +14,8 @@ export class ChatController {
     projects: [],
     providers: [],
     provider: "claude-code",
+    browser: null,
+    attachBrowser: true,
     chats: [],
     project: "",
     activeId: null,
@@ -34,6 +36,7 @@ export class ChatController {
       close: () => this.set({ activeId: null, active: null, messages: [], draft: "" }),
       setProject: (project) => this.set({ project }),
       setProvider: (provider) => this.set({ provider }),
+      setAttachBrowser: (attachBrowser) => this.set({ attachBrowser }),
       setDraft: (draft) => {
         this.model = { ...this.model, draft }; // no re-render while typing
       },
@@ -64,11 +67,16 @@ export class ChatController {
   /** Projects + conversation list (called when the Chat tab opens). */
   async load(): Promise<void> {
     await this.guard(async () => {
-      const [projects, chats, list] = await Promise.all([osdApi.listProjects(), osdApi.chatList(), providerApi.listProviders()]);
+      const [projects, chats, list, browser] = await Promise.all([
+        osdApi.listProjects(),
+        osdApi.chatList(),
+        providerApi.listProviders(),
+        osdApi.getBrowserPage().catch(() => null), // an older daemon has no browser page
+      ]);
       const project = projects.some((p) => p.name === this.model.project) ? this.model.project : (projects[0]?.name ?? "");
       const active = chats.find((c) => c.chat_id === this.model.activeId) ?? this.model.active;
       const providers = list.providers;
-      this.set({ projects, chats, project, active, providers, provider: this.pickProvider(providers, list.default) });
+      this.set({ projects, chats, project, active, providers, browser, provider: this.pickProvider(providers, list.default) });
     });
   }
 
@@ -119,8 +127,10 @@ export class ChatController {
       } else {
         const provider = this.model.provider;
         const claude = provider === "claude-code";
-        if (claude && !this.model.project) throw new Error("Choisissez un projet.");
-        const chatId = await osdApi.chatCreate(text, claude ? { project: this.model.project, provider } : { provider });
+        const browserPage = attachingBrowser(this.model);
+        if (claude && !browserPage && !this.model.project) throw new Error("Choisissez un projet.");
+        const target = browserPage ? { provider, browserPage } : claude ? { project: this.model.project, provider } : { provider };
+        const chatId = await osdApi.chatCreate(text, target);
         const now = new Date().toISOString();
         const active: Chat = {
           chat_id: chatId,
@@ -178,6 +188,14 @@ export class ChatController {
     if (event.kind === "tool") return { role: "tool", text: event.text ?? "", at, ...(event.tool ? { tool: event.tool } : {}) };
     if (event.kind === "error") return { role: "error", text: event.text ?? "Erreur inconnue.", at };
     return null;
+  }
+
+  /** SSE `browser_page`: the extension reported another page (metadata only). A new page
+   * starts ticked again, like in the extension. */
+  onBrowserPage(raw: unknown): void {
+    const browser = osdApi.toBrowserPage(raw);
+    const changed = browser?.url !== this.model.browser?.url;
+    this.set(changed ? { browser, attachBrowser: true } : { browser });
   }
 
   /** SSE `chat` event from the daemon. */

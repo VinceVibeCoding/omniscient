@@ -1,4 +1,4 @@
-// The local Omnigroup daemon, as the extension sees it. The token is only ever sent after
+// The local Omnigroup daemon, as the extension sees it: pairing, and reporting the page. The token is only ever sent after
 // the daemon proved it knows it (proof.ts); every call has a timeout; errors carry the
 // daemon's French message.
 import { newNonce, proves } from "./proof.js";
@@ -13,17 +13,6 @@ export class DaemonError extends Error {
   ) {
     super(message);
   }
-}
-
-export interface ChatMessage {
-  role: "user" | "assistant" | "tool" | "error";
-  text: string;
-  tool?: string;
-}
-
-export interface ChatView {
-  chat: { chat_id: string; state: "running" | "idle" | "error"; provider: string; read_only: boolean };
-  messages: ChatMessage[];
 }
 
 export interface PagePayload {
@@ -92,25 +81,8 @@ export class Daemon {
     return request(this.base, method, path, this.token, body);
   }
 
-  providers(): Promise<unknown> {
-    return this.call("GET", "/providers");
-  }
-
-  projects(): Promise<unknown> {
-    return this.call("GET", "/projects");
-  }
-
-  async createChat(body: { text: string; provider: string; project?: string; page?: PagePayload }): Promise<string> {
-    const data = (await this.call("POST", "/chats", body)) as { chat_id?: unknown };
-    if (typeof data.chat_id !== "string") throw new DaemonError("Réponse du démon invalide.", 0);
-    return data.chat_id;
-  }
-
-  sendChat(chatId: string, text: string): Promise<unknown> {
-    return this.call("POST", `/chats/${encodeURIComponent(chatId)}/messages`, { text });
-  }
-
-  async getChat(chatId: string): Promise<ChatView> {
-    return (await this.call("GET", `/chats/${encodeURIComponent(chatId)}`)) as ChatView;
+  /** The page in the browser, or that the person unticked it (PUT /browser/page). */
+  reportPage(body: { page: PagePayload } | { excluded: true; url: string; title: string }): Promise<unknown> {
+    return this.call("PUT", "/browser/page", body);
   }
 }

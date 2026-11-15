@@ -7,8 +7,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
-    "test": "tsc -p . && node --test \"build/test/*.test.js\"",
-    "build": "tsc -p . && node build.mjs"
+    "test": "node --input-type=module -e \"import {rmSync} from 'node:fs'; rmSync('build', {recursive: true, force: true})\" && tsc -p . && node --test \"build/test/*.test.js\"",
+    "build": "node --input-type=module -e \"import {rmSync} from 'node:fs'; rmSync('build', {recursive: true, force: true})\" && tsc -p . && node build.mjs"
   },
   "devDependencies": {
     "@types/chrome": "0.3.7",

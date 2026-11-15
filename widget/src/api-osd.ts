@@ -2,6 +2,7 @@
 // normalised here (untrusted JSON): views only ever see well-formed values.
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  BrowserPage,
   Chat,
   ChatEvent,
   ChatMessage,
@@ -178,10 +179,21 @@ export interface ChatTarget {
   project?: string;
   /** Provider id; omitted = the person's default. */
   provider?: string;
+  /** Attach the page open in the browser (then the chat runs without any tool). */
+  browserPage?: boolean;
+}
+
+export function toBrowserPage(raw: unknown): BrowserPage | null {
+  if (!isRecord(raw) || raw.available !== true) return null;
+  return { available: true, excluded: raw.excluded === true, url: str(raw.url), origin: str(raw.origin), title: str(raw.title) };
+}
+
+export async function getBrowserPage(): Promise<BrowserPage | null> {
+  return toBrowserPage(await invoke<unknown>("browser_page"));
 }
 
 export async function chatCreate(text: string, target: ChatTarget): Promise<string> {
-  const res = await invoke<unknown>("chat_create", { text, project: target.project, provider: target.provider });
+  const res = await invoke<unknown>("chat_create", { text, project: target.project, provider: target.provider, browserPage: target.browserPage });
   if (!isRecord(res) || typeof res.chat_id !== "string") throw new Error("Réponse du démon invalide.");
   return res.chat_id;
 }
