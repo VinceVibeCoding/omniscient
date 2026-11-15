@@ -14,24 +14,21 @@ export function originOf(url: string | undefined): string | null {
   }
 }
 
-/** The extension holds a permission on 127.0.0.1 to reach the daemon: pages served there
- * would look "allowed" without the person ever agreeing, so they are never shared (a local
- * page can still be shared on http://localhost:<port>, with consent). */
-export function shareableOrigin(url: string | undefined): string | null {
+/** Every web page may be attached (the person unticks it per page), except the daemon's
+ * own pages: they are the plumbing, not something the person is looking at. */
+export function shareableOrigin(url: string | undefined, daemonBase: string): string | null {
   const origin = originOf(url);
-  if (!origin) return null;
-  const host = new URL(origin).hostname;
-  return host === "127.0.0.1" || host === "[::1]" ? null : origin;
+  return origin && origin !== originOf(daemonBase) ? origin : null;
+}
+
+/** The page an exclusion is about: the same address, query and fragment aside. */
+export function pageKey(url: string | undefined): string {
+  return url ? stripQuery(url) : "";
 }
 
 /** The tab the panel is about: the active one, never a page of the extension itself. */
 export function pickTab<T extends { url?: string }>(tabs: readonly T[], selfOrigin: string): T | null {
   return tabs.find((t) => !t.url?.startsWith(selfOrigin)) ?? null;
-}
-
-/** The host-permission pattern of an origin. */
-export function originPattern(origin: string): string {
-  return `${origin}/*`;
 }
 
 /** Scheme + host + path: query strings and fragments often carry tokens. */

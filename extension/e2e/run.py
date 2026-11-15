@@ -122,12 +122,9 @@ def make_home(root: Path) -> Path:
 
 
 def test_extension(root: Path) -> Path:
-    """A copy of the built extension that may also read http://localhost (the test page)."""
+    """A copy of the built extension, as people load it."""
     ext = root / "ext"
     shutil.copytree(DIST, ext)
-    manifest = json.loads((ext / "manifest.json").read_text())
-    manifest["host_permissions"].append("http://localhost/*")
-    (ext / "manifest.json").write_text(json.dumps(manifest))
     return ext
 
 
@@ -178,29 +175,18 @@ def run_checks(ctx, home: Path, check) -> None:
     panel.click("#pair-finish")
     expect(panel.locator("#main")).to_be_visible(timeout=15_000)
     check("pairing with the 6-digit code works", True)
-    registered = sw.evaluate(
-        "chrome.scripting.getRegisteredContentScripts().then(l => l.map(s => s.id + ':' + s.matches.join(',')))"
-    )
-    check(
-        "the console collector is registered for allowed sites",
-        any("omnigroup-capture" in r and "localhost" in r for r in registered),
-        str(registered),
-    )
-    page.reload()  # as the panel says after allowing a site: reload to capture console errors
+    page.reload()  # the console collector is a static content script: errors from the start
     time.sleep(1.5)
     page.bring_to_front()
     site = panel.locator("#site")
+    attach = panel.locator("#attach")
     expect(site).to_contain_text(
-        f"Partage activé : http://localhost:{SITE_PORT}", timeout=10_000
+        f"Page jointe à vos questions : http://localhost:{SITE_PORT}", timeout=10_000
     )
-    check("the allowed site shows as shared", True)
-    check("attach is ticked for an allowed site", panel.locator("#attach").is_checked())
+    check("any web page is attached by default", attach.is_checked())
     panel.select_option("#provider", "e2e")
-    panel.fill("#text", "Pourquoi le paiement échoue ?")
-    panel.click("#send")
-    reply = panel.locator(".msg--assistant").first
-    expect(reply).to_contain_text("page=", timeout=20_000)
-    text = reply.inner_text()
+    ask(panel, "Pourquoi le paiement échoue ?")
+    text = last_reply(panel)
     for flag in ("page", "errors", "failed", "injection_inside", "secret_masked"):
         check(f"the provider got {flag}", f"{flag}=yes" in text, text)
     expect(panel.locator("#status")).to_contain_text("sans outils", timeout=10_000)
@@ -209,12 +195,41 @@ def run_checks(ctx, home: Path, check) -> None:
         "the history shows the page as one line",
         "Page jointe" in panel.locator(".msg--tool").first.inner_text(),
     )
-    other = ctx.new_page()
-    other.goto(f"http://127.0.0.1:{SITE_PORT}/")
-    other.bring_to_front()
+
     panel.locator("#new-chat").click()
-    expect(site).not_to_contain_text("Partage activé", timeout=10_000)
-    check("a page on 127.0.0.1 is never shared", panel.locator("#attach").is_disabled())
+    expect(attach).to_be_checked(timeout=10_000)
+    attach.uncheck()
+    expect(site).to_contain_text("Page non jointe", timeout=10_000)
+    ask(panel, "Et sans la page ?")
+    check(
+        "an unticked page is not sent",
+        "page=no" in last_reply(panel),
+        last_reply(panel),
+    )
+    panel.locator("#new-chat").click()
+    expect(site).to_contain_text("Page non jointe", timeout=10_000)
+    check("the untick holds for this page", not attach.is_checked())
+    page.goto(f"http://localhost:{SITE_PORT}/index.html")  # another page
+    page.bring_to_front()
+    expect(attach).to_be_checked(timeout=10_000)
+    check("a new page starts ticked again", True)
+
+    daemon_page = ctx.new_page()
+    daemon_page.goto(f"http://127.0.0.1:{DAEMON_PORT}/health")
+    daemon_page.bring_to_front()
+    expect(attach).to_be_disabled(timeout=10_000)
+    check("the daemon's own pages are never attached", not attach.is_checked())
+
+
+def ask(panel, text: str) -> None:
+    before = panel.locator(".msg--assistant").count()
+    panel.fill("#text", text)
+    panel.click("#send")
+    expect(panel.locator(".msg--assistant")).to_have_count(before + 1, timeout=20_000)
+
+
+def last_reply(panel) -> str:
+    return panel.locator(".msg--assistant").last.inner_text()
 
 
 def main() -> int:

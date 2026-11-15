@@ -1,6 +1,6 @@
 // Reading the page the person is on, only for a site they allowed. Functions passed to
 // chrome.scripting.executeScript run inside the page, so they must be self-contained.
-import { shareableOrigin, stripQuery } from "./util.js";
+import { pageKey, shareableOrigin, stripQuery } from "./util.js";
 import type { PagePayload } from "./daemon.js";
 
 const TEXT_MAX = 20_000;
@@ -20,14 +20,24 @@ function readErrors(): string[] {
   return Array.isArray(list) ? list.filter((e): e is string => typeof e === "string").slice(-30) : [];
 }
 
-export async function isAllowed(origin: string | null): Promise<boolean> {
-  return origin ? chrome.permissions.contains({ origins: [`${origin}/*`] }) : false;
+/** True when the person unticked « Joindre cette page » for the page this tab is on. */
+export async function isExcluded(tab: chrome.tabs.Tab | null): Promise<boolean> {
+  if (tab?.id === undefined) return false;
+  const key = `skip:${tab.id}`;
+  return (await chrome.storage.session.get(key))[key] === pageKey(tab.url);
 }
 
-/** Everything about the tab, or an error message when the site is not allowed. */
-export async function capturePage(tab: chrome.tabs.Tab): Promise<PagePayload> {
-  const origin = shareableOrigin(tab.url);
-  if (tab.id === undefined || !(await isAllowed(origin))) throw new Error("Ce site n'est pas autorisé : autorisez-le d'abord.");
+/** Untick / tick for this page only: a new page in the tab starts ticked again. */
+export async function setExcluded(tab: chrome.tabs.Tab, excluded: boolean): Promise<void> {
+  if (tab.id === undefined) return;
+  const key = `skip:${tab.id}`;
+  if (excluded) await chrome.storage.session.set({ [key]: pageKey(tab.url) });
+  else await chrome.storage.session.remove(key);
+}
+
+/** Everything about the tab (only called when the person sends with the box ticked). */
+export async function capturePage(tab: chrome.tabs.Tab, daemonBase: string): Promise<PagePayload> {
+  if (tab.id === undefined || !shareableOrigin(tab.url, daemonBase)) throw new Error("Cette page ne peut pas être jointe.");
   const target = { tabId: tab.id };
   const [visible] = await chrome.scripting.executeScript({ target, func: readVisible });
   const [errors] = await chrome.scripting.executeScript({ target, func: readErrors, world: "MAIN" }).catch(() => [{ result: [] as string[] }]);

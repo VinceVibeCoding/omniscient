@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Omnigroup",
-  "version": "0.1.0",
-  "description": "Discutez avec votre démon Omniscient local, avec la page en cours comme contexte (site par site, sur accord).",
+  "version": "0.2.0",
+  "description": "Discutez avec votre démon Omniscient local, avec la page en cours comme contexte (décochez pour ne pas joindre une page).",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmP0d4/Zo9HusiZtmRXuWVqEto39EEh4raOWWDYP1WoPzqij2GpE/VOKGZDYn+vTaFCnyTp2Fp0eA0wbyxgwvXs+wyTp/ivr4ukJra/86wz3RoPjpGtRLc7h+esJvPckyQOd7CHkiugr+U4TcEC+eMua65NVDiPV9qT9aTcOWIOuIWdv9AJGalJgrYfYlID5A2DPhiFR0jZLGiumzRToxMndX9xBXm+hluStq+NU4Pn5N6I+ww6d5Y/BJDO4Q+FXYT3RUb0PzX0En3SG6vVWDyadDDjfDTUQcw6UOpgAViYP4FAoG6JX6Pd1DIa+F/smhoMO8sQJkBRVyl84L986IPQIDAQAB",
   "minimum_chrome_version": "116",
   "icons": {
@@ -30,10 +30,20 @@
     "webRequest"
   ],
   "host_permissions": [
-    "http://127.0.0.1/*"
+    "http://*/*",
+    "https://*/*"
   ],
-  "optional_host_permissions": [
-    "https://*/*",
-    "http://*/*"
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "capture-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
   ]
 }

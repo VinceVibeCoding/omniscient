@@ -2,8 +2,8 @@
 // provider, and the conversation. The daemon is only sent the token after it proved it
 // knows it; the page is only read for a site the person allowed, and only when they ask.
 import { Daemon, type ChatMessage, type ChatView } from "./lib/daemon.js";
-import { capturePage, isAllowed } from "./lib/page.js";
-import { DAEMON_DEFAULT, originPattern, pickTab, shareableOrigin, validDaemonUrl } from "./lib/util.js";
+import { capturePage, isExcluded, setExcluded } from "./lib/page.js";
+import { DAEMON_DEFAULT, pickTab, shareableOrigin, validDaemonUrl } from "./lib/util.js";
 
 interface Provider { id: string; label: string; ready: boolean }
 interface Project { name: string; label: string }
@@ -74,39 +74,30 @@ async function pairFinish(): Promise<void> {
   await start();
 }
 
-// ---- the current site ------------------------------------------------------------------
+// ---- the current page ------------------------------------------------------------------
 
+/** The page in the active tab: attached by default, unless unticked for this page. */
 async function refreshSite(): Promise<void> {
   const self = `chrome-extension://${chrome.runtime.id}`;
   const focused = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   tab = pickTab(focused, self) ?? pickTab(await chrome.tabs.query({ active: true }), self);
-  const origin = shareableOrigin(tab?.url);
-  const allowed = await isAllowed(origin);
+  const origin = shareableOrigin(tab?.url, daemon?.base ?? DAEMON_DEFAULT);
+  const excluded = await isExcluded(tab);
+  const attach = $<HTMLInputElement>("attach");
+  attach.disabled = !origin || chatId !== null;
+  attach.checked = Boolean(origin) && !excluded;
   const box = $("site");
   box.replaceChildren();
   if (!origin) {
-    box.append(el("p", "", "Pour partager une page, ouvrez ce panneau depuis l'icône Omnigroup pendant qu'elle est affichée (les pages du navigateur ne se partagent pas)."));
-  } else if (allowed) {
-    const stop = el("button", "", "Arrêter le partage");
-    stop.type = "button";
-    stop.addEventListener("click", () => void chrome.permissions.remove({ origins: [originPattern(origin)] }).then(refreshSite).catch(fail));
-    box.append(el("p", "site-on", `Partage activé : ${origin}`), el("p", "", "Le texte, la sélection, les erreurs et les requêtes en échec de ce site peuvent être joints à une question, jamais sans votre clic sur Envoyer."), stop);
+    box.append(el("p", "site-off", "Cette page ne peut pas être jointe (page du navigateur, ou du démon)."));
+    $("attach-label").textContent = "Joindre cette page";
   } else {
-    const allow = el("button", "primary", "Autoriser ce site");
-    allow.type = "button";
-    // Must stay synchronous up to permissions.request: it needs the click's user gesture.
-    allow.addEventListener("click", () => {
-      chrome.permissions.request({ origins: [originPattern(origin)] }).then((ok) => {
-        if (ok) status("Site autorisé. Rechargez la page pour capter aussi ses erreurs de console.");
-        return refreshSite();
-      }).catch(fail);
-    });
-    box.append(el("p", "site-off", `${origin} n'est pas partagé.`), allow);
+    box.append(
+      el("p", excluded ? "site-off" : "site-on", excluded ? `Page non jointe : ${origin}` : `Page jointe à vos questions : ${origin}`),
+      el("p", "", "Texte, sélection, erreurs de console et requêtes en échec, envoyés seulement quand vous cliquez sur Envoyer. Décochez « Joindre cette page » pour la garder pour vous."),
+    );
+    $("attach-label").textContent = `Joindre cette page (${origin})`;
   }
-  const attach = $<HTMLInputElement>("attach");
-  attach.disabled = !allowed || chatId !== null;
-  attach.checked = allowed && chatId === null && attach.dataset.touched !== "1" ? true : attach.checked && allowed;
-  $("attach-label").textContent = allowed ? `Joindre cette page (${origin})` : "Joindre cette page (site non autorisé)";
   refreshProjectRow();
 }
 
@@ -192,7 +183,7 @@ async function send(event: Event): Promise<void> {
     } else {
       const provider = $<HTMLSelectElement>("provider").value;
       const attach = $<HTMLInputElement>("attach").checked;
-      const page = attach && tab ? await capturePage(tab) : undefined;
+      const page = attach && tab ? await capturePage(tab, daemon.base) : undefined;
       const project = provider === "claude-code" && !page ? $<HTMLSelectElement>("project").value : undefined;
       chatId = await daemon.createChat({ text, provider, ...(project ? { project } : {}), ...(page ? { page } : {}) });
       $<HTMLInputElement>("attach").disabled = true;
@@ -247,13 +238,12 @@ function wire(): void {
   $("new-chat").addEventListener("click", newChat);
   $("provider").addEventListener("change", refreshProjectRow);
   $("attach").addEventListener("change", () => {
-    $("attach").dataset.touched = "1";
+    const ticked = $<HTMLInputElement>("attach").checked;
+    if (tab) void setExcluded(tab, !ticked).then(refreshSite).catch(fail); // for this page only
     refreshProjectRow();
   });
   chrome.tabs.onActivated.addListener(() => void refreshSite().catch(fail));
   chrome.tabs.onUpdated.addListener((_id, info) => info.status === "complete" && void refreshSite().catch(fail));
-  chrome.permissions.onAdded.addListener(() => void refreshSite().catch(fail));
-  chrome.permissions.onRemoved.addListener(() => void refreshSite().catch(fail));
 }
 
 wire();
