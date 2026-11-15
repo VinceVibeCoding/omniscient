@@ -9,6 +9,23 @@ export interface SettingsHandlers {
   pairStart(): void;
   pairFinish(code: string): void;
   unpair(): void;
+  autostart(enabled: boolean): void;
+}
+
+function checkbox(name: string, checked: boolean): HTMLInputElement {
+  return h("input", { type: "checkbox", name, checked });
+}
+
+function startupSection(autostart: boolean | null, on: SettingsHandlers): HTMLElement {
+  const box = checkbox("autostart", autostart === true);
+  box.disabled = autostart === null;
+  box.addEventListener("change", () => on.autostart(box.checked));
+  return h(
+    "label",
+    { class: "setting setting--check" },
+    box,
+    h("span", { class: "setting__label" }, "Lancer Omnigroup au démarrage de Windows"),
+  );
 }
 
 function field(label: string, input: HTMLInputElement, hint?: string): HTMLElement {
@@ -50,18 +67,37 @@ function pairingForm(on: SettingsHandlers): HTMLElement {
   return form;
 }
 
-export function settingsView(current: Settings, link: LinkStatus, on: SettingsHandlers): HTMLElement {
+export function settingsView(
+  current: Settings,
+  link: LinkStatus,
+  on: SettingsHandlers,
+  autostart: boolean | null,
+): HTMLElement {
   const url = h("input", { name: "daemon_url", value: current.daemon_url, required: true, spellcheck: "false" });
+  const startDaemon = checkbox("start_daemon", current.start_daemon);
+  const home = h("input", {
+    name: "wsl_home",
+    value: current.wsl_home,
+    spellcheck: "false",
+    placeholder: "~/projects/omniscient",
+  });
   const form = h(
     "form",
     { class: "settings" },
     h("p", { class: `notice notice--${link.state}`, role: "status" }, link.message),
     field("Adresse du démon", url, "Local uniquement (127.0.0.1 ou localhost)."),
+    h(
+      "label",
+      { class: "setting setting--check" },
+      startDaemon,
+      h("span", { class: "setting__label" }, "Démarrer le démon dans WSL s'il ne répond pas"),
+    ),
+    field("Dossier Omniscient (WSL)", home, "Le widget lance « omniscient group serve » dans ce dossier, et l'arrête en quittant."),
     h("div", { class: "card__actions" }, h("button", { class: "btn", type: "submit" }, "Enregistrer")),
   );
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    on.save({ daemon_url: url.value.trim() });
+    on.save({ daemon_url: url.value.trim(), start_daemon: startDaemon.checked, wsl_home: home.value.trim() });
   });
   return h(
     "section",
@@ -72,6 +108,14 @@ export function settingsView(current: Settings, link: LinkStatus, on: SettingsHa
       h("button", { class: "icon-btn", "aria-label": "Retour", title: "Retour (Échap)", onclick: on.back }, "←"),
       h("h1", { class: "bar__title" }, "Réglages"),
     ),
-    h("div", { class: "panel__body" }, form, h("h2", { class: "section-title" }, "Couplage"), pairingForm(on)),
+    h(
+      "div",
+      { class: "panel__body" },
+      form,
+      h("h2", { class: "section-title" }, "Démarrage"),
+      startupSection(autostart, on),
+      h("h2", { class: "section-title" }, "Couplage"),
+      pairingForm(on),
+    ),
   );
 }

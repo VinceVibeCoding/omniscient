@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 
 // Tauri expects a fixed dev port and serves the built files from dist/.
+// Two pages (paths relative to this folder, where `npm run build` runs): the OSD / panel (index.html) and its right-click menu (menu.html).
 export default defineConfig({
   clearScreen: false,
   server: { port: 1420, strictPort: true },
@@ -9,5 +10,11 @@ export default defineConfig({
     target: "es2022",
     outDir: "dist",
     sourcemap: false,
+    rolldownOptions: {
+      input: {
+        main: "index.html",
+        menu: "menu.html",
+      },
+    },
   },
 });

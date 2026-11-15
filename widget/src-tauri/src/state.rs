@@ -40,10 +40,32 @@ pub struct AppState {
     pub link: Mutex<LinkStatus>,
     pub stream: Mutex<Option<JoinHandle<()>>>,
     pub mode: Mutex<Mode>,
+    /// Bottom-right corner where the owner dragged the widget (physical px); None = docked.
+    pub anchor: Mutex<Option<(i32, i32)>>,
+    /// The last position `window::dock` set itself, so its Moved event is not a drag.
+    pub placed: Mutex<Option<(i32, i32)>>,
+    /// Bumped on every drag move; the debounced save only writes the latest one.
+    pub move_seq: Mutex<u64>,
+    /// Last effective config view from the daemon ({config, sources}), for the context menu.
+    pub config: Mutex<Option<serde_json::Value>>,
+    /// Size factor of the OSD and panel (scale.rs), saved with the anchor.
+    pub scale: Mutex<f64>,
+    /// Grip drag in progress (scale.rs), None otherwise.
+    pub resize: Mutex<Option<crate::scale::Drag>>,
+    /// The daemon this widget started in WSL (daemon_launch.rs), if any.
+    pub daemon_child: Mutex<Option<std::process::Child>>,
+    /// Logical size the right-click menu webview measured for itself.
+    pub menu_size: Mutex<(f64, f64)>,
 }
 
 impl AppState {
-    pub fn new(http: Client, config_dir: PathBuf, settings: Settings, token: String) -> Self {
+    pub fn new(
+        http: Client,
+        config_dir: PathBuf,
+        settings: Settings,
+        token: String,
+        placement: crate::position::Placement,
+    ) -> Self {
         Self {
             http,
             config_dir,
@@ -53,7 +75,15 @@ impl AppState {
             verified: Mutex::new(0),
             link: Mutex::new(LinkStatus::new("connecting", "Connexion au démon…")),
             stream: Mutex::new(None),
-            mode: Mutex::new(Mode::Pill),
+            mode: Mutex::new(Mode::Osd),
+            anchor: Mutex::new(placement.anchor),
+            scale: Mutex::new(crate::scale::initial(placement.scale)),
+            daemon_child: Mutex::new(None),
+            resize: Mutex::new(None),
+            placed: Mutex::new(None),
+            move_seq: Mutex::new(0),
+            config: Mutex::new(None),
+            menu_size: Mutex::new(crate::osd_config::MENU_DEFAULT),
         }
     }
 }
