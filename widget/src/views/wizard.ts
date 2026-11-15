@@ -3,17 +3,20 @@
 // whole assistant can be left at any time (« Passer »).
 import { h } from "../dom";
 import { eyeMark } from "../eye";
+import type { AccountHandlers, AccountModel } from "../account-controller";
 import type { ProviderHandlers, ProviderModel } from "../provider-controller";
 import type { LinkStatus, Skin } from "../types";
+import { accountSection } from "./account";
 import { providersSection } from "./providers";
 import { pairingForm, type SettingsHandlers } from "./settings";
 
-export const WIZARD_STEPS = ["Connexion", "Fournisseur IA", "Apparence"] as const;
+export const WIZARD_STEPS = ["Connexion", "Compte", "Fournisseur IA", "Apparence"] as const;
 
 export interface WizardModel {
   step: number;
   link: LinkStatus;
   providers: ProviderModel;
+  account: AccountModel;
   skin: Skin;
 }
 
@@ -22,6 +25,7 @@ export interface WizardHandlers {
   finish(): void;
   pair: Pick<SettingsHandlers, "pairStart" | "pairFinish" | "unpair">;
   providers: ProviderHandlers;
+  account: AccountHandlers;
   setSkin(skin: Skin): void;
 }
 
@@ -67,7 +71,13 @@ function stepSkin(m: WizardModel, on: WizardHandlers): HTMLElement {
 export function wizardView(m: WizardModel, on: WizardHandlers): HTMLElement {
   const last = m.step === WIZARD_STEPS.length - 1;
   const body =
-    m.step === 0 ? stepConnect(m, on) : m.step === 1 ? providersSection(m.providers, on.providers) : stepSkin(m, on);
+    m.step === 0
+      ? stepConnect(m, on)
+      : m.step === 1
+        ? accountSection(m.account, on.account)
+        : m.step === 2
+          ? providersSection(m.providers, on.providers)
+          : stepSkin(m, on);
   return h(
     "section",
     { class: "panel panel--wizard", "aria-label": "Bienvenue" },

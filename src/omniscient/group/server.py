@@ -20,7 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Protocol
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from omniscient.group import api, api_stream, workers
+from omniscient.group import api, api_auth, api_stream, workers
 from omniscient.group.api import ApiError
 from omniscient.group.credentials import (
     WidgetTokens,
@@ -82,6 +82,9 @@ class App:
     osd: Any = None  # osd.OsdState: limits, live tok/min, ticker, widget config
     chat: Any = None  # chat.ChatManager: headless Claude chats from the widget
     providers: Any = None  # providers.ProviderStore: other LLM providers and their keys
+    auth: Any = (
+        None  # auth.AuthService: sign-in with Google / GitHub / e-mail (Supabase Auth)
+    )
 
 
 # ---- HTTP ------------------------------------------------------------------------------
@@ -207,7 +210,10 @@ class Handler(BaseHTTPRequestHandler):
             query = {k: v[-1] for k, v in parse_qs(url.query).items()}
             body = self._read_body(route.max_body) if method in ("POST", "PUT") else {}
             status, payload = route.handler(self.server.app, ids, query, body)
-            self._send_json(status, payload)
+            if api_auth.HTML_KEY in payload:
+                self._send_html(status, payload[api_auth.HTML_KEY])
+            else:
+                self._send_json(status, payload)
         except ApiError as exc:
             self._send_json(exc.status, {"error": exc.message})
         except (BrokenPipeError, ConnectionResetError):
@@ -288,6 +294,24 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self._cors_headers()
 
+    def _send_html(self, status: int, page: str) -> None:
+        """A fixed page for the browser (sign-in landing): nothing may load or run in it."""
+        data = page.encode("utf-8")
+        try:
+            self.send_response(status)
+            self._common_headers("text/html; charset=utf-8")
+            self.send_header(
+                "Content-Security-Policy",
+                "default-src 'none'; style-src 'unsafe-inline'",
+            )
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError):
+            log.debug("omnigroup: client went away before the page")
+
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         try:
@@ -348,6 +372,7 @@ def create_server(
 ) -> GroupServer:
     """A bound (not yet serving) daemon; port 0 picks a free port."""
     secure_dir(home.state)
+    from omniscient.group.auth import AuthService
     from omniscient.group.chat import ChatManager
     from omniscient.group.osd import OsdState
     from omniscient.group.providers import ProviderStore
@@ -368,8 +393,13 @@ def create_server(
         osd=OsdState(state_dir=home.state),
         chat=ChatManager(home, store._publish, providers=providers),
         providers=providers,
+        auth=AuthService(home.state, store._publish),
     )
-    return GroupServer(app, port)
+    server = GroupServer(app, port)
+    app.auth.set_port(
+        server.port
+    )  # the browser comes back to this daemon's own address
+    return server
 
 
 def serve(

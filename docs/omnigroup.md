@@ -245,6 +245,10 @@ Fournisseurs IA** (ou à l'assistant du premier lancement) et discuter avec : un
 Le pipeline d'Omniscient lui-même (idées, conseil, builder) passe par AgentRun et
 `config/routing.toml` : il suit une autre voie que ce chat.
 
+## Comptes
+
+Connexion facultative (Google, GitHub, e-mail + mot de passe) : voir [accounts.md](accounts.md).
+
 ## Usage et contexte
 
 Les hooks ne portent pas l'usage, seulement `transcript_path`. Le démon (jamais le hook)

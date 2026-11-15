@@ -1,193 +1,500 @@
-"""Split credentials (H1), daemon proof (M5), widget presence (M8), limits (M10),
-claim-first answers (H2) and truncated previews (M1), against a real daemon."""
+"""Accounts: sign-in with Google / GitHub (PKCE through the browser), e-mail + password,
+sessions kept 0600, no token ever returned (a fake in-memory Supabase Auth, no network)."""
 
 from __future__ import annotations
 
+import base64
 import hashlib
-import hmac
-import http.client
-import threading
-import time
+import json
+import os
+import stat
 from pathlib import Path
+from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
+import httpx
 import pytest
 
-from omniscient.group import server as srv
-from omniscient.group.credentials import token_hash
-from omniscient.group.gates import Presence
-from tests.group_support import Daemon, daemon, open_direct, post_hook, start_daemon
+from omniscient.group import auth as au
 
-__all__ = ["daemon"]  # the fixture
-
-WIDGET_ROUTES = [
-    ("GET", "/sessions", None),
-    ("GET", "/sessions/claude:s1", None),
-    ("GET", "/stream", None),
-    ("GET", "/usage", None),
-    ("GET", "/theme", None),
-    ("POST", "/pending/p1/answer", {"decision": "allow"}),
-    ("POST", "/sessions/claude:s1/prompt", {"text": "x"}),
-    ("POST", "/sessions/claude:s1/dismiss", {}),
-    ("POST", "/sessions/claude:s1/jump", {}),
-]
+URL = "https://abcdefgh.supabase.co"
+ANON = "eyJhbGciOiJIUzI1NiJ9.anon-public-key.sig"
+PORT = 7341
+CALLBACK = f"http://127.0.0.1:{PORT}/auth/callback"
 
 
-@pytest.mark.parametrize(("method", "path", "body"), WIDGET_ROUTES)
-def test_hook_credential_is_refused_on_widget_routes(
-    daemon: Daemon, method: str, path: str, body: dict | None
-) -> None:
-    status, reply, _ = daemon.call(method, path, body, auth="hook")
-    assert status == 403 and "jeton" in reply["error"]
+def public(host: str, port: int = 443, *a, **k):
+    return [(2, 1, 6, "", ("93.184.216.34", port))]
 
 
-def test_widget_token_is_refused_on_the_hook_routes(daemon: Daemon) -> None:
-    event = {"source": "claude", "event": {"session_id": "s1"}}
-    assert daemon.call("POST", "/hook", event, auth="widget")[0] == 403
-    reply = post_hook(daemon, ask=True)
-    status, _, _ = daemon.call(
-        "GET",
-        f"/pending/{reply['pending_id']}/wait?timeout=1",
-        auth="widget",
-        headers={"X-Omnigroup-Ticket": reply["wait_ticket"]},
-    )
-    assert status == 403
+def user(email: str = "ana@example.com", provider: str = "google") -> dict[str, Any]:
+    return {
+        "id": "u-1",
+        "email": email,
+        "app_metadata": {"provider": provider},
+        "user_metadata": {"full_name": "Ana Test", "avatar_url": "https://x/a.png"},
+    }
 
 
-def test_wait_needs_the_ticket_of_that_pending_once(daemon: Daemon) -> None:
-    first = post_hook(daemon, native="a", ask=True)
-    second = post_hook(daemon, native="b", ask=True)
-    assert daemon.wait(first["pending_id"], None)[0] == 403
-    assert daemon.wait(first["pending_id"], second["wait_ticket"])[0] == 403
-    daemon.call("POST", f"/pending/{first['pending_id']}/answer", {"decision": "deny"})
-    ok = daemon.wait(first["pending_id"], first["wait_ticket"])
-    assert ok[0] == 200 and ok[1]["status"] == "answered"
-    assert daemon.wait(first["pending_id"], first["wait_ticket"])[0] == 403  # used
-
-
-def test_health_proves_the_daemon_knows_the_widget_token(daemon: Daemon) -> None:
-    nonce = "n" * 24
-    status, body, _ = daemon.call("GET", f"/health?nonce={nonce}", auth=False)
-    key = bytes.fromhex(token_hash(daemon.widget_token))
-    expected = hmac.new(key, nonce.encode(), hashlib.sha256).hexdigest()
-    assert status == 200 and body["proofs"] == [expected]
-    assert daemon.call("GET", "/health?nonce=short", auth=False)[0] == 400
-    assert "proofs" not in daemon.call("GET", "/health", auth=False)[1]
-
-
-def test_no_widget_connected_means_no_pending(daemon: Daemon) -> None:
-    clock = [1000.0]
-    presence = Presence(clock=lambda: clock[0])
-    object.__setattr__(daemon.server.app, "presence", presence)
-    assert post_hook(daemon, ask=True) == {"pending_id": None, "wait_s": 0}
-    presence.enter()
-    presence.leave()  # a widget was connected moments ago
-    assert post_hook(daemon, ask=True)["wait_s"] == 100
-    clock[0] += 31
-    assert post_hook(daemon, ask=True)["wait_s"] == 0
-
-
-def test_stream_count_is_capped(tmp_path: Path) -> None:
-    d = start_daemon(tmp_path)
-    object.__setattr__(d.server.app, "presence", Presence(max_streams=1))
-    try:
-        conn = d.conn()
-        auth = {"Authorization": f"Bearer {d.widget_token}"}
-        conn.request("GET", "/stream", headers=auth)
-        assert conn.getresponse().status == 200
-        assert d.call("GET", "/stream")[0] == 503
-        conn.close()
-    finally:
-        d.server.close_all()
-
-
-def test_connections_are_capped(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(srv, "MAX_CONNECTIONS", 1)
-    d = start_daemon(tmp_path)
-    try:
-        conn = d.conn()
-        conn.request(
-            "GET", "/stream", headers={"Authorization": f"Bearer {d.widget_token}"}
-        )
-        assert conn.getresponse().status == 200  # holds the only slot
-        with pytest.raises((http.client.HTTPException, ConnectionError)):
-            d.call("GET", "/health", auth=False)
-        conn.close()
-    finally:
-        d.server.close_all()
-
-
-class SlowCollector:
-    name = "herdr"
+class FakeGoTrue:
+    """Just enough of Supabase Auth: authorize, token (pkce/password/refresh), signup, logout."""
 
     def __init__(self) -> None:
-        self.entered = threading.Event()
-        self.release = threading.Event()
-        self.calls = 0
+        self.calls: list[tuple[str, str, dict]] = []
+        self.codes: dict[str, str] = {}  # auth_code -> code_challenge
+        self.confirm_signup = True
+        self.refreshed = 0
+        self.fail_refresh = False
 
-    def run(self, store: object, stop: threading.Event) -> None:
-        stop.wait()
+    def session(self, provider: str = "google", n: int = 1) -> dict[str, Any]:
+        return {
+            "access_token": f"access-{n}",
+            "refresh_token": f"refresh-{n}",
+            "expires_in": 3600,
+            "user": user(provider=provider),
+        }
 
-    def answer(self, pending: object, answer: dict) -> tuple[bool, str]:
-        self.calls += 1
-        self.entered.set()
-        self.release.wait(5)
-        return True, "envoyé"
+    def issue(self, challenge: str) -> str:
+        code = f"00000000-0000-4000-8000-{len(self.codes):012d}"
+        self.codes[code] = challenge
+        return code
+
+    def __call__(self, req: httpx.Request) -> httpx.Response:
+        body = json.loads(req.content) if req.content else {}
+        self.calls.append((req.method, req.url.path, {**dict(req.url.params), **body}))
+        assert req.headers.get("apikey") == ANON
+        path, grant = req.url.path, req.url.params.get("grant_type")
+        if path == "/auth/v1/token" and grant == "pkce":
+            challenge = self.codes.pop(body.get("auth_code", ""), None)
+            verifier = body.get("code_verifier", "")
+            digest = (
+                base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+                .rstrip(b"=")
+                .decode()
+            )
+            if challenge is None or challenge != digest:
+                return httpx.Response(
+                    400, json={"error_code": "flow_state_not_found", "msg": "bad code"}
+                )
+            return httpx.Response(200, json=self.session())
+        if path == "/auth/v1/token" and grant == "password":
+            if body == {"email": "ana@example.com", "password": "correct-horse"}:
+                return httpx.Response(200, json=self.session("email"))
+            code = (
+                "email_not_confirmed"
+                if body.get("email") == "new@example.com"
+                else "invalid_credentials"
+            )
+            return httpx.Response(
+                400,
+                json={
+                    "error_code": code,
+                    "msg": f"secret detail {body.get('password')}",
+                },
+            )
+        if path == "/auth/v1/token" and grant == "refresh_token":
+            if self.fail_refresh:
+                return httpx.Response(
+                    400, json={"error_code": "refresh_token_not_found"}
+                )
+            self.refreshed += 1
+            return httpx.Response(200, json=self.session(n=1 + self.refreshed))
+        if path == "/auth/v1/signup":
+            if body.get("email") == "ana@example.com":
+                return httpx.Response(
+                    422, json={"error_code": "user_already_exists", "msg": "x"}
+                )
+            if self.confirm_signup:
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": "u-2",
+                        "email": body["email"],
+                        "confirmation_sent_at": "now",
+                    },
+                )
+            return httpx.Response(200, json=self.session("email"))
+        if path == "/auth/v1/logout":
+            return httpx.Response(204)
+        return httpx.Response(404, json={})
 
 
-def test_a_second_concurrent_answer_is_refused_before_the_collector(
-    daemon: Daemon,
+class Clock:
+    def __init__(self) -> None:
+        self.now = 1_000_000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+@pytest.fixture
+def fake() -> FakeGoTrue:
+    return FakeGoTrue()
+
+
+@pytest.fixture
+def events() -> list:
+    return []
+
+
+@pytest.fixture
+def clock() -> Clock:
+    return Clock()
+
+
+def make(
+    tmp_path: Path,
+    fake: FakeGoTrue,
+    events: list,
+    clock: Clock,
+    configured: bool = True,
+) -> au.AuthService:
+    svc = au.AuthService(
+        tmp_path / "state",
+        lambda kind, data: events.append((kind, data)),
+        client=httpx.Client(
+            transport=httpx.MockTransport(fake), follow_redirects=False
+        ),
+        resolver=public,
+        clock=clock,
+        env={},
+    )
+    svc.set_port(PORT)
+    if configured:
+        svc.configure(URL, ANON)
+    return svc
+
+
+@pytest.fixture
+def svc(tmp_path: Path, fake: FakeGoTrue, events: list, clock: Clock) -> au.AuthService:
+    return make(tmp_path, fake, events, clock)
+
+
+def challenge_of(url: str) -> str:
+    return parse_qs(urlsplit(url).query)["code_challenge"][0]
+
+
+# ---- configuration ---------------------------------------------------------------------
+
+
+def test_not_configured_by_default(
+    tmp_path: Path, fake: FakeGoTrue, events: list, clock: Clock
 ) -> None:
-    slow = SlowCollector()
-    object.__setattr__(daemon.server.app, "collectors", (slow,))
-    pending = open_direct(daemon, "herdr", "permission", options=("allow", "deny"))
-    path = f"/pending/{pending.id}/answer"
-    results: list[int] = []
-    first = threading.Thread(
-        target=lambda: results.append(
-            daemon.call("POST", path, {"decision": "allow"})[0]
+    s = make(tmp_path, fake, events, clock, configured=False)
+    assert s.status()["configured"] is False and s.status()["signed_in"] is False
+    with pytest.raises(au.AuthError) as err:
+        s.start("google")
+    assert err.value.status == 409 and "docs/accounts.md" in err.value.message
+
+
+@pytest.mark.parametrize(
+    ("url", "key"),
+    [
+        ("http://abcdefgh.supabase.co", ANON),  # plain http to a remote host
+        ("https://user:pw@abcdefgh.supabase.co", ANON),
+        ("https://abcdefgh.supabase.co/some/path", ANON),
+        ("https://abcdefgh.supabase.co?x=1", ANON),
+        ("https://10.0.0.5", ANON),  # private network
+        ("not a url", ANON),
+        (URL, "short"),
+        (URL, "has space in it"),
+        (URL, "k" * 3000),
+    ],
+)
+def test_bad_configuration_is_refused(svc: au.AuthService, url: str, key: str) -> None:
+    with pytest.raises(au.AuthError) as err:
+        svc.configure(url, key)
+    assert err.value.status == 400
+
+
+def test_configuration_is_saved_private_and_env_wins(
+    tmp_path: Path, fake: FakeGoTrue, events: list, clock: Clock
+) -> None:
+    s = make(tmp_path, fake, events, clock)
+    path = tmp_path / "state" / "auth_config.json"
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+    other = au.AuthService(
+        tmp_path / "state", lambda *a: None, client=httpx.Client(transport=httpx.MockTransport(fake)),
+        resolver=public, clock=clock,
+        env={"OMNIGROUP_AUTH_URL": "https://zzzzzzzz.supabase.co", "OMNIGROUP_AUTH_ANON_KEY": ANON},
+    )  # fmt: skip
+    assert (
+        other.status()["host"] == "zzzzzzzz.supabase.co"
+        and s.status()["host"] == "abcdefgh.supabase.co"
+    )
+
+
+# ---- OAuth with PKCE through the browser ------------------------------------------------
+
+
+def test_start_builds_a_pkce_authorize_url(svc: au.AuthService) -> None:
+    out = svc.start("github")
+    parts = urlsplit(out["url"])
+    q = parse_qs(parts.query)
+    assert f"{parts.scheme}://{parts.netloc}{parts.path}" == f"{URL}/auth/v1/authorize"
+    assert q["provider"] == ["github"] and q["redirect_to"] == [CALLBACK]
+    assert q["code_challenge_method"] == ["s256"] and len(q["code_challenge"][0]) == 43
+    assert svc.status()["pending"] is True
+
+
+def test_unknown_provider_is_refused(svc: au.AuthService) -> None:
+    for bad in ("facebook", "", None, "google; drop"):
+        with pytest.raises(au.AuthError) as err:
+            svc.start(bad)
+        assert err.value.status == 400
+
+
+def test_full_oauth_round_trip(
+    svc: au.AuthService, fake: FakeGoTrue, events: list, tmp_path: Path
+) -> None:
+    out = svc.start("google")
+    code = fake.issue(challenge_of(out["url"]))
+    status, html = svc.callback({"code": code})
+    assert status == 200 and "Connecté" in html
+    st = svc.status()
+    assert st["signed_in"] is True and st["pending"] is False
+    assert st["user"] == {
+        "email": "ana@example.com",
+        "name": "Ana Test",
+        "provider": "google",
+    }
+    dumped = json.dumps(st) + html
+    for secret in ("access-1", "refresh-1", ANON):
+        assert secret not in dumped
+    session_file = tmp_path / "state" / "auth_session.json"
+    assert stat.S_IMODE(os.stat(session_file).st_mode) == 0o600
+    assert "refresh-1" in session_file.read_text()
+    assert events and events[-1][0] == "auth" and "refresh-1" not in json.dumps(events)
+
+
+def test_a_code_made_for_another_flow_is_rejected(
+    svc: au.AuthService, fake: FakeGoTrue
+) -> None:
+    """Login CSRF: an attacker's code is bound to the attacker's verifier, not ours."""
+    svc.start("google")
+    attacker_code = fake.issue("a" * 43)  # a challenge we know nothing about
+    status, html = svc.callback({"code": attacker_code})
+    assert status == 400 and svc.status()["signed_in"] is False
+    assert attacker_code not in html
+
+
+def test_callback_without_a_pending_flow_or_expired(
+    svc: au.AuthService, fake: FakeGoTrue, clock: Clock
+) -> None:
+    assert svc.callback({"code": "00000000-0000-4000-8000-000000000001"})[0] == 400
+    out = svc.start("google")
+    code = fake.issue(challenge_of(out["url"]))
+    clock.now += au.PENDING_TTL_S + 1
+    status, html = svc.callback({"code": code})
+    assert status == 400 and "expiré" in html and svc.status()["signed_in"] is False
+
+
+def test_a_code_works_once(svc: au.AuthService, fake: FakeGoTrue) -> None:
+    out = svc.start("google")
+    code = fake.issue(challenge_of(out["url"]))
+    assert svc.callback({"code": code})[0] == 200
+    assert svc.callback({"code": code})[0] == 400
+
+
+def test_failed_attempts_are_capped(svc: au.AuthService, fake: FakeGoTrue) -> None:
+    out = svc.start("google")
+    for _ in range(au.MAX_CALLBACK_ATTEMPTS):
+        assert svc.callback({"code": "00000000-0000-4000-8000-0000000000ff"})[0] == 400
+    good = fake.issue(challenge_of(out["url"]))
+    assert svc.callback({"code": good})[0] == 400  # the flow was dropped
+
+
+def test_callback_input_is_validated_and_never_reflected(svc: au.AuthService) -> None:
+    svc.start("google")
+    for q in (
+        {},
+        {"code": "<script>alert(1)</script>"},
+        {"code": "x" * 500},
+        {"code": ["a"]},
+    ):
+        status, html = svc.callback(q)
+        assert status == 400 and "<script>" not in html
+    status, html = svc.callback(
+        {"error": "access_denied", "error_description": "<b>evil</b>"}
+    )
+    assert status == 400 and "<b>" not in html and "annulée" in html
+    assert svc.status()["pending"] is False
+
+
+# ---- e-mail + password ----------------------------------------------------------------
+
+
+def test_password_sign_in(svc: au.AuthService, fake: FakeGoTrue) -> None:
+    st = svc.password("signin", "ana@example.com", "correct-horse")
+    assert st["signed_in"] is True and st["user"]["provider"] == "email"
+    assert "correct-horse" not in json.dumps(st)
+
+
+def test_wrong_password_gives_a_clean_message(svc: au.AuthService) -> None:
+    with pytest.raises(au.AuthError) as err:
+        svc.password("signin", "ana@example.com", "wrong-password")
+    assert err.value.status == 422 and "incorrect" in err.value.message
+    assert (
+        "wrong-password" not in err.value.message
+        and "secret detail" not in err.value.message
+    )
+    with pytest.raises(au.AuthError) as err:
+        svc.password("signin", "new@example.com", "whatever-pass")
+    assert "Confirmez" in err.value.message
+
+
+def test_signup_waits_for_the_confirmation_email(
+    svc: au.AuthService, fake: FakeGoTrue
+) -> None:
+    st = svc.password("signup", "new@example.com", "long-enough-pass")
+    assert st["signed_in"] is False and "e-mail" in st["message"]
+    call = next(c for c in fake.calls if c[1] == "/auth/v1/signup")
+    assert (
+        call[2]["code_challenge_method"] == "s256"
+        and call[2]["redirect_to"] == CALLBACK
+    )
+    # the confirmation link comes back to the callback with a code bound to our verifier
+    code = fake.issue(call[2]["code_challenge"])
+    assert svc.callback({"code": code})[0] == 200 and svc.status()["signed_in"] is True
+
+
+def test_signup_without_confirmation_signs_in(
+    svc: au.AuthService, fake: FakeGoTrue
+) -> None:
+    fake.confirm_signup = False
+    assert (
+        svc.password("signup", "new@example.com", "long-enough-pass")["signed_in"]
+        is True
+    )
+
+
+def test_existing_account_on_signup(svc: au.AuthService) -> None:
+    with pytest.raises(au.AuthError) as err:
+        svc.password("signup", "ana@example.com", "long-enough-pass")
+    assert err.value.status == 409 and "existe déjà" in err.value.message
+
+
+@pytest.mark.parametrize(
+    ("mode", "email", "password"),
+    [
+        ("hack", "ana@example.com", "long-enough-pass"),
+        ("signin", "not-an-email", "long-enough-pass"),
+        ("signin", "a@b", "long-enough-pass"),
+        ("signin", "ana@example.com\nBcc: x@y.z", "long-enough-pass"),
+        ("signin", "a" * 300 + "@example.com", "long-enough-pass"),
+        ("signup", "ana@example.com", "short"),
+        ("signup", "ana@example.com", "p" * 200),
+        ("signin", "ana@example.com", ""),
+        ("signin", None, "long-enough-pass"),
+        ("signin", "ana@example.com", 12345678),
+    ],
+)
+def test_password_inputs_are_validated(
+    svc: au.AuthService, mode: Any, email: Any, password: Any
+) -> None:
+    with pytest.raises(au.AuthError) as err:
+        svc.password(mode, email, password)
+    assert err.value.status == 400
+
+
+def test_password_attempts_are_rate_limited(svc: au.AuthService, clock: Clock) -> None:
+    for _ in range(au.MAX_PASSWORD_ATTEMPTS):
+        with pytest.raises(au.AuthError):
+            svc.password("signin", "ana@example.com", "wrong-password")
+    with pytest.raises(au.AuthError) as err:
+        svc.password("signin", "ana@example.com", "correct-horse")
+    assert err.value.status == 429
+    clock.now += au.ATTEMPT_WINDOW_S + 1
+    assert (
+        svc.password("signin", "ana@example.com", "correct-horse")["signed_in"] is True
+    )
+
+
+# ---- session ----------------------------------------------------------------------------
+
+
+def signed_in(svc: au.AuthService) -> None:
+    svc.password("signin", "ana@example.com", "correct-horse")
+
+
+def test_the_session_survives_a_restart(
+    svc: au.AuthService, tmp_path: Path, fake: FakeGoTrue, events: list, clock: Clock
+) -> None:
+    signed_in(svc)
+    again = make(tmp_path, fake, events, clock)
+    assert (
+        again.status()["signed_in"] is True
+        and again.status()["user"]["email"] == "ana@example.com"
+    )
+
+
+def test_access_token_is_refreshed_and_rotated(
+    svc: au.AuthService, fake: FakeGoTrue, clock: Clock, tmp_path: Path
+) -> None:
+    signed_in(svc)
+    assert svc.access_token() == "access-1"
+    clock.now += 3600  # expired
+    assert svc.access_token() == "access-2"
+    assert "refresh-2" in (tmp_path / "state" / "auth_session.json").read_text()
+    assert svc.access_token() == "access-2" and fake.refreshed == 1
+
+
+def test_a_dead_refresh_token_signs_out_locally(
+    svc: au.AuthService, fake: FakeGoTrue, clock: Clock, tmp_path: Path
+) -> None:
+    signed_in(svc)
+    fake.fail_refresh = True
+    clock.now += 3600
+    assert svc.access_token() is None
+    assert (
+        svc.status()["signed_in"] is False
+        and not (tmp_path / "state" / "auth_session.json").exists()
+    )
+
+
+def test_sign_out_revokes_and_forgets(
+    svc: au.AuthService, fake: FakeGoTrue, tmp_path: Path, events: list
+) -> None:
+    signed_in(svc)
+    st = svc.signout()
+    assert (
+        st["signed_in"] is False
+        and not (tmp_path / "state" / "auth_session.json").exists()
+    )
+    assert any(c[1] == "/auth/v1/logout" for c in fake.calls)
+    assert events[-1][0] == "auth"
+
+
+def test_sign_out_still_works_when_the_service_is_down(
+    svc: au.AuthService, tmp_path: Path
+) -> None:
+    signed_in(svc)
+    svc._client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda r: (_ for _ in ()).throw(httpx.ConnectError("down"))
         )
     )
-    first.start()
-    assert slow.entered.wait(5)
-    assert daemon.call("POST", path, {"decision": "deny"})[0] == 409
-    slow.release.set()
-    first.join(5)
-    assert results == [200] and slow.calls == 1
+    assert svc.signout()["signed_in"] is False
 
 
-def test_a_crashing_collector_releases_the_claim(daemon: Daemon) -> None:
-    class Boom(SlowCollector):
-        def answer(self, pending: object, answer: dict) -> tuple[bool, str]:
-            raise RuntimeError("boom")
+def test_a_rebinding_hostname_is_refused_before_any_call(
+    tmp_path: Path, fake: FakeGoTrue, events: list, clock: Clock
+) -> None:
+    s = make(tmp_path, fake, events, clock)
+    s._resolver = lambda h, p, *a, **k: [(2, 1, 6, "", ("10.0.0.9", p))]
+    with pytest.raises(au.AuthError):
+        s.password("signin", "ana@example.com", "correct-horse")
+    assert fake.calls == []
 
-    object.__setattr__(daemon.server.app, "collectors", (Boom(),))
-    pending = open_direct(daemon, "herdr", "permission", options=("allow", "deny"))
-    status, _, _ = daemon.call(
-        "POST", f"/pending/{pending.id}/answer", {"decision": "allow"}
+
+def test_provider_errors_never_leak_server_text(
+    svc: au.AuthService, fake: FakeGoTrue
+) -> None:
+    svc._client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda r: httpx.Response(500, text="stack trace with SECRET-TOKEN")
+        )
     )
-    assert status == 502
-    assert daemon.server.app.store.get_pending(pending.id).status == "open"  # type: ignore[union-attr]
-
-
-def test_truncated_preview_can_only_be_denied(daemon: Daemon) -> None:
-    pending = open_direct(
-        daemon,
-        "claude",
-        "permission",
-        payload={"tool_input": "x" * 10, "truncated": 70000},
-        options=("allow", "deny"),
-    )
-    path = f"/pending/{pending.id}/answer"
-    status, body, _ = daemon.call("POST", path, {"decision": "allow"})
-    assert status == 409 and "terminal" in body["error"]
-    assert daemon.call("POST", path, {"decision": "deny"})[0] == 200
-
-
-def test_widget_pending_lists_are_capped(daemon: Daemon) -> None:
-    for _ in range(25):
-        open_direct(daemon, "claude", "question")
-        time.sleep(0.001)
-    sessions = daemon.call("GET", "/sessions")[1]["sessions"]
-    assert len(sessions[0]["pending"]) == 20
+    with pytest.raises(au.AuthError) as err:
+        svc.password("signin", "ana@example.com", "correct-horse")
+    assert "SECRET-TOKEN" not in err.value.message and err.value.status == 502

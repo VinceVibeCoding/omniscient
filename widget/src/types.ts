@@ -181,6 +181,29 @@ export interface Chat {
   provider: string;
 }
 
+// ---- account (GET /auth, SSE `auth`) ----------------------------------------
+
+export type AuthProvider = "google" | "github";
+
+export interface AuthUser {
+  email: string;
+  name: string;
+  /** "google", "github" or "email". */
+  provider: string;
+}
+
+/** Who is signed in. Never a token: those stay in the daemon. */
+export interface AuthStatus {
+  configured: boolean;
+  host: string;
+  signed_in: boolean;
+  user: AuthUser | null;
+  /** A browser sign-in was started and is waiting for its return. */
+  pending: boolean;
+  providers: AuthProvider[];
+  message: string;
+}
+
 // ---- LLM providers (GET/PUT /providers) -------------------------------------
 
 export type ProviderKind = "claude-code" | "openai" | "gemini" | "anthropic" | "openai-compatible";

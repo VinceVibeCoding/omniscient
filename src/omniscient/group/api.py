@@ -19,7 +19,14 @@ from dataclasses import dataclass
 from importlib import metadata
 from typing import TYPE_CHECKING, Any
 
-from omniscient.group import api_chat, api_osd, api_pair, api_providers, api_reads
+from omniscient.group import (
+    api_auth,
+    api_chat,
+    api_osd,
+    api_pair,
+    api_providers,
+    api_reads,
+)
 from omniscient.group.credentials import NONCE
 from omniscient.group.models import ModelError, Pending, Session, to_json
 from omniscient.group.store import StoreError
@@ -371,6 +378,12 @@ ROUTES: tuple[Route, ...] = (
     _route("config_get", "GET", "/config", api_osd.get_config),
     _route("config_put", "PUT", "/config", api_osd.put_config),
     _route("projects", "GET", "/projects", api_chat.list_projects),
+    _route("auth", "GET", "/auth", api_auth.get_auth),
+    _route("auth_start", "POST", "/auth/start", api_auth.start),
+    _route("auth_password", "POST", "/auth/password", api_auth.password),
+    _route("auth_signout", "POST", "/auth/signout", api_auth.signout),
+    _route("auth_callback", "GET", "/auth/callback", api_auth.callback, "none"),
+    _route("auth_confirmed", "GET", "/auth/confirmed", api_auth.confirmed, "none"),
     _route("providers", "GET", "/providers", api_providers.list_providers),
     _route("provider_put", "PUT", f"/providers/{_SEG}", api_providers.put_provider),
     _route(
