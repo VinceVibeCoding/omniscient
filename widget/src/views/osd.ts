@@ -1,7 +1,7 @@
 // The always-on-top OSD (replaces the pill): header with subagent counter, pending
 // alert and live tok/min badge; Session / Weekly utilisation as bars or rings with reset
 // timers; the per-turn cost ticker along the bottom. Left click opens the panel; the
-// right-click menu (OSD View ▸, Thème ▸ …) is native and handled in main.ts / Rust.
+// right-click menu (menu.html, opened by Rust) changes view, theme, size and ticker.
 // Layout inspired by bozdemir/claude-usage-widget (MIT).
 import { h, svg } from "../dom";
 import { eyeMark } from "../eye";
