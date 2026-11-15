@@ -155,6 +155,68 @@ def test_chat_without_claude_session_has_no_session_id(home: Home) -> None:
     assert chat.summary()["session_id"] is None
 
 
+def test_fork_continues_a_running_session_in_a_copy(home: Home, tmp_path: Path) -> None:
+    """« Continuer dans le widget »: --resume <session> --fork-session, in the session's
+    own folder, never writing into the original; the chat then follows the new id."""
+    runner = FakeRunner()
+    mgr = manager(home, runner)
+    cwd = tmp_path / "work" / "alpha"
+    chat_id = mgr.fork("orig-session-1", str(cwd), "Continue")
+    mgr.join(chat_id, 5)
+    spec = runner.specs[0]
+    argv = list(spec.argv)
+    assert argv[argv.index("--resume") + 1] == "orig-session-1"
+    assert "--fork-session" in argv and spec.cwd == cwd.resolve()
+    _, detail = mgr.get(chat_id)
+    assert detail["chat"]["project"] == "alpha"
+    assert detail["chat"]["session_id"] == "claude:sess-1"  # the fork, not the original
+    mgr.send(chat_id, "suite")
+    mgr.join(chat_id, 5)
+    second = list(runner.specs[1].argv)
+    assert second[second.index("--resume") + 1] == "sess-1"
+    assert "--fork-session" not in second
+
+
+def test_fork_works_from_a_subfolder_of_a_project(home: Home, tmp_path: Path) -> None:
+    runner = FakeRunner()
+    mgr = manager(home, runner)
+    sub = tmp_path / "work" / "alpha" / "src"
+    sub.mkdir()
+    mgr.join(mgr.fork("s-1", str(sub), "x"), 5)
+    assert runner.specs[0].cwd == sub.resolve()
+
+
+def test_fork_refuses_unknown_folders_and_bad_ids(home: Home, tmp_path: Path) -> None:
+    mgr = manager(home, FakeRunner())
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    climbing = str(tmp_path / "work" / "alpha" / ".." / "..")
+    for bad_cwd in (str(outside), "", None, "/", climbing):
+        with pytest.raises(ch.ChatError) as err:
+            mgr.fork("s-1", bad_cwd, "x")
+        assert err.value.status in (400, 404)
+    with pytest.raises(ch.ChatError) as err:
+        mgr.fork("bad id; ls", str(tmp_path / "work" / "alpha"), "x")
+    assert err.value.status == 400
+
+
+def test_a_failed_fork_never_resumes_the_original(home: Home, tmp_path: Path) -> None:
+    """If the first turn dies before Claude names the copy, a retry starts fresh."""
+
+    class Dies(FakeRunner):
+        def __call__(self, spec: TurnSpec, on_event: Any, handle: TurnHandle):
+            self.specs.append(spec)
+            return TurnOutcome(False, None, None, "boom")
+
+    runner = Dies()
+    mgr = manager(home, runner)
+    chat_id = mgr.fork("orig", str(tmp_path / "work" / "alpha"), "x")
+    mgr.join(chat_id, 5)
+    mgr.send(chat_id, "again")
+    mgr.join(chat_id, 5)
+    assert "--resume" not in list(runner.specs[1].argv)
+
+
 def test_validation_errors(home: Home) -> None:
     mgr = manager(home, FakeRunner())
     with pytest.raises(ch.ChatError) as unknown:

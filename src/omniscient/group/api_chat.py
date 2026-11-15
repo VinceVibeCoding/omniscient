@@ -53,9 +53,29 @@ def list_chats(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]
 
 
 def create_chat(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:
+    """`project` starts a fresh chat; `session` (an omnigroup session id) continues that
+    running Claude session in a copy. One or the other."""
     manager = _manager(app)
+    if "session" in body:
+        if "project" in body:
+            raise _api_error(400, "Indiquez soit project, soit session.")
+        return 202, {"chat_id": _fork(app, manager, body)}
     chat_id = _guard(lambda: manager.create(body.get("project"), body.get("text")))
     return 202, {"chat_id": chat_id}
+
+
+def _fork(app: App, manager: ChatManager, body: dict) -> str:
+    sid = body.get("session")
+    session = app.store.get_session(sid) if isinstance(sid, str) else None
+    if session is None:
+        raise _api_error(404, "session inconnue")
+    if session.source != "claude":
+        raise _api_error(
+            400, "Seules les sessions Claude Code peuvent être continuées ici."
+        )
+    return _guard(
+        lambda: manager.fork(session.native_id, session.cwd, body.get("text"))
+    )
 
 
 def get_chat(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:

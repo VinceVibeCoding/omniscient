@@ -104,6 +104,7 @@ pub fn run() {
             autostart::set_autostart,
             osd_commands::list_projects,
             osd_commands::chat_create,
+            osd_commands::chat_fork,
             osd_commands::chat_send,
             osd_commands::chat_stop,
             osd_commands::chat_list,

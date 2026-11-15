@@ -154,10 +154,20 @@ function settingsPanel(s: AppState): HTMLElement {
   return withTabs(panel, tabBar("settings", selectTab));
 }
 
+/** Start a widget chat from a copy of `detail`'s session, then show it in the Chat tab. */
+async function continueInWidget(detail: SessionDetail, text: string): Promise<void> {
+  const started = await chat.fork({ id: detail.id, title: detail.title, cwd: detail.cwd }, text);
+  if (!started) return;
+  sessionDraft = "";
+  update({ view: "chat", detail: null, transcript: null });
+  void chat.load();
+}
+
 function conversationFor(detail: SessionDetail, transcript: Transcript | null): HTMLElement {
   return transcriptSection(detail.id, transcript, sessionDraft, {
     setDraft: (text) => (sessionDraft = text),
     send: (text) => detailHandlers.prompt(detail.id, text),
+    fork: (text) => void continueInWidget(detail, text),
   });
 }
 

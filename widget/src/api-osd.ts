@@ -178,6 +178,13 @@ export async function chatCreate(project: string, text: string): Promise<string>
   return res.chat_id;
 }
 
+/** Continue a running session in a widget chat (a copy of it: the original is untouched). */
+export async function chatFork(sessionId: string, text: string): Promise<string> {
+  const res = await invoke<unknown>("chat_fork", { sessionId, text });
+  if (!isRecord(res) || typeof res.chat_id !== "string") throw new Error("Réponse du démon invalide.");
+  return res.chat_id;
+}
+
 export function chatSend(chatId: string, text: string): Promise<unknown> {
   return invoke("chat_send", { chatId, text });
 }

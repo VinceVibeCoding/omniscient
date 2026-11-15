@@ -25,6 +25,7 @@ import uuid
 from collections import deque
 from collections.abc import Callable, Sequence
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 from omniscient.group import chat_runner
@@ -71,6 +72,12 @@ def _text(raw: Any) -> str:
         raise ChatError(400, f"text : texte de {MAX_TEXT} caractères au plus attendu")
     if not raw.strip():
         raise ChatError(400, "text ne doit pas être vide")
+    return raw
+
+
+def _claude_session_id(raw: Any) -> str:
+    if not isinstance(raw, str) or not chat_runner.SESSION_ID.match(raw):
+        raise ChatError(400, "Identifiant de session Claude invalide.")
     return raw
 
 
@@ -149,6 +156,24 @@ class ChatManager:
         self._start(chat.chat_id, ref, prompt, None)
         return chat.chat_id
 
+    def fork(self, session_native_id: Any, cwd: Any, text: Any) -> str:
+        """Continue a session running elsewhere (terminal, IDE) in a widget chat: Claude
+        resumes a copy of it (`--resume <id> --fork-session`) in the session's own folder,
+        which must lie inside a known project. The chat only learns the copy's id once
+        Claude reports it, so a turn that fails earlier can never resume the original."""
+        native = _claude_session_id(session_native_id)
+        ref = self._project_of(cwd)
+        prompt = _text(text)
+        now = utcnow()
+        chat = Chat(str(uuid.uuid4()), ref.name, _title(prompt), "running", now, now)
+        with self._lock:
+            self._reserve_slot()
+            self._chats[chat.chat_id] = chat.with_message(Message("user", prompt, now))
+            self._running[chat.chat_id] = TurnHandle()
+        self._prune()
+        self._start(chat.chat_id, ref, prompt, native, fork=True)
+        return chat.chat_id
+
     def send(self, chat_id: str, text: Any) -> None:
         prompt = _text(text)
         with self._lock:
@@ -216,6 +241,22 @@ class ChatManager:
             raise ChatError(404, f"projet inconnu : {name[:80]}")
         return found
 
+    def _project_of(self, cwd: Any) -> ProjectRef:
+        """The session's folder, if it is a known project or inside one (never elsewhere)."""
+        if not isinstance(cwd, str) or not cwd.strip():
+            raise ChatError(400, "Cette session n'a pas de dossier connu.")
+        try:
+            folder = Path(cwd).resolve(strict=True)
+        except (OSError, RuntimeError):
+            raise ChatError(404, "Le dossier de cette session n'existe plus.") from None
+        if not folder.is_dir():
+            raise ChatError(404, "Le dossier de cette session n'existe plus.")
+        for ref in sorted(list_projects(self.home), key=lambda r: -len(r.path.parts)):
+            root = ref.path.resolve()
+            if folder == root or root in folder.parents:
+                return ProjectRef(ref.name, folder, ref.path_label)
+        raise ChatError(404, "Cette session n'est dans aucun projet connu.")
+
     def _get(self, chat_id: str) -> Chat:
         chat = self._chats.get(chat_id) if CHAT_ID.match(chat_id or "") else None
         if chat is None:
@@ -239,23 +280,33 @@ class ChatManager:
         self._turns.append(now)
 
     def _start(
-        self, chat_id: str, ref: ProjectRef, prompt: str, resume: str | None
+        self,
+        chat_id: str,
+        ref: ProjectRef,
+        prompt: str,
+        resume: str | None,
+        fork: bool = False,
     ) -> None:
         self._save(chat_id)
         self._emit(chat_id, "state", state="running")
         thread = threading.Thread(
-            target=self._run, args=(chat_id, ref, prompt, resume), daemon=True,
+            target=self._run, args=(chat_id, ref, prompt, resume, fork), daemon=True,
             name=f"omnigroup-chat-{chat_id[:8]}",
         )  # fmt: skip
         self._threads[chat_id] = thread
         thread.start()
 
     def _run(
-        self, chat_id: str, ref: ProjectRef, prompt: str, resume: str | None
+        self,
+        chat_id: str,
+        ref: ProjectRef,
+        prompt: str,
+        resume: str | None,
+        fork: bool = False,
     ) -> None:
         handle = self._running[chat_id]
         try:
-            argv = chat_runner.build_argv(self._claude, resume, self._budget)
+            argv = chat_runner.build_argv(self._claude, resume, self._budget, fork)
             spec = TurnSpec(argv, ref.path, prompt, self._timeout_s)
             outcome = self._runner(spec, lambda e: self._on_event(chat_id, e), handle)
         except Exception as exc:  # never leave a chat stuck in "running"
