@@ -1,4 +1,4 @@
-"""Page context from the browser extension: validated, capped, secrets masked, and wrapped
+"""Page context read by the widget from the browser window: validated, capped, secrets masked, and wrapped
 as untrusted data the model must never obey."""
 
 from __future__ import annotations

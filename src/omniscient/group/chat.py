@@ -190,7 +190,7 @@ class ChatManager:
     ) -> str:
         """A new chat. `provider`: Claude Code (a project is required, it runs there) or a
         saved provider id (plain chat, no tools; the project is optional). None = the
-        person's default provider. `page` (from the browser extension) attaches a web page
+        person's default provider. `page` (read by the widget from the browser window) attaches a web page
         as untrusted context: the chat then runs without any tool, and needs no project."""
         context = _page_context(page)
         engine = self._engine(provider)

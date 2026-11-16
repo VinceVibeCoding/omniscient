@@ -30,10 +30,10 @@ news ──▶ ideas ──▶ council (debate + score) ──▶ game plan ─�
 | Anthropic API key | the factory loops (AgentRun calls the models) | for the factory |
 | Slack app (Socket Mode) | daily digest, buttons, debate threads | optional |
 | Windows 10/11 x64 (WebView2, installed by the installer if missing) | the Omnigroup widget | for the widget |
-| Chrome or Edge 116+ | the Omnigroup browser extension ([extension/README.md](extension/README.md)) | optional |
+| Chrome, Edge, Brave, Vivaldi or Opera on Windows | the widget reads the open web page itself (no extension) | optional |
 | Another LLM provider key (Gemini, OpenAI, Anthropic API) or a local model (Ollama, LM Studio) | chatting without Claude Code | optional |
 
-Node, TypeScript and Rust are only needed to build the widget or the extension from source:
+Node, TypeScript and Rust are only needed to build the widget from source:
 people who install Omniscient get built files.
 
 `omniscient init` checks these for you and never installs anything. Linux and WSL2 are

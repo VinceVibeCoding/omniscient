@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import threading
 from collections.abc import Callable, Sequence
@@ -45,21 +44,11 @@ ALLOWED_ORIGINS = frozenset(
     {"http://tauri.localhost", "https://tauri.localhost", "tauri://localhost"}
 )
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "[::1]"})
-# Omnigroup's browser extension (Chrome / Edge). Its ID is pinned by the public key in
-# extension/manifest.json, so no other extension can pass for it. More IDs (a store build,
-# a fork) can be added with OMNIGROUP_EXTENSION_IDS="id1,id2".
-EXTENSION_IDS = ("hapedjahhcmgfkmdegelfbffoeoaokfj",)
-EXTENSION_ID = re.compile(r"^[a-p]{32}$")
 
 
 def allowed_origins() -> frozenset[str]:
-    """The widget's webview origins, plus the extension's (Chrome and Edge spellings)."""
-    extra = (
-        i.strip() for i in os.environ.get("OMNIGROUP_EXTENSION_IDS", "").split(",")
-    )
-    ids = {*EXTENSION_IDS, *(i for i in extra if EXTENSION_ID.match(i))}
-    schemes = ("chrome-extension", "extension")
-    return ALLOWED_ORIGINS | {f"{s}://{i}" for s in schemes for i in ids}
+    """The widget's webview origins: nothing else may call the daemon from a page."""
+    return ALLOWED_ORIGINS
 
 
 SOCKET_TIMEOUT_S = 30
@@ -100,9 +89,6 @@ class App:
     osd: Any = None  # osd.OsdState: limits, live tok/min, ticker, widget config
     chat: Any = None  # chat.ChatManager: headless Claude chats from the widget
     providers: Any = None  # providers.ProviderStore: other LLM providers and their keys
-    browser: Any = (
-        None  # browser_page.BrowserPages: the page open in the browser (memory)
-    )
     auth: Any = (
         None  # auth.AuthService: sign-in with Google / GitHub / e-mail (Supabase Auth)
     )
@@ -394,7 +380,6 @@ def create_server(
     """A bound (not yet serving) daemon; port 0 picks a free port."""
     secure_dir(home.state)
     from omniscient.group.auth import AuthService
-    from omniscient.group.browser_page import BrowserPages
     from omniscient.group.chat import ChatManager
     from omniscient.group.osd import OsdState
     from omniscient.group.providers import ProviderStore
@@ -416,7 +401,6 @@ def create_server(
         chat=ChatManager(home, store._publish, providers=providers),
         providers=providers,
         auth=AuthService(home.state, store._publish),
-        browser=BrowserPages(),
     )
     server = GroupServer(app, port)
     app.auth.set_port(

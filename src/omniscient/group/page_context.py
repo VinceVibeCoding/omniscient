@@ -1,5 +1,5 @@
-"""What the browser extension sends about the page the person is on (only for a site they
-allowed): URL, title, visible text, their selection, console errors and failed requests.
+"""What the widget reads about the browser page the person is on (only when they send a
+question with the box ticked): URL, title, visible text, their selection, console errors and failed requests.
 
 Everything here is untrusted: a web page can contain text written to manipulate an AI. So it
 is validated and capped, secrets are masked, query strings are dropped (they often carry
@@ -203,7 +203,7 @@ def render(page: PageContext) -> str:
     if page.text:
         parts.append(f"Visible page text:\n{_defang(page.text)}")
     body = "\n\n".join(parts)
-    return f'<page_context source="browser extension" trust="untrusted">\n{NOTICE}\n\n{body}\n</page_context>'
+    return f'<page_context source="browser window" trust="untrusted">\n{NOTICE}\n\n{body}\n</page_context>'
 
 
 def summary(page: PageContext) -> str:

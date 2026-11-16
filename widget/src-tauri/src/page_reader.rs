@@ -1,5 +1,5 @@
 //! Reads the web page open in a Chromium browser window with Windows UI Automation: no
-//! browser extension. Everything comes from the accessibility tree the browser already
+//! extension to install. Everything comes from the accessibility tree the browser already
 //! publishes: the page's text, its headings, links, buttons and fields with their place on
 //! screen, and the address bar.
 //!

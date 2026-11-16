@@ -60,6 +60,8 @@ installer**.
 - **Jamais lu** : les valeurs des champs (donc les mots de passe), les cookies, les en-têtes.
   Le démon masque les secrets, borne la taille et place le tout dans un bloc « donnée non
   fiable » : une conversation avec une page tourne sans aucun outil.
+- **L'ancienne extension Chrome / Edge n'existe plus** : si vous l'aviez installée, supprimez-la
+  dans `chrome://extensions` (ou `edge://extensions`). Le widget n'en a plus besoin.
 - **À savoir** : Chrome ne construit l'arbre d'accessibilité de la page qu'à la première
   demande (la première lecture peut prendre une seconde) et le garde ensuite, ce qui coûte un
   peu de processeur. Pas de console ni de requêtes en échec : ce sont des outils de
