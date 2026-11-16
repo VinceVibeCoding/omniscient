@@ -145,6 +145,6 @@ def test_hooks_errors_are_french_and_exit_1(
 def test_widget_explains_download_and_pairing() -> None:
     result = runner.invoke(cli.app, ["group", "widget"])
     assert result.exit_code == 0
-    assert "VinceVibeCoding/omniscient-factory/releases" in result.output
+    assert "VinceVibeCoding/omniscient/releases" in result.output
     assert "omniscient group pair" in result.output
     assert "wsl.exe" not in result.output  # no shell pairing path any more (H3)

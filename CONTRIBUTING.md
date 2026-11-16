@@ -5,8 +5,8 @@ Thanks for helping. Omniscient is small and opinionated; these rules keep it tha
 ## Setup
 
 ```bash
-git clone https://github.com/VinceVibeCoding/omniscient-factory
-cd omniscient-factory
+git clone https://github.com/VinceVibeCoding/omniscient
+cd omniscient
 uv sync
 uv run pytest -q
 ```

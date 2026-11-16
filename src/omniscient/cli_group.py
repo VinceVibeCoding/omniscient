@@ -24,7 +24,7 @@ from omniscient.home import Home, find_home
 
 DEFAULT_PORT = 7341
 STATUS_TIMEOUT_S = 3.0
-REPO_URL = "https://github.com/VinceVibeCoding/omniscient-factory"
+REPO_URL = "https://github.com/VinceVibeCoding/omniscient"
 STATE_LABELS = {
     "working": "en cours",
     "waiting": "en attente",

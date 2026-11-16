@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-REPO = "VinceVibeCoding/omniscient-factory"
+REPO = "VinceVibeCoding/omniscient"
 API_RELEASES = f"https://api.github.com/repos/{REPO}/releases?per_page=30"
 DOWNLOAD_PREFIX = f"https://github.com/{REPO}/releases/download/"
 TAG_PREFIX = "widget-v"
