@@ -4,6 +4,7 @@
 import { h } from "../dom";
 import { age, clip } from "../format";
 import type { BrowserPage, Chat, ChatMessage, ChatState, Project, Provider } from "../types";
+import { mergeNotes, type SlashEntry } from "../ext-logic";
 import { composer, messageLog } from "./messages";
 
 export interface ChatModel {
@@ -25,6 +26,10 @@ export interface ChatModel {
   messages: readonly ChatMessage[];
   draft: string;
   busy: boolean;
+  /** Local lines (extension and workflow notes): shown in the log, never sent or stored. */
+  notes: readonly ChatMessage[];
+  /** What « / » suggests: built-ins and the enabled extensions' commands and workflows. */
+  slash: readonly SlashEntry[];
 }
 
 export interface ChatHandlers {
@@ -164,6 +169,7 @@ function home(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
     trackingRow(m, on),
     browserRow(m, on),
     m.provider === "claude-code" && !attachingBrowser(m) ? projectPicker(m, on) : null,
+    m.notes.length > 0 ? messageLog(m.notes, "", "chat-notes") : null,
     composer({
       key: "chat-new",
       placeholder: m.provider === "claude-code" ? "Demander quelque chose à Claude…" : "Écrire votre message…",
@@ -172,6 +178,7 @@ function home(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
       busy: m.busy || (m.provider === "claude-code" && m.projects.length === 0),
       onDraft: on.setDraft,
       onSend: on.send,
+      slash: m.slash,
     }),
     h(
       "div",
@@ -216,7 +223,7 @@ function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (
       running ? h("button", { class: "btn btn--danger", type: "button", onclick: on.stop }, "Arrêter") : null,
     ),
     m.active ? h("p", { class: "meta" }, `${clip(m.active.title, 80)} · ${conversationWhere(m)}`) : null,
-    messageLog(m.messages, "Envoi en cours…", "chat", assistantName(m), m.tracking ? on.show : undefined),
+    messageLog(mergeNotes(m.messages, m.notes), "Envoi en cours…", "chat", assistantName(m), m.tracking ? on.show : undefined),
     approvals,
     trackingRow(m, on),
     followUpPage(m, on),
@@ -228,6 +235,7 @@ function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (
       busy: m.busy || running,
       onDraft: on.setDraft,
       onSend: on.send,
+      slash: m.slash,
     }),
   ];
 }

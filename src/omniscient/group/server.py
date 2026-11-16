@@ -31,6 +31,7 @@ from omniscient.group.credentials import (
 )
 from omniscient.group.gates import Presence, TicketBook
 from omniscient.group.pairing import PairingDesk, show_code_on_windows
+from omniscient.group.procctl import install_stop_signals
 from omniscient.group.store import Store
 from omniscient.home import Home
 
@@ -89,6 +90,7 @@ class App:
     osd: Any = None  # osd.OsdState: limits, live tok/min, ticker, widget config
     chat: Any = None  # chat.ChatManager: headless Claude chats from the widget
     providers: Any = None  # providers.ProviderStore: other LLM providers and their keys
+    extensions: Any = None  # ext_store.ExtensionStore: declarative extensions
     auth: Any = (
         None  # auth.AuthService: sign-in with Google / GitHub / e-mail (Supabase Auth)
     )
@@ -185,6 +187,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_PUT(self) -> None:
         self._dispatch("PUT")
 
+    def do_DELETE(self) -> None:
+        self._dispatch("DELETE")
+
     def do_OPTIONS(self) -> None:
         try:
             self._guard()
@@ -196,7 +201,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.send_response(204)
         self._cors_headers()
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
+        self.send_header(
+            "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"
+        )
         self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
         self.send_header("Access-Control-Max-Age", "600")
         self.send_header("Content-Length", "0")
@@ -381,6 +388,7 @@ def create_server(
     secure_dir(home.state)
     from omniscient.group.auth import AuthService
     from omniscient.group.chat import ChatManager
+    from omniscient.group.ext_store import ExtensionStore, extensions_root
     from omniscient.group.osd import OsdState
     from omniscient.group.providers import ProviderStore
 
@@ -400,6 +408,7 @@ def create_server(
         osd=OsdState(state_dir=home.state),
         chat=ChatManager(home, store._publish, providers=providers),
         providers=providers,
+        extensions=ExtensionStore(extensions_root(home.root), home.state),
         auth=AuthService(home.state, store._publish),
     )
     server = GroupServer(app, port)
@@ -424,10 +433,14 @@ def serve(
     )
     server.start_background()
     print(
-        f"omnigroup écoute sur http://{BIND_HOST}:{server.port} (Ctrl-C pour arrêter)"
+        f"omnigroup écoute sur http://{BIND_HOST}:{server.port} (Ctrl-C pour arrêter)",
+        flush=True,
     )
     try:
-        server.app.stopping.wait()
+        install_stop_signals(server.app.stopping)
+        # a timed wait: on Windows an untimed Event.wait() ignores Ctrl-C
+        while not server.app.stopping.wait(SERVE_POLL_S):
+            pass
     except KeyboardInterrupt:
         print("\nArrêt d'omnigroup.")
     finally:

@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from omniscient.envfile import parse_env, parse_value, quote_value
+from omniscient.envfile import load_env_file, parse_env, parse_value, quote_value
 from omniscient.onboarding import secrets
 from omniscient.onboarding.secrets import read_env, write_env
-from omniscient.slack.core import load_env_file
+from tests.platform_marks import posix_only_modes
 
 TRICKY = [
     "plain",
@@ -60,6 +60,7 @@ def test_write_env_round_trips_through_every_reader(
     assert env.read_text(encoding="utf-8").startswith("# keep me\nOLD=legacy\n")
 
 
+@posix_only_modes
 def test_write_env_is_private_and_leaves_no_temp_file(tmp_path: Path) -> None:
     env = tmp_path / "home" / ".env"
 
@@ -91,6 +92,7 @@ def test_write_env_failure_keeps_the_old_file_and_cleans_up(
     assert [p.name for p in tmp_path.iterdir()] == [".env"]
 
 
+@posix_only_modes
 def test_write_env_temp_file_is_created_exclusive_and_0600(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

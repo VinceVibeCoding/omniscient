@@ -247,3 +247,25 @@ def test_usage_is_listed_and_totalled(daemon: Daemon) -> None:
     assert totals["plan_used_pct"] == 30.0
     daemon.call("POST", "/sessions/claude:a/dismiss")
     assert daemon.call("GET", "/usage")[1]["cost_usd"] is None
+
+
+def test_a_wait_during_the_answering_window_still_gets_the_answer(
+    daemon: Daemon,
+) -> None:
+    """Regression: a pending claimed ("answering") but not yet answered used to be
+    returned at once by the long-poll, so the hook gave up and lost the decision."""
+    reply = post_hook(daemon, ask=True)
+    pid, ticket = reply["pending_id"], reply["wait_ticket"]
+    store = daemon.server.app.store
+    store.claim_pending(pid)
+    result: dict[str, Any] = {}
+    waiter = threading.Thread(
+        target=lambda: result.update(value=daemon.wait(pid, ticket))
+    )
+    waiter.start()
+    time.sleep(0.3)
+    assert waiter.is_alive()  # still waiting, not handed the "answering" state
+    store.resolve_pending(pid, {"decision": "allow"})
+    waiter.join(5)
+    status, pending, _ = result["value"]
+    assert status == 200 and pending["status"] == "answered"

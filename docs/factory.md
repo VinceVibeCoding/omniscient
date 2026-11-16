@@ -17,7 +17,7 @@ An interactive, re-runnable setup (re-running updates without deleting your data
    optional `GITHUB_TOKEN` is asked right before the GitHub listing, to avoid rate limits);
 5. stores secrets in `<home>/.env` (mode 600, written atomically, never echoed):
    `ANTHROPIC_API_KEY` (skip it to use the studio only), `AGENTRUN_API_KEY` (see
-   [AgentRun](#agentrun)), and optional Slack tokens. Run it in a real terminal: when
+   [AgentRun](#agentrun)) and an optional GitHub token. Run it in a real terminal: when
    stdin is not a TTY, `init` warns that typed secrets may be echoed;
 6. prints the next steps.
 
@@ -53,7 +53,7 @@ When AgentRun and an API key are set up, run the factory once by hand:
 
 ```bash
 omniscient agents-push             # send the agent definitions to AgentRun
-omniscient cycle                   # ingest -> learn-sync -> think -> plan -> slack-digest
+omniscient cycle                   # ingest -> learn-sync -> think -> plan -> work
 ```
 
 ## AgentRun
@@ -75,8 +75,8 @@ the same message.
 
 ## Daily schedule (systemd)
 
-`omniscient schedule install` prints systemd **user** units for a daily cycle (and
-optional Slack bot and [Omnigroup](omnigroup.md) daemon services), rendered with your home
+`omniscient schedule install` prints systemd **user** units for a daily cycle (and the
+optional [Omnigroup](omnigroup.md) daemon service), rendered with your home
 folder and the absolute path of the `omniscient` executable you are running. Nothing is
 written until you add `--write` (to `~/.config/systemd/user/`), and Omniscient never runs
 `systemctl`: it prints the command for you to run.
@@ -129,7 +129,7 @@ Five loops, each a plain Python module driving AgentRun agents:
 | **Learn** | agents' kept notes become a tech knowledge base | `src/omniscient/learn/` | `vault/tech/learned/` |
 
 Around them: `router.py` (task → model + effort), `registry/` (your projects),
-`slack/` (digest and buttons), `studio/` (the herdr board and ateliers), `onboarding/`
+`studio/` (the herdr board and ateliers), `onboarding/`
 (`omniscient init`). Agent definitions and studio skills ship inside the package
 (`src/omniscient/resources/`).
 
@@ -157,10 +157,9 @@ The engine is the installed package; **your data lives in a home folder**, found
 ```
 omniscient init | studio | warroom | chat | schedule install|uninstall|status
 omniscient idea list|show|context|new|variant|append|debate|verdict|todo|ui
-omniscient ingest | learn-sync | think | plan | build STEM | work | grill | cycle
-omniscient slack | slack-digest | slack-refresh | agents-push
+omniscient ingest | learn-sync | think | plan | build STEM | work | cycle | agents-push
 omniscient group serve|status|token|widget|hooks install|uninstall|status
 ```
 
-Optional systemd user units for a daily cycle and the Slack bot: see
+Optional systemd user units for a daily cycle: see
 [Daily schedule](#daily-schedule-systemd).

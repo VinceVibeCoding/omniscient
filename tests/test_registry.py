@@ -9,6 +9,12 @@ from omniscient.registry import (
     find_port_conflicts,
     load_registry,
 )
+from tests.platform_marks import WINDOWS
+
+pytestmark = pytest.mark.skipif(
+    WINDOWS,
+    reason="fixtures hard-code POSIX absolute paths (/tmp/alpha); the registry itself accepts C:\\ paths",
+)
 
 
 def _write(dir_: Path, name: str, body: str) -> None:

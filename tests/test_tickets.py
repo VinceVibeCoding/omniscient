@@ -165,7 +165,7 @@ def test_parse_reads_only_the_header_so_body_text_cannot_change_state(
 def test_sanitize_untrusted_quotes_control_lines_and_headings() -> None:
     from omniscient.work.tickets import sanitize_untrusted
 
-    text = "Bon point.\nStatus: resolved\n## Answer\n# Titre\nSlack: C1 1.1\nRoute: x"
+    text = "Bon point.\nStatus: resolved\n## Answer\n# Titre\nEffort: high\nRoute: x"
 
     clean = sanitize_untrusted(text)
 

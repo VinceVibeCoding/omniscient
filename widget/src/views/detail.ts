@@ -4,10 +4,14 @@ import { h } from "../dom";
 import { age, clip, cwdTail, sourceLabel, sourceMark, stateLabel, stepLabel } from "../format";
 import type { Pending, SessionDetail, Step } from "../types";
 import { pendingCard } from "./pending";
+import type { Conversation } from "./transcript";
 import { usageBlock } from "./usage";
+import { windowControls } from "./window-controls";
 
 export interface DetailHandlers {
   back(): void;
+  /** Fold to the small OSD layout. */
+  collapse(): void;
   answer(pending: Pending, answer: Answer): void;
   jump(id: string): void;
   dismiss(id: string): void;
@@ -68,8 +72,9 @@ function actions(s: SessionDetail, on: DetailHandlers): HTMLElement {
   );
 }
 
-/** `conversation` (mode B transcript + reply box) replaces the old idle-only prompt box. */
-export function detailView(s: SessionDetail, on: DetailHandlers, conversation: HTMLElement | null = null): HTMLElement {
+/** `conversation` (mode B): its reply box and the usage sit at the top of the body, right
+ * under the cards; the history (newest exchange first) comes after, then the steps. */
+export function detailView(s: SessionDetail, on: DetailHandlers, conversation: Conversation | null = null): HTMLElement {
   const open = s.pending.filter((p) => p.status === "open");
   const steps = [...s.steps].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   const handlers = { answer: on.answer, jump: () => on.jump(s.id) };
@@ -83,6 +88,7 @@ export function detailView(s: SessionDetail, on: DetailHandlers, conversation: H
       h("span", { class: `src src--${s.source}`, title: sourceLabel(s.source), "aria-hidden": "true" }, sourceMark(s.source)),
       h("h1", { class: "bar__title", title: s.title }, clip(s.title || s.native_id, 40)),
       h("span", { class: `chip chip--${s.state}` }, stateLabel(s.state)),
+      windowControls("large", { toggle: on.collapse }),
     ),
     h(
       "div",
@@ -90,8 +96,9 @@ export function detailView(s: SessionDetail, on: DetailHandlers, conversation: H
       s.cwd ? h("p", { class: "meta", title: s.cwd }, cwdTail(s.cwd)) : null,
       actions(s, on),
       ...open.map((p) => pendingCard(p, { title: s.title || s.native_id, cwd: s.cwd }, handlers)),
-      conversation ?? (s.state === "idle" ? promptBox(s, on) : null),
+      ...(conversation ? conversation.box : [s.state === "idle" ? promptBox(s, on) : null]),
       usageBlock(s.usage),
+      conversation?.log ?? null,
       h("h2", { class: "section-title" }, "Étapes"),
       steps.length === 0
         ? h("p", { class: "empty" }, "Aucune étape pour l'instant.")

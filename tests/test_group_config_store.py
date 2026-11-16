@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from omniscient import cli_group_config
 from omniscient.group import config_store as cs
+from tests.platform_marks import WINDOWS
 
 runner = CliRunner()
 
@@ -62,8 +63,10 @@ def test_update_writes_privately_and_keeps_unknown_keys(paths: cs.ConfigPaths) -
     )
     stored = json.loads(paths.config.read_text())
     assert stored["future_key"] == 3
-    assert oct(paths.config.stat().st_mode & 0o777) == "0o600"
-    assert oct(paths.config.parent.stat().st_mode & 0o777) == "0o700"
+    if not WINDOWS:
+        assert oct(paths.config.stat().st_mode & 0o777) == "0o600"
+    if not WINDOWS:
+        assert oct(paths.config.parent.stat().st_mode & 0o777) == "0o700"
 
 
 @pytest.mark.parametrize(

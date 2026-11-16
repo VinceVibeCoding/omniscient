@@ -6,8 +6,8 @@
 
 **An idea factory for builders, and a desktop widget that sees the page you see.**
 
-[![CI](https://github.com/VinceVibeCoding/omniscient-factory/actions/workflows/ci.yml/badge.svg)](https://github.com/VinceVibeCoding/omniscient-factory/actions/workflows/ci.yml)
-[![Widget build](https://github.com/VinceVibeCoding/omniscient-factory/actions/workflows/widget.yml/badge.svg)](https://github.com/VinceVibeCoding/omniscient-factory/actions/workflows/widget.yml)
+[![CI](https://github.com/VinceVibeCoding/omniscient/actions/workflows/ci.yml/badge.svg)](https://github.com/VinceVibeCoding/omniscient/actions/workflows/ci.yml)
+[![Widget build](https://github.com/VinceVibeCoding/omniscient/actions/workflows/widget.yml/badge.svg)](https://github.com/VinceVibeCoding/omniscient/actions/workflows/widget.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB.svg)](https://www.python.org/)
 
@@ -37,7 +37,7 @@ conversations stay on your computer.
 
 ```bash
 # In WSL or Linux (Python 3.12+ and uv): the engine that runs next to the widget
-uv tool install git+https://github.com/VinceVibeCoding/omniscient-factory
+uv tool install git+https://github.com/VinceVibeCoding/omniscient
 omniscient group setup            # preview: daemon, hooks, widget download, pairing
 omniscient group setup --write    # do it (your settings are backed up first)
 ```
@@ -51,7 +51,7 @@ brings the widget back, even after you quit it.
 ### The idea factory
 
 ```bash
-uv tool install git+https://github.com/VinceVibeCoding/omniscient-factory
+uv tool install git+https://github.com/VinceVibeCoding/omniscient
 omniscient init                   # home folder, profile, projects, keys
 herdr                             # open herdr, then inside it:
 omniscient studio                 # the idea board
@@ -92,6 +92,13 @@ The OSD (the small collapsed view) shows your Claude limits and live token rate;
 panel's header, to unfold and fold it. Right-click it for views, themes and the ticker.
 
 Full guide, hooks, threat model and verified behaviour: [docs/omnigroup.md](docs/omnigroup.md) (in French).
+
+### Extensions
+
+Omniscient is not a sealed product: ask it for a command, theme, workflow or provider preset and it
+builds it as a small data folder (never code) in `<home>/extensions/`. Type `/reload` in the widget
+chat and keep going; `omniscient ext export` and `ext install` (with a full preview) share them.
+See [docs/extensions.md](docs/extensions.md) (in French).
 
 ## Ideas, the factory
 
@@ -190,8 +197,8 @@ Open your pull request against the **`dev`** branch (`main` is what people insta
 [SECURITY.md](SECURITY.md).
 
 ```bash
-git clone https://github.com/VinceVibeCoding/omniscient-factory
-cd omniscient-factory
+git clone https://github.com/VinceVibeCoding/omniscient
+cd omniscient
 uv sync
 uv run pytest -q
 ```
@@ -216,7 +223,7 @@ uv run pytest -q
   pilotes depuis le **studio**, dans herdr.
 
 ```bash
-uv tool install git+https://github.com/VinceVibeCoding/omniscient-factory
+uv tool install git+https://github.com/VinceVibeCoding/omniscient
 omniscient group setup --write    # le widget : démon, hooks, installateur, couplage
 omniscient init                   # l'usine : dossier, profil, projets, clés
 ```

@@ -137,7 +137,7 @@ class _Files:
 def test_agentrun_uploader_sends_bytes_in_one_call(tmp_path: Path) -> None:
     # Arrange
     path = tmp_path / "a.md"
-    path.write_text("hello\n", encoding="utf-8")
+    path.write_bytes(b"hello\n")
     files = _Files({"file": {"file_id": "f1", "status": "ready"}, "upload": {}})
 
     # Act

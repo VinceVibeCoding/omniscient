@@ -14,6 +14,7 @@ import pytest
 from omniscient.group import api_osd, osd, pricing
 from omniscient.group import transcripts_live as tl
 from omniscient.group.config_store import ConfigPaths
+from tests.platform_marks import WINDOWS
 
 NOW = 1_800_000_000.0  # fixed clock
 
@@ -193,7 +194,8 @@ def test_limits_are_parsed_persisted_and_reloaded(tmp_path: Path) -> None:
         is False
     )
     saved = tmp_path / "state" / osd.LIMITS_FILE
-    assert oct(saved.stat().st_mode & 0o777) == "0o600"
+    if not WINDOWS:
+        assert oct(saved.stat().st_mode & 0o777) == "0o600"
     again = state(tmp_path)
     assert again.limits == s.limits
     assert again.limits["seven_day"] == {
@@ -309,3 +311,33 @@ def test_api_without_osd_state_is_503(tmp_path: Path) -> None:
     with pytest.raises(ApiError) as err:
         api_osd.get_osd(SimpleNamespace(store=None), {}, {}, {})
     assert err.value.status == 503
+
+
+def test_a_window_that_has_reset_shows_zero_not_its_old_percentage(
+    tmp_path: Path,
+) -> None:
+    """Claude Code only reports a window while it is active: after its reset time the stored
+    figure is stale, and the real usage is back to 0 until the next report."""
+    s = state(tmp_path)
+    s.record_limits(STATUS)  # five_hour resets at NOW + 1 h, seven_day at NOW + 1 day
+    during = {w["id"]: w for w in s.snapshot(NOW)["limits"]}
+    assert during["five_hour"]["used_pct"] == 8.0
+    later = {w["id"]: w for w in s.snapshot(NOW + 7200)["limits"]}  # 2 h later
+    assert (
+        later["five_hour"]["used_pct"] == 0.0
+        and later["five_hour"]["resets_at"] is None
+    )
+    assert later["seven_day"]["used_pct"] == 51.0  # still running
+    assert iso(NOW + 86400) == later["seven_day"]["resets_at"]
+    after_week = {w["id"]: w for w in s.snapshot(NOW + 90000)["limits"]}
+    assert after_week["seven_day"]["used_pct"] == 0.0
+
+
+def test_a_new_report_replaces_the_zeroed_window(tmp_path: Path) -> None:
+    s = state(tmp_path)
+    s.record_limits(STATUS)
+    s.record_limits(
+        {"rate_limits": {"five_hour": {"used_percentage": 3, "resets_at": NOW + 20000}}}
+    )
+    five = next(w for w in s.snapshot(NOW + 7200)["limits"] if w["id"] == "five_hour")
+    assert five["used_pct"] == 3.0 and five["resets_at"] == iso(NOW + 20000)

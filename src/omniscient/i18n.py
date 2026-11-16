@@ -19,7 +19,7 @@ WHY_NOW = "**Pourquoi maintenant :**"
 NONE = "_aucun_"
 NEW_BUILD = "nouveau projet"
 
-# Council section (labels also parsed back by the Slack digest)
+# Council section (labels also parsed back from the idea note)
 L_VERDICT = "**Verdict :**"
 L_CHALLENGER = "**Challengeur :**"
 L_SIMPLIFIER = "**Simplificateur (plus petite version) :**"

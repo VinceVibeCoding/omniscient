@@ -3,6 +3,7 @@
 //   falling back to the omniscient palette defined in styles.css;
 // - the "terminal" and "dashboard" skins (html[data-theme]) bring their own palettes in
 //   themes.css, so the home palette's inline variables are removed while they are active.
+import { repaintAfterSkin } from "./ext-theme";
 import type { Skin } from "./types";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -41,8 +42,8 @@ export function parseTheme(raw: unknown): Map<string, string> {
 function paint(): void {
   const root = document.documentElement;
   for (const slot of SLOTS) root.style.removeProperty(`--${slot}`);
-  if (skin !== "default") return;
-  for (const [slot, value] of homePalette) root.style.setProperty(`--${slot}`, value);
+  if (skin === "default") for (const [slot, value] of homePalette) root.style.setProperty(`--${slot}`, value);
+  repaintAfterSkin(); // an extension theme stays on top of every skin
 }
 
 /** The home palette (GET /theme); only visible with the "default" skin. */

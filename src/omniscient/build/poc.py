@@ -315,7 +315,7 @@ def build_poc(
 
 
 def format_build_reply(result: BuildResult) -> str:
-    """The French Slack message posted in the idea's thread when a build ends."""
+    """The French summary shown when a build ends."""
     r = result.report
     icon = {
         "works": ":white_check_mark:",

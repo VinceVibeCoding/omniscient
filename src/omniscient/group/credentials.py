@@ -12,6 +12,7 @@ companions) 0600. The token file is written atomically (mkstemp in the folder + 
 
 from __future__ import annotations
 
+import getpass
 import hashlib
 import hmac
 import logging
@@ -20,10 +21,15 @@ import re
 import secrets
 import sqlite3
 import stat
+import subprocess
+import sys
 import tempfile
 import threading
+import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from omniscient.group.models import iso, utcnow
 from omniscient.home import Home
@@ -46,22 +52,106 @@ CREATE TABLE IF NOT EXISTS widget_tokens (
 
 # ---- modes ----------------------------------------------------------------------------
 
+ICACLS_TIMEOUT_S = 15.0
+REPLACE_TRIES = 6
+REPLACE_PAUSE_S = 0.05
+# characters icacls would read as syntax in an account name
+_ACCOUNT_OK = re.compile(
+    r"^[^\x00-\x1f\"/\\\[\]:;|=,+*?<>()]+(\\[^\x00-\x1f\"/\\\[\]:;|=,+*?<>()]+)?$"
+)
+Runner = Callable[..., Any]
+_RESTRICTED: set[str] = set()  # Windows folders already restricted by this process
+
+
+def _on_windows() -> bool:
+    return sys.platform == "win32"
+
+
+def current_account(environ: dict[str, str] | None = None) -> str:
+    """`DOMAIN\\user` (or just `user`) of the person running this process."""
+    env = os.environ if environ is None else environ
+    try:
+        user = getpass.getuser()
+    except (KeyError, OSError):
+        user = env.get("USERNAME", "")
+    domain = env.get("USERDOMAIN", "")
+    account = f"{domain}\\{user}" if domain and user else user
+    if not account or not _ACCOUNT_OK.match(account):
+        raise ValueError("compte Windows courant introuvable ou inattendu")
+    return account
+
+
+def icacls_argv(path: Path, account: str, is_dir: bool) -> list[str]:
+    """The icacls call that leaves only `account` with access to `path`."""
+    grant = f"{account}:(OI)(CI)(F)" if is_dir else f"{account}:(F)"
+    return ["icacls", str(path), "/inheritance:r", "/grant:r", grant]
+
+
+def restrict_to_current_user(
+    path: Path,
+    is_dir: bool | None = None,
+    runner: Runner = subprocess.run,
+    windows: bool | None = None,
+    account: str | None = None,
+) -> bool:
+    """Make `path` private to the current user. POSIX: chmod 0700 (dir) / 0600 (file).
+    Windows: icacls (no inheritance, only this account), best effort: a failure is logged
+    and returns False, never raises. A missing path is fine (True)."""
+    try:
+        directory = path.is_dir() if is_dir is None else is_dir
+    except OSError:
+        return False
+    if not (_on_windows() if windows is None else windows):
+        mode = DIR_MODE if directory else FILE_MODE
+        try:
+            if stat.S_IMODE(path.stat().st_mode) != mode:
+                path.chmod(mode)
+        except FileNotFoundError:
+            return True
+        return True
+    if not path.exists():
+        return True
+    try:
+        argv = icacls_argv(path, account or current_account(), directory)
+        done = runner(
+            argv, stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            timeout=ICACLS_TIMEOUT_S, check=False,
+        )  # fmt: skip
+    except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+        log.warning("omnigroup: cannot restrict %s to the current user: %s", path, exc)
+        return False
+    if done.returncode != 0:
+        log.warning("omnigroup: icacls failed on %s (code %s)", path, done.returncode)
+        return False
+    return True
+
 
 def secure_dir(path: Path) -> Path:
-    """Create `path` (and parents) and make it private to the user (0700)."""
+    """Create `path` (and parents) and make it private to the user (0700 / ACL)."""
     path.mkdir(parents=True, exist_ok=True, mode=DIR_MODE)
-    if stat.S_IMODE(path.stat().st_mode) != DIR_MODE:
-        path.chmod(DIR_MODE)
+    key = str(path)
+    if _on_windows() and key in _RESTRICTED:  # icacls is a process: once per folder
+        return path
+    if restrict_to_current_user(path, is_dir=True) and _on_windows():
+        _RESTRICTED.add(key)
     return path
 
 
 def secure_file(path: Path) -> None:
-    """Make an existing file 0600 (a missing one is fine)."""
-    try:
-        if stat.S_IMODE(path.stat().st_mode) != FILE_MODE:
-            path.chmod(FILE_MODE)
-    except FileNotFoundError:
-        return
+    """Make an existing file private to the user (a missing one is fine)."""
+    restrict_to_current_user(path, is_dir=False)
+
+
+def replace_file(src: str | Path, dst: str | Path) -> None:
+    """os.replace, retried briefly: on Windows it fails while a reader holds `dst` open."""
+    for attempt in range(REPLACE_TRIES):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if not _on_windows() or attempt == REPLACE_TRIES - 1:
+                raise
+            time.sleep(REPLACE_PAUSE_S * (attempt + 1))
 
 
 def secure_db_files(db: Path) -> None:
@@ -102,7 +192,7 @@ def write_atomic(path: Path, text: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(text)
-        os.replace(tmp, path)
+        replace_file(tmp, path)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise
@@ -116,10 +206,11 @@ def load_or_create_hook_token(home: Home) -> str:
     if token is None and not path.exists():
         write_atomic(path, secrets.token_urlsafe(32) + "\n")
         token = read_hook_token(home)
-    mode = stat.S_IMODE(path.stat().st_mode)
-    if mode != FILE_MODE:
-        log.warning("omnigroup: token file was mode %o, tightening to 600", mode)
-        path.chmod(FILE_MODE)
+    if not _on_windows():
+        mode = stat.S_IMODE(path.stat().st_mode)
+        if mode != FILE_MODE:
+            log.warning("omnigroup: token file was mode %o, tightening to 600", mode)
+    restrict_to_current_user(path, is_dir=False)
     if token is None or len(token) < TOKEN_MIN_LEN:
         raise RuntimeError(f"jeton omnigroup invalide : supprime {path} et relance")
     return token

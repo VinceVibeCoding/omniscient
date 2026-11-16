@@ -22,6 +22,11 @@
 .osd__agents-word { display: none; }
 .osd__alert { color: var(--accent); font-weight: 700; }
 .osd__spacer { flex: 1; }
+/* In the small layout the controls stay muted until hover / focus, and are a bit smaller. */
+.osd .wc { align-self: center; margin: -4px -4px -4px 0; opacity: 0.45; transition: opacity 0.15s; }
+.osd:hover .wc, .osd .wc:focus-within { opacity: 1; }
+.osd .wc__btn { width: 22px; height: 22px; border-radius: 6px; cursor: pointer; }
+.osd .wc__svg { width: 13px; height: 13px; }
 .osd__live { color: var(--success); font-variant-numeric: tabular-nums; }
 .osd__idle { color: var(--muted); }
 

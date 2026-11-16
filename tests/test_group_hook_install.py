@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from omniscient.group import hook_command, hook_install
 from omniscient.group.hook_install import (
     HookInstallError,
     apply,
@@ -22,6 +23,7 @@ from omniscient.group.hook_install import (
     status,
 )
 from omniscient.home import DEFAULT_HOME, Home
+from tests.platform_marks import WINDOWS
 
 CMD = "/opt/tool/bin/omniscient group hook"
 NOW = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
@@ -38,9 +40,17 @@ USER_SETTINGS = """{
 """
 
 
+@pytest.fixture(autouse=True)
+def posix_hook_forms(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests pin the POSIX shell-string form; the Windows exec form is covered in
+    test_group_windows.py."""
+    monkeypatch.setattr(hook_command, "is_windows", lambda: False)
+    monkeypatch.setattr(hook_install, "is_windows", lambda: False)
+
+
 def settings(tmp_path: Path, text: str = USER_SETTINGS) -> Path:
     path = tmp_path / "settings.json"
-    path.write_text(text, encoding="utf-8")
+    path.write_text(text, encoding="utf-8", newline="\n")
     return path
 
 
@@ -109,7 +119,8 @@ def test_write_backs_up_then_reinstall_is_a_no_op(tmp_path: Path) -> None:
     path.chmod(0o600)
     saved = apply(plan("claude", "install", path, CMD), NOW)
     assert saved is not None and saved.read_text(encoding="utf-8") == USER_SETTINGS
-    assert path.stat().st_mode & 0o777 == 0o600
+    if not WINDOWS:
+        assert path.stat().st_mode & 0o777 == 0o600
     assert status("claude", path).missing == ()
     again = plan("claude", "install", path, CMD)
     assert not again.changed
@@ -212,6 +223,9 @@ def test_targets_and_path() -> None:
         resolve_targets("vim", None)
 
 
+@pytest.mark.skipif(
+    WINDOWS, reason="POSIX paths: the Windows form is in test_group_windows.py"
+)
 def test_base_command_uses_the_light_hook_script(tmp_path: Path) -> None:
     def which(_name: str) -> str:
         return "/usr/bin/omniscient-hook"

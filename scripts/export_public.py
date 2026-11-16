@@ -43,7 +43,6 @@ ALLOWED_TOP = (
     "scripts/export_public.py",
     "scripts/agentrun-up.sh",
     "scripts/install-docker-wsl.sh",
-    "slack/manifest.yaml",  # generic Slack app manifest (no ids, no tokens)
 )
 # Source path → exported path (the public AGENTS.md replaces the owner's one).
 RENAMED = {"docs/AGENTS.public.md": "AGENTS.md"}

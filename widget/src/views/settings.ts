@@ -2,9 +2,12 @@
 // sends the 6-digit code shown on the Windows desktop, Rust keeps the token.
 import { h } from "../dom";
 import type { LinkStatus, Settings } from "../types";
+import { windowControls } from "./window-controls";
 
 export interface SettingsHandlers {
   back(): void;
+  /** Fold to the small OSD layout. */
+  collapse(): void;
   save(settings: Settings): void;
   pairStart(): void;
   pairFinish(code: string): void;
@@ -109,6 +112,7 @@ export function settingsView(
       { class: "bar" },
       h("button", { class: "icon-btn", "aria-label": "Retour", title: "Retour (Échap)", onclick: on.back }, "←"),
       h("h1", { class: "bar__title" }, "Réglages"),
+      windowControls("large", { toggle: on.collapse }),
     ),
     h(
       "div",

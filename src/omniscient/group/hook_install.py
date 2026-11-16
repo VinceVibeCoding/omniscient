@@ -16,9 +16,7 @@ from __future__ import annotations
 import difflib
 import json
 import os
-import shlex
 import shutil
-import sys
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -26,6 +24,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from omniscient.group.credentials import replace_file
+from omniscient.group.hook_command import (
+    HookInstallError,
+    base_command,
+    claude_command_entry,
+    is_windows,
+    line_command,
+    powershell_form,
+)
 from omniscient.group.hook_match import (
     STATUS_FLAG,
     is_ours,
@@ -38,9 +45,8 @@ from omniscient.group.hook_protect import (
     is_protected,
     updated_permissions,
 )
-from omniscient.group.hooks import HOOK_SCRIPT
 from omniscient.group.json_edit import REMOVE, JsonEditError, rewrite
-from omniscient.home import DEFAULT_HOME, Home, find_home
+from omniscient.home import find_home
 from omniscient.theme.export import backup
 
 Target = Literal["claude", "copilot"]
@@ -77,10 +83,6 @@ COPILOT_EVENTS: tuple[tuple[str, bool], ...] = (
 )
 
 
-class HookInstallError(Exception):
-    """The settings file cannot be read, understood or written."""
-
-
 @dataclass(frozen=True)
 class HookPlan:
     target: Target
@@ -109,39 +111,12 @@ class HookStatus:
     protected: bool = False  # our deny rules are all present (Claude, --protect)
 
 
-def base_command(
-    home: Home | None = None,
-    which: Callable[[str], str | None] = shutil.which,
-    python: str = sys.executable,
-) -> str:
-    """The hook command: the absolute `omniscient-hook` script (fast start: it imports
-    only the hook client, not the whole CLI), else `<python> -m omniscient.group.
-    hook_client`; plus `--home` when the home is not the default."""
-    exe = which(HOOK_SCRIPT)
-    if exe:
-        cmd = shlex.quote(str(Path(exe).resolve()))
-    elif python:
-        cmd = f"{shlex.quote(python)} -m omniscient.group.hook_client"
-    else:
-        raise HookInstallError(
-            "Commande « omniscient-hook » introuvable dans le PATH : installez "
-            "Omniscient d'abord (uv tool install ...)."
-        )
-    if home is not None and home.root.resolve() != DEFAULT_HOME.resolve():
-        cmd += f" --home {shlex.quote(str(home.root))}"
-    return cmd
-
-
 def claude_hooks(command: str) -> dict[str, list[dict[str, Any]]]:
     """Our Claude hook groups, by event."""
     out: dict[str, list[dict[str, Any]]] = {}
     for event, matcher, waits in CLAUDE_EVENTS:
         cmd = f"{command} --source claude" + ("" if waits else " --fast")
-        hook = {
-            "type": "command",
-            "command": cmd,
-            "timeout": WAIT_TIMEOUT_S if waits else FAST_TIMEOUT_S,
-        }
+        hook = claude_command_entry(cmd, WAIT_TIMEOUT_S if waits else FAST_TIMEOUT_S)
         group: dict[str, Any] = {} if matcher is None else {"matcher": matcher}
         out.setdefault(event, []).append({**group, "hooks": [hook]})
     return out
@@ -155,6 +130,8 @@ def copilot_hooks(command: str) -> dict[str, list[dict[str, Any]]]:
             "" if waits else " --fast"
         )
         entry = {"type": "command", "bash": cmd, "timeoutSec": COPILOT_TIMEOUT_S}
+        if is_windows():
+            entry["powershell"] = powershell_form(cmd)
         out[event] = [entry]
     return out
 
@@ -256,7 +233,7 @@ def _write_atomic(real: Path, text: str) -> None:
             fh.write(text.encode("utf-8"))
         if real.exists():
             shutil.copymode(real, tmp)
-        os.replace(tmp, real)
+        replace_file(tmp, real)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise
@@ -367,7 +344,7 @@ def run_hooks_command(
         hook_cmd = command or base_command(find_home())
         line_cmd = None
         if statusline and tgt == "claude":
-            line_cmd = f"{hook_cmd} {STATUS_FLAG}"
+            line_cmd = line_command(f"{hook_cmd} {STATUS_FLAG}")
         guard = (
             rules if (protect or action == "uninstall") and tgt == "claude" else None
         )

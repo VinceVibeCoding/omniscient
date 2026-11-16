@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please do **not** open a public issue for security problems. Use GitHub's
-[private vulnerability reporting](https://github.com/VinceVibeCoding/omniscient-factory/security/advisories/new)
+[private vulnerability reporting](https://github.com/VinceVibeCoding/omniscient/security/advisories/new)
 on this repository. You should get a first answer within a week.
 
 Include what you found, how to reproduce it, and the impact you expect. Remove any real
@@ -45,4 +45,4 @@ Only the latest commit on `main` is supported. There are no release branches yet
 ## Scope
 
 In scope: this repository's code (`src/`, `scripts/`, CI). Out of scope: AgentRun, herdr,
-Claude Code, Slack and other third-party tools it drives; report those upstream.
+Claude Code and other third-party tools it drives; report those upstream.

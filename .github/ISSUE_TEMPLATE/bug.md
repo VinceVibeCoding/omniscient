@@ -22,4 +22,4 @@ labels: bug, needs-triage
 
 ## Logs
 
-<!-- Paste the error. Remove API keys, Slack tokens, user names and private paths first. -->
+<!-- Paste the error. Remove API keys, tokens, user names and private paths first. -->

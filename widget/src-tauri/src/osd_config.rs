@@ -75,6 +75,8 @@ pub enum MenuAction {
     Scale(u32),
     Autostart(bool),
     Corner,
+    /// Minimize to the taskbar (the button stays).
+    Hide,
     Quit,
 }
 
@@ -89,6 +91,7 @@ pub fn theme_id(theme: &str) -> String {
 pub const TICKER_ID: &str = "ctx:ticker";
 pub const CORNER_ID: &str = "ctx:corner";
 pub const AUTOSTART_ID: &str = "ctx:autostart";
+pub const HIDE_ID: &str = "ctx:hide";
 pub const QUIT_ID: &str = "ctx:quit";
 
 /// None for ids that are not ours (tray menu, unknown values).
@@ -96,6 +99,7 @@ pub fn parse_menu_id(id: &str, current: &MenuSnapshot) -> Option<MenuAction> {
     match id {
         TICKER_ID => return Some(MenuAction::Patch(json!({ "show_ticker": !current.show_ticker }))),
         CORNER_ID => return Some(MenuAction::Corner),
+        HIDE_ID => return Some(MenuAction::Hide),
         QUIT_ID => return Some(MenuAction::Quit),
         AUTOSTART_ID => return Some(MenuAction::Autostart(!current.autostart)),
         _ => {}
@@ -165,6 +169,7 @@ mod tests {
         assert_eq!(parse_menu_id(&theme_id("terminal"), &snap), Some(MenuAction::Patch(json!({"theme": "terminal"}))));
         assert_eq!(parse_menu_id(TICKER_ID, &snap), Some(MenuAction::Patch(json!({"show_ticker": false}))));
         assert_eq!(parse_menu_id(CORNER_ID, &snap), Some(MenuAction::Corner));
+        assert_eq!(parse_menu_id(HIDE_ID, &snap), Some(MenuAction::Hide));
         assert_eq!(parse_menu_id(QUIT_ID, &snap), Some(MenuAction::Quit));
         assert_eq!(parse_menu_id("ctx:theme:neon", &snap), None);
         assert_eq!(parse_menu_id("toggle", &snap), None);

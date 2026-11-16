@@ -378,7 +378,7 @@ def verdict(
     stem: str, choice: Annotated[str, typer.Argument(help="pursue | reshape | drop")]
 ) -> None:
     """Enregistre le verdict du propriétaire."""
-    from omniscient.slack.core import apply_owner_verdict
+    from omniscient.verdicts import apply_owner_verdict
 
     if choice not in VERDICTS:
         _fail(

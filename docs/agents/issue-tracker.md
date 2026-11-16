@@ -9,7 +9,7 @@ This is the stock local-markdown tracker with the root moved from `.scratch/` to
 - The spec is `vault/maps/<feature-slug>/spec.md`
 - Implementation issues get one file per ticket, at `vault/maps/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01`. Never put several tickets in one combined file.
 - Triage state is a `Status:` line near the top of each issue file (see `triage-labels.md` for the role strings).
-- Comments and conversation history are appended to the bottom of the file under a `## Comments` heading. Slack thread replies on a ticket are appended here too, prefixed with `(slack)`.
+- Comments and conversation history are appended to the bottom of the file under a `## Comments` heading.
 
 ## When a skill says "publish to the issue tracker"
 

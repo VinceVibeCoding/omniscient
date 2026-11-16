@@ -1,4 +1,5 @@
 import json
+import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -311,6 +312,10 @@ def test_list_prints_markup_titles_literally(vault: Path, title: str) -> None:
     assert title in result.output
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="the studio is a Linux/WSL tool; its mtime-polling follow loop is not run on Windows",
+)
 def test_show_follow_survives_a_transient_bad_note(
     vault: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

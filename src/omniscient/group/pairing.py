@@ -14,10 +14,13 @@ from __future__ import annotations
 import hmac
 import secrets
 import subprocess
+import sys
 import threading
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+
+from omniscient.group import procctl
 
 CODE_TTL_S = 120.0
 MAX_ATTEMPTS = 5
@@ -27,6 +30,7 @@ MAX_STARTS = 5
 LAUNCH_GRACE_S = 2.0
 POPUP_SECONDS = 120
 CODE_DIGITS = 6
+MB_OK, MB_ICONINFORMATION, MB_SETFOREGROUND, MB_TOPMOST = 0x0, 0x40, 0x10000, 0x40000
 # Single quotes only (no quoting games through WSL interop); the code is an argument,
 # checked again by the script itself.
 POWERSHELL_SCRIPT = (
@@ -126,7 +130,7 @@ def launch(argv: Sequence[str]) -> bool:
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True,
+            **procctl.spawn_kwargs(),
         )
     except OSError:
         return False
@@ -157,6 +161,39 @@ def code_commands(code: str) -> list[list[str]]:
     ]
 
 
-def show_code_on_windows(code: str, launcher: Launcher = launch) -> bool:
-    """True when one of the Windows commands showed the code."""
+def is_native_windows() -> bool:
+    return sys.platform == "win32"
+
+
+def native_message_box(code: str) -> bool:
+    """Show the code in a Windows message box (user32 MessageBoxW) without blocking the
+    daemon: the box lives on its own thread. False when user32 is not available."""
+    try:
+        import ctypes
+
+        box = ctypes.windll.user32.MessageBoxW  # type: ignore[attr-defined]
+    except (AttributeError, OSError, ImportError):
+        return False
+    if not valid_code(code):
+        raise ValueError("pairing code must be six digits")
+    text = (
+        f"Code de couplage Omnigroup : {code}\n\nTape-le dans le widget "
+        "(valable 2 minutes).\nSi tu n'as rien demandé, ignore ce message."
+    )
+    flags = MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST
+    threading.Thread(
+        target=box, args=(None, text, "Omnigroup", flags), daemon=True
+    ).start()
+    return True
+
+
+def show_code_on_windows(
+    code: str,
+    launcher: Launcher = launch,
+    native: Callable[[str], bool] = native_message_box,
+) -> bool:
+    """True when the code was shown on the Windows desktop: natively when the daemon
+    runs on Windows, else through the Windows commands reachable from WSL."""
+    if is_native_windows():
+        return native(code)
     return any(launcher(argv) for argv in code_commands(code))

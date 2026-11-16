@@ -7,6 +7,7 @@ mod commands;
 mod context_menu;
 mod daemon_launch;
 mod drag;
+mod ext_commands;
 mod highlight;
 mod osd_commands;
 mod osd_config;
@@ -88,6 +89,12 @@ pub fn run() {
                     drag::on_moved(&webview, *pos);
                 }
             }
+            // A close from the taskbar button (right-click › Close window) quits the app, like any
+            // other app: the widget has no close button of its own.
+            WindowEvent::CloseRequested { api, .. } if window.label() == "main" => {
+                api.prevent_close();
+                window.app_handle().exit(0);
+            }
             WindowEvent::Focused(false) if window.label() == context_menu::MENU_LABEL => {
                 context_menu::close(window.app_handle());
             }
@@ -111,6 +118,7 @@ pub fn run() {
             commands::unpair,
             commands::set_window_mode,
             drag::start_drag,
+            osd_commands::minimize_window,
             osd_commands::get_osd,
             osd_commands::get_config,
             osd_commands::set_config,
@@ -145,6 +153,11 @@ pub fn run() {
             osd_commands::chat_list,
             osd_commands::chat_get,
             osd_commands::session_transcript,
+            ext_commands::ext_list,
+            ext_commands::ext_reload,
+            ext_commands::ext_set_enabled,
+            ext_commands::ext_remove,
+            ext_commands::ext_expand,
         ])
         .build(tauri::generate_context!())
         .expect("error while building the Omnigroup widget")

@@ -11,6 +11,7 @@ import httpx
 
 from omniscient.group import auth as au
 from tests.group_support import Daemon, daemon
+from tests.platform_marks import WINDOWS
 
 __all__ = ["daemon"]  # the fixture
 
@@ -166,7 +167,7 @@ def test_files_are_private(daemon: Daemon, tmp_path: Path) -> None:
     import os
     import stat
 
-    for name in ("auth_config.json", "auth_session.json"):
+    for name in () if WINDOWS else ("auth_config.json", "auth_session.json"):
         assert (
             stat.S_IMODE(os.stat(tmp_path / ".omniscient" / name).st_mode) == 0o600
         ), name

@@ -1,5 +1,6 @@
 import stat
 import sys
+import tomllib
 import types
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ from omniscient.onboarding import (
 from omniscient.onboarding.prereqs import Check
 from omniscient.onboarding.secrets import read_env, write_env
 from omniscient.profile import load_profile
+from tests.platform_marks import WINDOWS
 
 OK = (Check("uv", True, "/bin/uv", True), Check("git", True, "/bin/git", True))
 TEMPLATE = '[paths]\nprojects_root = "~/projects"\nvault = "vault"\n'
@@ -113,7 +115,9 @@ def test_first_run_creates_home_profile_registry_and_env(tmp_path: Path) -> None
     _run(home, script, tmp_path, secrets=["sk-ant-SECRET", "", "ghp_SECRET"])
 
     # Assert
-    assert home.exists and f'projects_root = "{root}"' in home.config.read_text()
+    assert home.exists
+    paths = tomllib.loads(home.config.read_text(encoding="utf-8"))["paths"]
+    assert paths["projects_root"] == str(root)
     assert all(
         (home.vault / d).is_dir() for d in ("news", "ideas", "tech", "maps", "ops")
     )
@@ -130,7 +134,8 @@ def test_first_run_creates_home_profile_registry_and_env(tmp_path: Path) -> None
         "ANTHROPIC_API_KEY": "sk-ant-SECRET",
         "GITHUB_TOKEN": "ghp_SECRET",
     }
-    assert stat.S_IMODE(home.env_file.stat().st_mode) == 0o600
+    if not WINDOWS:
+        assert stat.S_IMODE(home.env_file.stat().st_mode) == 0o600
     assert not any("SECRET" in line for line in script.said + script.asked)
 
 
@@ -198,22 +203,12 @@ def test_theme_step_uses_theme_module_when_present(
     assert chosen == [(home, "clair")]
 
 
-def test_slack_secrets_only_when_asked(tmp_path: Path) -> None:
+def test_only_the_factory_secrets_are_asked(tmp_path: Path) -> None:
     home = Home(tmp_path / "home")
-    script = Script({"Slack": "o", "contient tes projets": str(tmp_path / "none")})
-    _run(
-        home,
-        script,
-        tmp_path,
-        secrets=["", "", "xoxb-1", "xapp-1", "C0TEST", "U0TEST", ""],
-    )
-    assert read_env(home.env_file) == {
-        "SLACK_BOT_TOKEN": "xoxb-1",
-        "SLACK_APP_TOKEN": "xapp-1",
-        "SLACK_CHANNEL_ID": "C0TEST",
-        "SLACK_OWNER_ID": "U0TEST",
-    }
-    assert any("studio seulement" in s or "studio marche" in s for s in script.said)
+    script = Script({"contient tes projets": str(tmp_path / "none")})
+    _run(home, script, tmp_path, secrets=["sk-test", "", ""])
+    assert read_env(home.env_file) == {"ANTHROPIC_API_KEY": "sk-test"}
+    assert not any("Configurer" in question for question in script.asked)
 
 
 def test_write_registry_entry_validates_name_and_overwrite(tmp_path: Path) -> None:

@@ -39,6 +39,11 @@ droit dessus › *Épingler à la barre des tâches* : un clic sur cette icône 
 le fait réapparaître s'il tourne déjà (une seule instance à la fois). L'icône près de
 l'horloge fait aussi apparaître / disparaître le widget.
 
+**Boutons de la fenêtre** (en haut à droite, dans la vue compacte comme dans le panneau) :
+« − » réduit le widget dans la barre des tâches (cliquez son icône pour le rouvrir) ; « + » passe
+de la vue compacte à la grande vue, et le bouton de repli de la grande vue revient à la compacte
+(un clic sur l'en-tête ou Échap fait de même).
+
 ## Lire la page du navigateur (sans extension)
 
 Dans l'onglet **Chat**, la case « Joindre la page du navigateur : *titre* » (cochée par défaut)
@@ -156,7 +161,7 @@ Garde-fous :
 les hôtes GitHub uniquement (redirections comprises), accepté seulement si son SHA-256
 correspond à `SHA256SUMS`. Ces deux fichiers viennent de la même release : le SHA-256
 prouve l'intégrité, pas l'origine. Si `gh` est installé, l'attestation de provenance du
-build est aussi vérifiée (`gh attestation verify --repo VinceVibeCoding/omniscient-factory`),
+build est aussi vérifiée (`gh attestation verify --repo VinceVibeCoding/omniscient`),
 et un échec rejette le fichier ; sinon, setup le signale. Le fichier est écrit via un
 nom temporaire unique et ne remplace jamais un lien symbolique.
 
@@ -271,6 +276,42 @@ utile Copilot (`sessionId` en camelCase, pas de `session_id`) :
   rapporte l'événement : une seule fois) ;
 - sinon il le rapporte comme session Copilot, en suivi seulement (pas de décision).
 
+## Windows natif
+
+Le démon, le client de hooks et le chat tournent directement sous Windows 10/11, sans WSL
+(vérifié en CI sur `windows-latest`, Python 3.12). Ce qui change par rapport à Linux :
+
+- **Commande des hooks.** Claude Code lance une chaîne `command` dans Git Bash quand
+  Git for Windows est installé, sinon dans PowerShell
+  (<https://code.claude.com/docs/en/hooks>, champ `shell`) : aucune syntaxe de guillemets
+  ne marche dans les deux. Sous Windows, `omniscient group hooks install --write` écrit
+  donc la **forme exec** : `command` = le chemin de `omniscient-hook.exe`, `args` = ses
+  arguments (aucun shell, pas de guillemets, les espaces du chemin sont sans danger). La
+  forme exec exige un vrai `.exe` (un raccourci `.cmd` ne peut pas être lancé sans shell) :
+  c'est le cas de l'exécutable de `uv tool install` ou `pip install`. Les chemins s'écrivent
+  avec des `/`. Sous Linux et WSL, la sortie est inchangée.
+- **Ligne d'état.** `statusLine.command` n'accepte qu'une chaîne : un chemin sans espace
+  est écrit tel quel, un chemin avec espaces est remplacé par son nom court 8.3, à défaut
+  mis entre guillemets doubles (marche sous Git Bash, pas sous PowerShell seul).
+- **Fichiers secrets.** Pas de bits 0600/0700 : `restrict_to_current_user` (credentials.py)
+  lance `icacls <chemin> /inheritance:r /grant:r "DOMAINE\utilisateur:(F)"` (avec
+  `(OI)(CI)` pour un dossier) sur le dossier d'état, le jeton, les clés et les sessions.
+  Au mieux : un échec est journalisé, jamais fatal.
+- **Claude Code.** `claude.exe` (installateur natif, WinGet, npm) est lancé sans shell ; un
+  vieux raccourci `claude.cmd` est remplacé par le vrai `.exe` voisin, sinon lancé par
+  `cmd.exe /d /c` avec des arguments « simples » seulement. `omniscient group status` et
+  `setup` disent « claude introuvable » avec la commande d'installation.
+- **Couplage.** Le code s'affiche dans une boîte de dialogue Windows (`MessageBoxW`) ; sous
+  WSL, la route PowerShell reste. Le repli `--allow-terminal-pairing` marche partout.
+- **Arrêt.** Ctrl-C ou `CTRL_BREAK_EVENT` arrête le démon proprement. Un tour de chat est
+  arrêté par `taskkill /T /F` sur l'arbre du processus : `CTRL_BREAK_EVENT` ne peut pas
+  atteindre un enfant sans fenêtre (il est livré par console, donc au démon lui-même).
+- **Désactivé sous Windows** : les collecteurs herdr et AgentRun (Linux seulement), et le
+  retour à une session par herdr ou par WSL.
+- **`omniscient group setup`** : mode Windows natif (aucune étape WSL, pas de téléchargement
+  du widget : c'est lui qui t'a installé). Il installe les hooks, vérifie `claude`, puis
+  t'invite à ouvrir le widget Omnigroup.
+
 ## Fournisseurs IA (chat du widget)
 
 Claude Code reste le moteur par défaut du chat : il agit dans un projet, avec ses outils et
@@ -291,6 +332,8 @@ Fournisseurs IA** (ou à l'assistant du premier lancement) et discuter avec : un
 - **Routes** (jeton widget) : `GET /providers`, `PUT /providers/{id}`,
   `POST /providers/{id}/test`, `POST /providers/{id}/remove`, et `POST /chats` accepte
   `provider`.
+- **Préréglages.** Les [extensions](extensions.md) peuvent proposer des préréglages qui préremplissent
+  ce formulaire ; ils ne portent jamais de clé.
 
 Le pipeline d'Omniscient lui-même (idées, conseil, builder) passe par AgentRun et
 `config/routing.toml` : il suit une autre voie que ce chat.
@@ -300,6 +343,13 @@ Le pipeline d'Omniscient lui-même (idées, conseil, builder) passe par AgentRun
 Connexion facultative (Google, GitHub, e-mail + mot de passe) : voir [accounts.md](accounts.md).
 
 ## Usage et contexte
+
+> **D'où viennent les jauges Session / Weekly.** Uniquement de la ligne d'état de Claude Code
+> (`rate_limits`), qui n'est envoyée que quand Claude Code tourne : le widget ne lit jamais vos
+> identifiants et n'interroge pas Anthropic. Il peut donc **retarder** sur l'usage réel si vous
+> consommez ailleurs (claude.ai, un autre ordinateur) jusqu'au prochain message dans Claude Code.
+> Une fenêtre dont l'heure de réinitialisation est passée repasse à 0 % au lieu de garder son
+> ancien chiffre.
 
 Les hooks ne portent pas l'usage, seulement `transcript_path`. Le démon (jamais le hook)
 appelle `hook_usage.translate_usage(source, event, cursor)` à chaque `POST /hook` (seuls
@@ -322,6 +372,14 @@ l'usage (ni état, ni étape) et seulement pour une session déjà connue :
 
 Le format du transcript est interne à Claude Code : une ligne inconnue est ignorée, et
 une erreur garde les chiffres précédents.
+
+## Détail d'une session
+
+Dans le détail d'une session, la boîte de réponse (ou « Continuer dans le widget » pour une
+session d'IDE) et le bloc « Consommation » sont tout en haut, sous l'en-tête et les demandes.
+La conversation vient ensuite, du plus récent au plus ancien : seuls les 4 derniers
+échanges (une question et ses réponses) sont affichés. Le bouton « Afficher 5 échanges plus
+anciens » en révèle 5 de plus, en relisant au besoin plus de messages au démon (jusqu'à 200).
 
 ## Format des réponses
 

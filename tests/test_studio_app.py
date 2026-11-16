@@ -228,7 +228,7 @@ async def test_clicking_a_row_does_not_open_an_atelier(vault: Path) -> None:
 
 
 async def test_filter_cycle_hides_then_shows_dropped(vault: Path) -> None:
-    from omniscient.slack.core import apply_owner_verdict
+    from omniscient.verdicts import apply_owner_verdict
 
     beta = next(p.stem for p in (vault / "ideas").glob("*beta*.md"))
     apply_owner_verdict(vault, beta, "drop")

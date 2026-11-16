@@ -6,12 +6,15 @@ import { ChatController } from "./chat-controller";
 import { AccountController } from "./account-controller";
 import * as providerApi from "./api-providers";
 import { ProviderController } from "./provider-controller";
+import { ExtController } from "./ext-controller";
+import { extensionsSection } from "./views/extensions";
 import { accountSection } from "./views/account";
 import { providersSection } from "./views/providers";
 import { wizardView } from "./views/wizard";
 import { h, replace } from "./dom";
 import { installDrag } from "./drag";
 import { installResize } from "./resize";
+import { FIRST_LIMIT, INITIAL_EXCHANGES, MORE_STEP, refetchLimit } from "./exchanges";
 import { keepUiState, restoreUiState } from "./keep";
 import { applySkin, applyTheme } from "./theme";
 import type { ConfigPatch, Skin, ConfigView, LinkStatus, Osd, Pending, Session, SessionDetail, Settings, Step, StreamEvent, Transcript, Usage, WidgetConfig } from "./types";
@@ -22,7 +25,7 @@ import { header, listView } from "./views/list";
 import { osdView } from "./views/osd";
 import { settingsView } from "./views/settings";
 import { type Tab, tabBar, withTabs } from "./views/tabs";
-import { transcriptSection } from "./views/transcript";
+import { transcriptSection, type Conversation, type HistoryState } from "./views/transcript";
 import { pendingCard } from "./views/pending";
 import { STRIP_CLASS, usageStrip, withUsageStrip } from "./views/usage-strip";
 
@@ -66,6 +69,9 @@ let state: AppState = {
 let deferredRender = false;
 let refreshTimer: number | undefined;
 let transcriptTimer: number | undefined;
+/** How much of a session's history is shown; reset whenever another session is opened. */
+let history: HistoryState = { shown: INITIAL_EXCHANGES, fetchedLimit: FIRST_LIMIT };
+let refocusMore = false;
 let toastTimer: number | undefined;
 let sessionDraft = "";
 
@@ -79,9 +85,16 @@ const providers = new ProviderController(
   (err) => toast(api.errorText(err)),
 );
 
+const extensions = new ExtController(
+  () => (state.view === "settings" || state.view === "chat") && render(),
+  (err) => toast(api.errorText(err)),
+  toast,
+);
+
 const chat = new ChatController(
   () => state.view === "chat" && render(),
   (err) => toast(api.errorText(err)),
+  extensions,
 );
 
 function update(patch: Partial<AppState>): void {
@@ -181,7 +194,9 @@ function viewFor(s: AppState): HTMLElement {
 function settingsPanel(s: AppState): HTMLElement {
   const panel = settingsView({ ...DEFAULT_SETTINGS, ...s.settings }, s.link, settingsHandlers, s.autostart);
   const body = panel.querySelector(".panel__body");
-  body?.prepend(h("h2", { class: "section-title" }, "Fournisseurs IA"), providersSection(providers.view, providers.handlers));
+  body?.prepend(h("h2", { class: "section-title" }, "Extensions"), extensionsSection(extensions.view, extensions.handlers));
+  const presets = extensions.view.view.extensions.filter((e) => e.enabled).flatMap((e) => e.presets);
+  body?.prepend(h("h2", { class: "section-title" }, "Fournisseurs IA"), providersSection(providers.view, providers.handlers, presets));
   body?.prepend(h("h2", { class: "section-title" }, "Compte"), accountSection(account.view, account.handlers));
   body?.prepend(displaySection(s.config, changeConfig));
   return withTabs(panel, tabBar("settings", selectTab));
@@ -196,8 +211,9 @@ async function continueInWidget(detail: SessionDetail, text: string): Promise<vo
   void chat.load();
 }
 
-function conversationFor(detail: SessionDetail, transcript: Transcript | null): HTMLElement {
-  return transcriptSection(detail.id, transcript, sessionDraft, {
+function conversationFor(detail: SessionDetail, transcript: Transcript | null): Conversation {
+  return transcriptSection(detail.id, transcript, sessionDraft, history, {
+    more: () => showMoreExchanges(detail.id),
     setDraft: (text) => (sessionDraft = text),
     send: (text) => detailHandlers.prompt(detail.id, text),
     fork: (text) => void continueInWidget(detail, text),
@@ -242,15 +258,36 @@ async function refreshSessions(): Promise<void> {
   }
 }
 
+/** Reveal 5 older exchanges; when the fetched messages run out, ask the daemon for more. */
+function showMoreExchanges(id: string): void {
+  const shown = history.shown + MORE_STEP;
+  const limit = state.transcript ? refetchLimit(state.transcript.messages, shown, history.fetchedLimit) : null;
+  history = { shown, fetchedLimit: limit ?? history.fetchedLimit };
+  refocusMore = true;
+  render();
+  focusMoreButton();
+  if (limit !== null) void loadTranscript(id);
+}
+
+/** The view is rebuilt on each change: put the focus back on the « older » button. */
+function focusMoreButton(): void {
+  const button = app.querySelector<HTMLElement>(".history__more");
+  if (button) button.focus({ preventScroll: true });
+}
+
 /** Mode B: an older daemon (or a non-Claude session) has no transcript → null, no toast. */
 async function loadTranscript(id: string): Promise<void> {
   let transcript: Transcript | null;
   try {
-    transcript = await osdApi.sessionTranscript(id);
+    transcript = await osdApi.sessionTranscript(id, history.fetchedLimit);
   } catch {
     transcript = null;
   }
-  if (state.detail?.id === id) update({ transcript });
+  if (state.detail?.id !== id) return;
+  // A failed refetch keeps what is already shown instead of blanking the history.
+  update({ transcript: transcript ?? (history.fetchedLimit > FIRST_LIMIT ? state.transcript : null) });
+  if (refocusMore) focusMoreButton();
+  refocusMore = false;
 }
 
 function scheduleRefresh(): void {
@@ -279,7 +316,10 @@ async function openSession(id: string): Promise<void> {
   const detail = await guarded(() => api.getSession(id));
   if (!detail) return;
   sessionDraft = "";
+  history = { shown: INITIAL_EXCHANGES, fetchedLimit: FIRST_LIMIT };
+  refocusMore = false;
   update({ view: "detail", detail, transcript: null });
+  app.querySelector<HTMLElement>(".panel__body")?.scrollTo({ top: 0 });
   void loadTranscript(id);
   app.querySelector<HTMLElement>(".card button, .card input, .actions button")?.focus();
 }
@@ -290,6 +330,7 @@ async function openSettings(): Promise<void> {
   update({ view: "settings", settings: settings ?? state.settings, autostart: autostart ?? null });
   void providers.load();
   void account.load();
+  void extensions.load();
 }
 
 /** First run: the assistant (connect → AI provider → look) in the expanded panel. */
@@ -339,6 +380,7 @@ function changeConfig(patch: ConfigPatch): void {
 
 const detailHandlers = {
   back: () => update({ view: "list", detail: null, transcript: null }),
+  collapse,
   answer: (pending: Pending, answer: api.Answer) =>
     void guarded(async () => {
       await api.answerPending(pending.id, answer);
@@ -368,6 +410,7 @@ const detailHandlers = {
 
 const settingsHandlers = {
   back: () => update({ view: "list" }),
+  collapse,
   wizard: () => void startWizard(),
   autostart: (enabled: boolean) =>
     void guarded(async () => {
@@ -444,6 +487,8 @@ function onStreamEvent(event: StreamEvent): void {
     }
     case "usage":
       return onUsageEvent(event.data);
+    case "extensions":
+      return extensions.onEvent(event.data);
     case "menu_error": {
       const data = event.data as { message?: unknown } | null;
       if (data && typeof data.message === "string") toast(data.message);
@@ -466,6 +511,7 @@ async function onLink(link: LinkStatus): Promise<void> {
   const theme = await guarded(api.getTheme);
   if (theme !== undefined) applyTheme(theme);
   applyConfig((await guarded(osdApi.getConfig)) ?? null);
+  void extensions.load(); // slash commands, and the remembered extension theme
   const osd = await guarded(osdApi.getOsd);
   if (osd) update({ osd });
   await refreshSessions();

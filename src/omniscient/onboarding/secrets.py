@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from omniscient.envfile import KEY_RE, parse_env, quote_value
+from omniscient.group.credentials import replace_file, restrict_to_current_user
 
 ENV_MODE = 0o600
 NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -38,12 +39,6 @@ ANTHROPIC = SecretSpec(
     "ANTHROPIC_API_KEY",
     "Clé API Anthropic (boucles de l'usine ; vide = studio seulement)",
 )
-SLACK = (
-    SecretSpec("SLACK_BOT_TOKEN", "Slack bot token (xoxb-…)"),
-    SecretSpec("SLACK_APP_TOKEN", "Slack app token (xapp-…)"),
-    SecretSpec("SLACK_CHANNEL_ID", "ID du canal Slack"),
-    SecretSpec("SLACK_OWNER_ID", "Ton ID membre Slack"),
-)
 AGENTRUN = SecretSpec(
     "AGENTRUN_API_KEY",
     "Clé API AgentRun (vide = lire ~/.agentrun/.token, créé au premier démarrage "
@@ -66,12 +61,14 @@ def _atomic_private_write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)  # O_EXCL, 0600
     try:
-        os.fchmod(fd, ENV_MODE)
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        if hasattr(os, "fchmod"):  # POSIX; Windows uses an ACL below
+            os.fchmod(fd, ENV_MODE)
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp, path)
+        restrict_to_current_user(Path(tmp), is_dir=False)
+        replace_file(tmp, path)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise
@@ -128,8 +125,6 @@ def configure_secrets(
     """
     existing = read_env(env_file)
     specs = [ANTHROPIC, AGENTRUN]
-    if _yes(ask("Configurer Slack (digest, notifications) ? (o/N)", "n")):
-        specs += list(SLACK)
     if ask_github:
         specs.append(GITHUB)
     updates: dict[str, str] = {}
@@ -141,7 +136,7 @@ def configure_secrets(
         write_env(env_file, updates)
         say(f"Secrets enregistrés dans {env_file} (600) : {', '.join(updates)}")
     elif env_file.is_file():
-        os.chmod(env_file, ENV_MODE)
+        restrict_to_current_user(env_file, is_dir=False)
     if not (updates.get(ANTHROPIC.key) or existing.get(ANTHROPIC.key)):
         say("Pas de clé Anthropic : le studio marche, les boucles automatiques non.")
     return tuple(updates)
