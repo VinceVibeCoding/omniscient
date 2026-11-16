@@ -198,22 +198,12 @@ def test_theme_step_uses_theme_module_when_present(
     assert chosen == [(home, "clair")]
 
 
-def test_slack_secrets_only_when_asked(tmp_path: Path) -> None:
+def test_only_the_factory_secrets_are_asked(tmp_path: Path) -> None:
     home = Home(tmp_path / "home")
-    script = Script({"Slack": "o", "contient tes projets": str(tmp_path / "none")})
-    _run(
-        home,
-        script,
-        tmp_path,
-        secrets=["", "", "xoxb-1", "xapp-1", "C0TEST", "U0TEST", ""],
-    )
-    assert read_env(home.env_file) == {
-        "SLACK_BOT_TOKEN": "xoxb-1",
-        "SLACK_APP_TOKEN": "xapp-1",
-        "SLACK_CHANNEL_ID": "C0TEST",
-        "SLACK_OWNER_ID": "U0TEST",
-    }
-    assert any("studio seulement" in s or "studio marche" in s for s in script.said)
+    script = Script({"contient tes projets": str(tmp_path / "none")})
+    _run(home, script, tmp_path, secrets=["sk-test", "", ""])
+    assert read_env(home.env_file) == {"ANTHROPIC_API_KEY": "sk-test"}
+    assert not any("Configurer" in question for question in script.asked)
 
 
 def test_write_registry_entry_validates_name_and_overwrite(tmp_path: Path) -> None:

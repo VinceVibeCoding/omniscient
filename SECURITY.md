@@ -45,4 +45,4 @@ Only the latest commit on `main` is supported. There are no release branches yet
 ## Scope
 
 In scope: this repository's code (`src/`, `scripts/`, CI). Out of scope: AgentRun, herdr,
-Claude Code, Slack and other third-party tools it drives; report those upstream.
+Claude Code and other third-party tools it drives; report those upstream.

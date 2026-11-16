@@ -57,7 +57,6 @@ TASK_VERBS = {
     "build": "construit",
     "grill": "questionne",
     "work": "cherche",
-    "slack": "répond",
     "chat": "discute",
 }
 RUN_STATUS = {

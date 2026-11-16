@@ -11,7 +11,9 @@ reads back byte for byte (`parse_value(quote_value(v)) == v`).
 
 from __future__ import annotations
 
+import os
 import re
+from pathlib import Path
 
 KEY_RE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$")
 _ESCAPES = {"\\": "\\", '"': '"'}
@@ -62,3 +64,10 @@ def parse_line(line: str) -> tuple[str, str] | None:
 def parse_env(text: str) -> dict[str, str]:
     pairs = (parse_line(line) for line in text.splitlines())
     return dict(pair for pair in pairs if pair is not None)
+
+
+def load_env_file(path: Path) -> dict[str, str]:
+    """Read KEY=VALUE lines (this dialect); the process environment wins."""
+    parsed = parse_env(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    values = {key: value for key, value in parsed.items() if value}
+    return {key: os.environ.get(key, value) for key, value in values.items()}

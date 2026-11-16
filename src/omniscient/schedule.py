@@ -1,4 +1,4 @@
-"""`omniscient schedule`: render the systemd user units of the daily cycle (and Slack bot).
+"""`omniscient schedule`: render the systemd user units of the daily cycle.
 
 Never runs systemctl. `install` prints the rendered units; with `--write` it also writes
 them to ~/.config/systemd/user/ and prints the one systemctl command the user runs.
@@ -20,17 +20,16 @@ from omniscient.home import packaged
 UNITS = (
     "omniscient-cycle.service",
     "omniscient-cycle.timer",
-    "omniscient-slack.service",
     "omnigroup.service",
 )
 TIMER = "omniscient-cycle.timer"
-SLACK = "omniscient-slack.service"
+# Units shipped by older versions: `uninstall` still removes them from a user's machine.
+LEGACY_UNITS = ("omniscient-slack.service",)
 FORBIDDEN_IN_PATHS = ('"', "\\", "\n", "\r")
 ENABLE_CMD = f"systemctl --user daemon-reload && systemctl --user enable --now {TIMER}"
 GROUP = "omnigroup.service"
-SLACK_CMD = f"systemctl --user enable --now {SLACK}"
 GROUP_CMD = f"systemctl --user enable --now {GROUP}"
-DISABLE_CMD = f"systemctl --user disable --now {TIMER} {SLACK} {GROUP}"
+DISABLE_CMD = f"systemctl --user disable --now {TIMER} {GROUP}"
 RELOAD_CMD = "systemctl --user daemon-reload"
 
 Which = Callable[[str], str | None]
@@ -111,7 +110,7 @@ def write_units(units: tuple[Unit, ...], target: Path) -> tuple[Path, ...]:
 
 def remove_units(target: Path) -> tuple[Path, ...]:
     removed = []
-    for name in UNITS:
+    for name in (*UNITS, *LEGACY_UNITS):
         path = target / name
         try:
             path.unlink()

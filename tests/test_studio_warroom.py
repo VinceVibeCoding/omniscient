@@ -306,7 +306,7 @@ def test_cost_events_parse_rows_and_link_builds(vault: Path) -> None:
 def test_cost_rows_already_shown_as_runs_are_dropped() -> None:
     at = datetime(2026, 11, 13, 9, 0).astimezone()
     row = WarEvent(at, "visionnaire+conseil", "imagine", None, "think", 0.6)
-    lone = WarEvent(at, "débatteur", "répond", None, "slack reply", 0.04)
+    lone = WarEvent(at, "débatteur", "répond", None, "chat reply", 0.04)
     run = WarEvent(at + timedelta(minutes=2), "conseil", "délibère", None, "", 0.2)
 
     assert drop_logged_runs([row, lone], [run]) == (lone,)

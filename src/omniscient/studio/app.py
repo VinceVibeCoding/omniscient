@@ -331,7 +331,7 @@ class StudioApp(ThemedApp):  # `t`: theme picker (omniscient.theme)
     # ---------- owner verdicts ----------
 
     def _verdict(self, card: IdeaCard, verdict: str, done: str) -> None:
-        from omniscient.slack.core import apply_owner_verdict
+        from omniscient.verdicts import apply_owner_verdict
 
         try:
             apply_owner_verdict(self.vault, card.stem, verdict)

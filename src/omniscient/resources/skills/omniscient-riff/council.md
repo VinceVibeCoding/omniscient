@@ -44,7 +44,7 @@ note as written, exactly as a stranger council would.
 Verdict, one of exactly three French words: `poursuivre`, `remodeler` (good core, wrong shape: say
 how in the Simplificateur line), `abandonner`.
 
-## 4. Write the council markdown (exact labels: Slack parses them)
+## 4. Write the council markdown (exact labels: the studio parses them)
 
 The labels come from `src/omniscient/i18n.py`; copy them byte for byte, including the space
 before the colon. The verdict word must come right after `**Verdict :**`. The Visionnaire is

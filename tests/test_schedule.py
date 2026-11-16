@@ -121,6 +121,16 @@ def test_uninstall_prints_disable_then_removes_only_with_write(
     assert [p.name for p in config_home.iterdir()] == ["other.service"]
 
 
+def test_uninstall_also_removes_a_legacy_unit(exe: Path, config_home: Path) -> None:
+    config_home.mkdir(parents=True, exist_ok=True)
+    (config_home / "omniscient-slack.service").write_text("old", encoding="utf-8")
+
+    done = CliRunner().invoke(cli.app, ["schedule", "uninstall", "--write"])
+
+    assert done.exit_code == 0
+    assert list(config_home.iterdir()) == []
+
+
 def test_status_reports_missing_units(exe: Path, config_home: Path) -> None:
     result = CliRunner().invoke(cli.app, ["schedule", "status"])
 
