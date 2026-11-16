@@ -88,6 +88,12 @@ pub fn run() {
                     drag::on_moved(&webview, *pos);
                 }
             }
+            // A close from the taskbar button (right-click › Close window) quits the app, like any
+            // other app: the widget has no close button of its own.
+            WindowEvent::CloseRequested { api, .. } if window.label() == "main" => {
+                api.prevent_close();
+                window.app_handle().exit(0);
+            }
             WindowEvent::Focused(false) if window.label() == context_menu::MENU_LABEL => {
                 context_menu::close(window.app_handle());
             }

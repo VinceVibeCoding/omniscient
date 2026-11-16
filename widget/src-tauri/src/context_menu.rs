@@ -135,6 +135,7 @@ pub fn pick(app: &AppHandle, id: &str) -> Result<(), String> {
             }
         }
         MenuAction::Corner => crate::drag::reset(app),
+        MenuAction::Hide => crate::tray::hide_window(app),
         MenuAction::Quit => app.exit(0),
     }
     Ok(())

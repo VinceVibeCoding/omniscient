@@ -42,6 +42,7 @@ export const TICKER_ID = "ctx:ticker";
 export const CORNER_ID = "ctx:corner";
 export const AUTOSTART_ID = "ctx:autostart";
 export const scaleId = (pct: number): string => `ctx:scale:${pct}`;
+export const HIDE_ID = "ctx:hide";
 export const QUIT_ID = "ctx:quit";
 export const viewId = (view: OsdView): string => `ctx:view:${view}`;
 export const themeId = (theme: Skin): string => `ctx:theme:${theme}`;

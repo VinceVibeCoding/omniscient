@@ -44,7 +44,8 @@ pub fn build(app: &App) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Shows the widget (docked where it belongs). Also what a second launch asks for.
+/// Shows the widget (docked where it belongs), also when it was minimized to the taskbar. This
+/// is what a second launch of the app and a click on the tray icon ask for.
 pub fn show_window(app: &AppHandle) {
     let Some(state) = app.try_state::<AppState>() else { return }; // still starting: it shows itself
     let Some(window) = app.get_webview_window("main") else {
@@ -52,9 +53,26 @@ pub fn show_window(app: &AppHandle) {
         return;
     };
     let mode = *lock(&state.mode);
+    if window.is_minimized().unwrap_or(false) {
+        if let Err(err) = window.unminimize() {
+            eprintln!("omnigroup: unminimize failed: {err}");
+        }
+    }
     let shown = dock(&window, mode).and_then(|()| window.show().map_err(|err| err.to_string()));
     if let Err(err) = shown {
         eprintln!("omnigroup: show failed: {err}");
+    }
+}
+
+/// Gets the widget off the screen but keeps its taskbar button, so one click brings it back
+/// (the Windows-wide habit: a minimized app stays in the taskbar).
+pub fn hide_window(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        eprintln!("omnigroup: main window missing");
+        return;
+    };
+    if let Err(err) = window.minimize() {
+        eprintln!("omnigroup: minimize failed: {err}");
     }
 }
 
@@ -63,9 +81,10 @@ fn toggle_window(app: &AppHandle) {
         eprintln!("omnigroup: main window missing");
         return;
     };
-    if !window.is_visible().unwrap_or(false) {
+    let showing = window.is_visible().unwrap_or(false) && !window.is_minimized().unwrap_or(false);
+    if showing {
+        hide_window(app);
+    } else {
         show_window(app);
-    } else if let Err(err) = window.hide() {
-        eprintln!("omnigroup: tray toggle failed: {err}");
     }
 }

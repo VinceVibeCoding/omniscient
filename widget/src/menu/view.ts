@@ -6,6 +6,7 @@ import {
   AUTOSTART_ID,
   CORNER_ID,
   type MenuSnapshot,
+  HIDE_ID,
   QUIT_ID,
   SCALES,
   THEMES,
@@ -105,6 +106,7 @@ export function menuView(snap: MenuSnapshot): HTMLElement {
     toggleRow(TICKER_ID, "≋", "Afficher le ticker", snap.show_ticker, snap.ticker_locked),
     toggleRow(AUTOSTART_ID, "↻", "Lancer au démarrage", snap.autostart),
     h("div", { class: "menu__sep", role: "separator" }),
+    action(HIDE_ID, "▁", "Masquer (reste dans la barre des tâches)"),
     action(CORNER_ID, "⌖", "Replacer dans le coin"),
     action(QUIT_ID, "⏻", "Quitter", true),
   );
