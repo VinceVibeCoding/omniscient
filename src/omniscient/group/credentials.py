@@ -60,6 +60,7 @@ _ACCOUNT_OK = re.compile(
     r"^[^\x00-\x1f\"/\\\[\]:;|=,+*?<>()]+(\\[^\x00-\x1f\"/\\\[\]:;|=,+*?<>()]+)?$"
 )
 Runner = Callable[..., Any]
+_RESTRICTED: set[str] = set()  # Windows folders already restricted by this process
 
 
 def _on_windows() -> bool:
@@ -108,6 +109,8 @@ def restrict_to_current_user(
         except FileNotFoundError:
             return True
         return True
+    if not path.exists():
+        return True
     try:
         argv = icacls_argv(path, account or current_account(), directory)
         done = runner(
@@ -126,7 +129,11 @@ def restrict_to_current_user(
 def secure_dir(path: Path) -> Path:
     """Create `path` (and parents) and make it private to the user (0700 / ACL)."""
     path.mkdir(parents=True, exist_ok=True, mode=DIR_MODE)
-    restrict_to_current_user(path, is_dir=True)
+    key = str(path)
+    if _on_windows() and key in _RESTRICTED:  # icacls is a process: once per folder
+        return path
+    if restrict_to_current_user(path, is_dir=True) and _on_windows():
+        _RESTRICTED.add(key)
     return path
 
 

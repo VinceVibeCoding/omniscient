@@ -11,6 +11,7 @@ from omniscient.group import credentials as cred
 from omniscient.group import server as srv
 from omniscient.home import Home
 from tests.group_support import TAURI, Daemon, daemon
+from tests.platform_marks import WINDOWS
 
 __all__ = ["daemon"]  # the fixture
 
@@ -23,10 +24,12 @@ def test_token_file_is_private_and_reused(tmp_path: Path) -> None:
     token = cred.load_or_create_hook_token(home)
     path = cred.hook_token_path(home)
     assert len(token) >= cred.TOKEN_MIN_LEN
-    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    if not WINDOWS:
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
     path.chmod(0o644)
     assert cred.load_or_create_hook_token(home) == token
-    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    if not WINDOWS:
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert cred.read_hook_token(home) == token
 
 

@@ -70,7 +70,10 @@ class LoadResult:
 def read_text_file(path: Path) -> str:
     """A small UTF-8 file, never through a symlink."""
     try:
-        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        fd = os.open(
+            path,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0),
+        )
     except OSError as exc:
         raise ExtensionError(
             f"{path.name} : fichier illisible ou lien symbolique."

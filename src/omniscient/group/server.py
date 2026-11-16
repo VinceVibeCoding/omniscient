@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import signal
 import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -417,6 +418,20 @@ def create_server(
     return server
 
 
+def install_stop_signals(stopping: threading.Event) -> None:
+    """SIGTERM and, on Windows, SIGBREAK (CTRL_BREAK_EVENT) stop the daemon cleanly."""
+    if threading.current_thread() is not threading.main_thread():
+        return
+
+    def request_stop(_signum: int, _frame: Any) -> None:
+        stopping.set()
+
+    for name in ("SIGTERM", "SIGBREAK"):
+        number = getattr(signal, name, None)
+        if number is not None:
+            signal.signal(number, request_stop)
+
+
 def serve(
     home: Home,
     port: int = DEFAULT_PORT,
@@ -432,10 +447,14 @@ def serve(
     )
     server.start_background()
     print(
-        f"omnigroup écoute sur http://{BIND_HOST}:{server.port} (Ctrl-C pour arrêter)"
+        f"omnigroup écoute sur http://{BIND_HOST}:{server.port} (Ctrl-C pour arrêter)",
+        flush=True,
     )
     try:
-        server.app.stopping.wait()
+        install_stop_signals(server.app.stopping)
+        # a timed wait: on Windows an untimed Event.wait() ignores Ctrl-C
+        while not server.app.stopping.wait(SERVE_POLL_S):
+            pass
     except KeyboardInterrupt:
         print("\nArrêt d'omnigroup.")
     finally:

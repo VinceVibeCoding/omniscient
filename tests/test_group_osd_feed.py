@@ -14,6 +14,7 @@ import pytest
 from omniscient.group import api_osd, osd, pricing
 from omniscient.group import transcripts_live as tl
 from omniscient.group.config_store import ConfigPaths
+from tests.platform_marks import WINDOWS
 
 NOW = 1_800_000_000.0  # fixed clock
 
@@ -193,7 +194,8 @@ def test_limits_are_parsed_persisted_and_reloaded(tmp_path: Path) -> None:
         is False
     )
     saved = tmp_path / "state" / osd.LIMITS_FILE
-    assert oct(saved.stat().st_mode & 0o777) == "0o600"
+    if not WINDOWS:
+        assert oct(saved.stat().st_mode & 0o777) == "0o600"
     again = state(tmp_path)
     assert again.limits == s.limits
     assert again.limits["seven_day"] == {

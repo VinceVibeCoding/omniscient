@@ -12,6 +12,7 @@ Nothing is written without --write: the default run is a preview.
 from __future__ import annotations
 
 import json
+import sys
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -46,6 +47,8 @@ class SetupDeps:
     hooks: Callable[..., None]  # hook_install.run_hooks_command keywords
     downloads: Callable[[], Path]
     attest: wr.Attest = wr.verify_attestation
+    native_windows: bool = False  # the daemon runs on Windows itself (no WSL)
+    find_claude: Callable[[], str | None] = lambda: None
 
 
 def daemon_healthy(port: int) -> bool:
@@ -77,8 +80,16 @@ def _run_hooks(**kw: Any) -> None:
 
 
 def default_deps() -> SetupDeps:
+    from omniscient.group.claude_locate import find_claude
+
     return SetupDeps(
-        typer.echo, daemon_healthy, wr.https_fetch, _run_hooks, default_downloads
+        typer.echo,
+        daemon_healthy,
+        wr.https_fetch,
+        _run_hooks,
+        default_downloads,
+        native_windows=sys.platform == "win32",
+        find_claude=find_claude,
     )
 
 
@@ -91,6 +102,11 @@ def _step_daemon(opts: SetupOptions, deps: SetupDeps) -> None:
         deps.say(f"   ✓ répond sur http://127.0.0.1:{opts.port}")
         return
     deps.say(f"   ✗ ne répond pas sur le port {opts.port}.")
+    if deps.native_windows:
+        deps.say(
+            "   → lance `omniscient group serve` dans un terminal (ou via le widget)."
+        )
+        return
     deps.say(
         "   → lance `omniscient group serve` (ou `omniscient schedule install` pour"
     )
@@ -159,7 +175,41 @@ def _step_widget(opts: SetupOptions, deps: SetupDeps) -> None:
     deps.say(f"   → lance-le (double-clic sous Windows, ou depuis WSL : '{path}').")
 
 
+WINDOWS_WIDGET_HELP = (
+    "   → ouvre l'application Omnigroup (le widget, installé séparément) : cette "
+    "commande ne télécharge rien."
+)
+
+
+def _step_claude(deps: SetupDeps) -> None:
+    from omniscient.group.claude_locate import CLAUDE_NOT_FOUND
+
+    deps.say("3. Claude Code")
+    found = deps.find_claude()
+    if found:
+        deps.say(f"   ✓ trouvé : {found}")
+    else:
+        deps.say(f"   ✗ claude introuvable. {CLAUDE_NOT_FOUND}")
+
+
+def _run_native_windows(opts: SetupOptions, deps: SetupDeps) -> None:
+    """Native Windows: no WSL step, no widget download (the widget is what runs this)."""
+    deps.say("Mode Windows natif (sans WSL).")
+    _step_daemon(opts, deps)
+    _step_hooks(opts, deps)
+    _step_claude(deps)
+    deps.say("4. Widget Omnigroup")
+    deps.say(WINDOWS_WIDGET_HELP)
+    deps.say("5. " + PAIRING_HELP)
+    if not opts.write:
+        deps.say("")
+        deps.say("Aperçu seulement : relance avec --write pour appliquer.")
+
+
 def run_setup(opts: SetupOptions, deps: SetupDeps) -> None:
+    if deps.native_windows:
+        _run_native_windows(opts, deps)
+        return
     _step_daemon(opts, deps)
     _step_hooks(opts, deps)
     _step_widget(opts, deps)

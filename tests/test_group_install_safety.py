@@ -18,6 +18,7 @@ from omniscient.group.hook_install import (
     status,
 )
 from omniscient.group.hook_protect import deny_rules
+from tests.platform_marks import WINDOWS
 
 CMD = "/usr/bin/omniscient-hook"
 STATE = Path("/home/someone/.omniscient")
@@ -58,7 +59,8 @@ def test_symlinked_settings_are_written_through(tmp_path: Path) -> None:
     assert link.is_symlink()
     assert "PermissionRequest" in json.loads(real.read_text())["hooks"]
     assert saved is not None and saved.parent == real.parent
-    assert stat.S_IMODE(real.stat().st_mode) == 0o640
+    if not WINDOWS:
+        assert stat.S_IMODE(real.stat().st_mode) == 0o640
     assert not [p for p in real.parent.iterdir() if p.name.endswith(".tmp")]
 
 

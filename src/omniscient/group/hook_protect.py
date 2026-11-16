@@ -24,9 +24,9 @@ class ProtectError(ValueError):
 
 def _forms(state_dir: Path, home_dir: Path) -> tuple[str, ...]:
     """How rules name the folder: `~/…` under the home, and the absolute path."""
-    absolute = str(state_dir)
+    absolute = state_dir.as_posix()  # Claude rules use forward slashes on every OS
     try:
-        under_home = "~/" + str(state_dir.relative_to(home_dir))
+        under_home = "~/" + state_dir.relative_to(home_dir).as_posix()
     except ValueError:
         return (absolute,)
     return (under_home, absolute)

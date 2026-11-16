@@ -19,6 +19,8 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 TASKKILL_TIMEOUT_S = 10.0
+CREATE_NEW_PROCESS_GROUP = 0x00000200  # winbase.h, named here so it exists everywhere
+CREATE_NO_WINDOW = 0x08000000
 Run = Callable[..., Any]
 
 
@@ -29,8 +31,7 @@ def is_windows() -> bool:
 def spawn_kwargs(windows: bool | None = None) -> dict[str, Any]:
     """Popen keywords that put the child in its own group/session."""
     if windows if windows is not None else is_windows():
-        flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
-        return {"creationflags": flags}
+        return {"creationflags": CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW}
     return {"start_new_session": True}
 
 

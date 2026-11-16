@@ -145,6 +145,14 @@ def status(port: PortOpt = DEFAULT_PORT, home_dir: HomeOpt = None) -> None:
         )
         raise typer.Exit(code=1) from exc
     typer.echo(f"omnigroup {health.get('version', '?')} répond sur {base}.")
+    from omniscient.group.claude_locate import CLAUDE_NOT_FOUND, find_claude
+
+    claude = find_claude()
+    typer.echo(
+        f"Claude Code : {claude}"
+        if claude
+        else f"Claude Code : introuvable. {CLAUDE_NOT_FOUND}"
+    )
     try:
         store = Store(db_path(_home(home_dir)))
         try:
@@ -170,8 +178,11 @@ def token(home_dir: HomeOpt = None) -> None:
     if read_hook_token(_home(home_dir)) is None:
         typer.echo(f"Jeton des hooks absent ({path}) : lance `omniscient group serve`.")
         return
-    mode = path.stat().st_mode & 0o777
-    typer.echo(f"Jeton des hooks : {path} (droits {mode:o}).")
+    if sys.platform == "win32":  # no Unix mode bits: the ACL keeps it to this account
+        typer.echo(f"Jeton des hooks : {path} (réservé à ton compte Windows).")
+    else:
+        mode = path.stat().st_mode & 0o777
+        typer.echo(f"Jeton des hooks : {path} (droits {mode:o}).")
     typer.echo(
         "Il ne sert qu'aux hooks des agents. Pour le widget : `omniscient group pair`."
     )

@@ -15,6 +15,7 @@ from omniscient.group import server as srv
 from omniscient.group.credentials import load_or_create_hook_token
 from omniscient.group.models import Pending, Session, utcnow
 from omniscient.home import Home
+from tests.platform_marks import WINDOWS
 
 runner = CliRunner()
 
@@ -49,7 +50,9 @@ def test_token_prints_where_the_hook_credential_is_never_the_secret(
     secret = load_or_create_hook_token(Home(isolated_home))
     shown = runner.invoke(cli.app, ["group", "token"])
     assert shown.exit_code == 0 and "group.token" in shown.output
-    assert secret not in shown.output and "droits 600" in shown.output
+    assert secret not in shown.output
+    expected = "réservé à ton compte" if WINDOWS else "droits 600"
+    assert expected in shown.output
 
 
 def test_status_without_a_daemon_says_how_to_start_it(isolated_home: Path) -> None:

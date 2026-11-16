@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 import sys
 import threading
 import time
@@ -21,6 +22,7 @@ from omniscient.group import widget_release as wr
 from omniscient.group.chat_runner import RunnerEvent, TurnHandle, TurnOutcome, TurnSpec
 from omniscient.group.chat_store import write_private
 from omniscient.home import Home
+from tests.platform_marks import WINDOWS
 
 # ---- chat runner -----------------------------------------------------------------------
 
@@ -154,12 +156,12 @@ def test_long_assistant_messages_are_clipped(home: Home) -> None:
 def test_claude_binary_is_resolved_once(
     home: Home, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    monkeypatch.setattr(ch.shutil, "which", lambda name: f"/opt/bin/{name}")
+    monkeypatch.setattr(shutil, "which", lambda name: f"/opt/bin/{name}")
     runner = Recorder()
     mgr = _manager(home, runner)
     mgr.join(mgr.create(home.root.name, "salut"), 5)
     assert runner.specs[0].argv[0] == "/opt/bin/claude"
-    monkeypatch.setattr(ch.shutil, "which", lambda name: None)
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     with caplog.at_level(logging.WARNING, logger="omniscient.group.chat"):
         missing = _manager(home, Recorder())
     assert missing._claude[0] == "claude"
@@ -174,7 +176,8 @@ def test_write_private_never_follows_a_planted_tmp_symlink(tmp_path: Path) -> No
     write_private(target, "{}")
     assert victim.read_text(encoding="utf-8") == "keep me"
     assert target.read_text(encoding="utf-8") == "{}"
-    assert (target.stat().st_mode & 0o777) == 0o600
+    if not WINDOWS:
+        assert (target.stat().st_mode & 0o777) == 0o600
 
 
 # ---- API -------------------------------------------------------------------------------

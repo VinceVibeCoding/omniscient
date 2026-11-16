@@ -255,6 +255,14 @@ def default_context(home_root: Path | None = None) -> HookContext:
     return HookContext(state_dir=home.state, environ=os.environ)
 
 
+def use_utf8_streams(*streams: Any) -> None:
+    """Claude Code speaks UTF-8 JSON: never the Windows locale code page (cp1252)."""
+    for stream in streams:
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
     """`omniscient-hook` (console script) or `python -m omniscient.group.hook_client`."""
     parser = argparse.ArgumentParser(prog="omniscient group hook")
@@ -264,11 +272,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--event")
     parser.add_argument("--home", type=Path)
     args = parser.parse_args(argv)
+    use_utf8_streams(sys.stdin, sys.stdout)
     ctx = default_context(args.home)
     if args.statusline:
         return run_statusline(sys.stdin, sys.stdout, ctx)
-    if args.source is None:
-        parser.error("--source est requis")
+    if (
+        args.source is None
+    ):  # exit 0, never 2: a hook exiting 2 would block the tool call
+        print("omnigroup hook ignoré : --source est requis", file=sys.stderr)
+        return 0
     return run_hook(args.source, sys.stdin, sys.stdout, ctx, args.fast, args.event)
 
 

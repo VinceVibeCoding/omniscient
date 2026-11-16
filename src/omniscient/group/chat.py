@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import re
-import shutil
 import threading
 import time
 import uuid
@@ -40,6 +39,7 @@ from omniscient.group.chat_store import (
     path_label,
     write_private,
 )
+from omniscient.group.claude_locate import resolve_command
 from omniscient.group.credentials import secure_dir
 from omniscient.group.models import iso, utcnow
 from omniscient.group.page_context import PageContext, PageError, clean_page
@@ -137,15 +137,7 @@ def _clip(text: str) -> str:
 
 def _resolve(claude: Sequence[str]) -> tuple[str, ...]:
     """Resolve a bare `claude` command once through the daemon's PATH (logged)."""
-    argv = tuple(claude)
-    if not argv or "/" in argv[0]:
-        return argv
-    found = shutil.which(argv[0])
-    if found is None:
-        log.warning("omnigroup chat: %s not found in the daemon PATH", argv[0])
-        return argv
-    log.info("omnigroup chat: using %s", found)
-    return (found, *argv[1:])
+    return resolve_command(claude)
 
 
 def _title(text: str) -> str:

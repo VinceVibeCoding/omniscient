@@ -12,6 +12,7 @@ from omniscient.group.ext_guide import EXAMPLE_COMMAND
 from omniscient.group.ext_schema import ExtensionError
 from omniscient.group.ext_store import ExtensionStore
 from tests.ext_support import manifest, write_ext
+from tests.platform_marks import WINDOWS
 
 
 @pytest.fixture
@@ -42,7 +43,8 @@ def test_disabled_list_persists_with_private_mode(
     store.disable("resume-page")
     path = tmp_path / "state" / "extensions.json"
     assert json.loads(path.read_text()) == {"disabled": ["resume-page"]}
-    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    if not WINDOWS:
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
     again = ExtensionStore(tmp_path / "extensions", tmp_path / "state")
     assert again.view()["extensions"][0]["enabled"] is False
     again.enable("resume-page")

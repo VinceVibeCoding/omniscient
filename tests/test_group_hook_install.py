@@ -22,6 +22,7 @@ from omniscient.group.hook_install import (
     status,
 )
 from omniscient.home import DEFAULT_HOME, Home
+from tests.platform_marks import WINDOWS
 
 CMD = "/opt/tool/bin/omniscient group hook"
 NOW = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
@@ -109,7 +110,8 @@ def test_write_backs_up_then_reinstall_is_a_no_op(tmp_path: Path) -> None:
     path.chmod(0o600)
     saved = apply(plan("claude", "install", path, CMD), NOW)
     assert saved is not None and saved.read_text(encoding="utf-8") == USER_SETTINGS
-    assert path.stat().st_mode & 0o777 == 0o600
+    if not WINDOWS:
+        assert path.stat().st_mode & 0o777 == 0o600
     assert status("claude", path).missing == ()
     again = plan("claude", "install", path, CMD)
     assert not again.changed
@@ -212,6 +214,9 @@ def test_targets_and_path() -> None:
         resolve_targets("vim", None)
 
 
+@pytest.mark.skipif(
+    WINDOWS, reason="POSIX paths: the Windows form is in test_group_windows.py"
+)
 def test_base_command_uses_the_light_hook_script(tmp_path: Path) -> None:
     def which(_name: str) -> str:
         return "/usr/bin/omniscient-hook"

@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from omniscient.group import procctl
+from omniscient.group.claude_locate import check_shim_args
 from omniscient.redact import redact_secrets
 
 log = logging.getLogger(__name__)
@@ -298,7 +299,10 @@ def run_turn(
 ) -> TurnOutcome:
     """Run one turn to completion, calling `on_event` for each parsed event."""
     try:
+        check_shim_args(spec.argv)
         proc = _start(spec)
+    except ValueError as exc:
+        return TurnOutcome(False, error=f"Impossible de lancer Claude Code : {exc}")
     except FileNotFoundError:
         return TurnOutcome(
             False, error="Commande « claude » introuvable dans le PATH du démon."
