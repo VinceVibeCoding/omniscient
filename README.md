@@ -93,6 +93,13 @@ panel's header, to unfold and fold it. Right-click it for views, themes and the 
 
 Full guide, hooks, threat model and verified behaviour: [docs/omnigroup.md](docs/omnigroup.md) (in French).
 
+### Extensions
+
+Omniscient is not a sealed product: ask it for a command, theme, workflow or provider preset and it
+builds it as a small data folder (never code) in `<home>/extensions/`. Type `/reload` in the widget
+chat and keep going; `omniscient ext export` and `ext install` (with a full preview) share them.
+See [docs/extensions.md](docs/extensions.md) (in French).
+
 ## Ideas, the factory
 
 Omniscient reads the news, then helps you decide what to build.

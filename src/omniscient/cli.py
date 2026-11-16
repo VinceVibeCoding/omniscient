@@ -28,6 +28,7 @@ from omniscient.build.poc import (
     build_poc,
     format_build_reply,
 )
+from omniscient.cli_ext import register as register_ext
 from omniscient.cli_group import register_group
 from omniscient.cli_onboarding import register_onboarding
 from omniscient.config import ConfigError, Settings, load_settings
@@ -97,6 +98,7 @@ app.command("warroom")(_warroom)
 app.command("chat")(_chat)
 register_onboarding(app)
 register_group(app)
+register_ext(app)
 
 
 @app.callback()
