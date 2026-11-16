@@ -120,6 +120,29 @@ def _challenge(verifier: str) -> str:
     return _b64url(hashlib.sha256(verifier.encode("ascii")).digest())
 
 
+SECRET_PREFIX = "sb_secret_"
+SECRET_KEY_MESSAGE = (
+    "Clé secrète refusée : donnez la clé publique (sb_publishable_… ou « anon »), "
+    "jamais une clé secrète ni service_role."
+)
+
+
+def _is_secret_key(key: str) -> bool:
+    """A Supabase secret key: `sb_secret_…`, or a legacy JWT whose role is service_role."""
+    if key.startswith(SECRET_PREFIX):
+        return True
+    parts = key.split(".")
+    if len(parts) != 3:
+        return False
+    try:
+        claims = json.loads(
+            base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4))
+        )
+    except (ValueError, UnicodeDecodeError):
+        return False  # not a JWT we can read: the format check below still applies
+    return isinstance(claims, dict) and claims.get("role") == "service_role"
+
+
 def validate_config(
     url: Any, anon_key: Any, resolver: Resolver = socket.getaddrinfo
 ) -> AuthConfig:
@@ -133,6 +156,8 @@ def validate_config(
         raise AuthError(400, "L'adresse du service ne doit pas contenir de chemin.")
     if not ANON_KEY.match(anon_key):
         raise AuthError(400, "Clé publique invalide.")
+    if _is_secret_key(anon_key):
+        raise AuthError(400, SECRET_KEY_MESSAGE)
     return AuthConfig(clean.rstrip("/"), anon_key)
 
 
@@ -241,10 +266,11 @@ class AuthService:
             check_destination(url, self._resolver)  # again, right before the call
         except ProviderError as exc:
             raise AuthError(400, exc.message) from exc
-        headers = {
-            "apikey": cfg.anon_key,
-            "Authorization": f"Bearer {bearer or cfg.anon_key}",
-        }
+        # The project key goes in `apikey` only: `Authorization` carries a user's token,
+        # and a new-format key (sb_publishable_…) is not a JWT.
+        headers = {"apikey": cfg.anon_key}
+        if bearer:
+            headers["Authorization"] = f"Bearer {bearer}"
         try:
             with self._client.stream(
                 method, url, params=params, json=body, headers=headers
