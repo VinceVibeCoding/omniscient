@@ -48,7 +48,3 @@ jobs:
         run: uv sync --locked
       - name: Test
         run: uv run pytest -q
-      - name: Diag (temporary)
-        if: always()
-        continue-on-error: true
-        run: uv run pytest -q -s tests/diag_tmp_e2e.py
