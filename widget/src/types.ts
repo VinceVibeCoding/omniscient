@@ -179,6 +179,10 @@ export interface Chat {
   session_id: string | null;
   /** "claude-code" or the id of a saved provider. */
   provider: string;
+  /** A web page is attached: this conversation runs without any tool. */
+  read_only?: boolean;
+  /** The page last attached (its address, else its title); "" when none. */
+  page_key?: string;
 }
 
 // ---- the page open in the browser (GET /browser/page, SSE `browser_page`) ----

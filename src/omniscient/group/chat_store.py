@@ -77,8 +77,8 @@ class Chat:
             "provider": self.provider,
             "read_only": self.read_only,
             "page": (
-                {"url": self.page_url, "title": self.page_title or ""}
-                if self.page_url
+                {"url": self.page_url or "", "title": self.page_title or ""}
+                if self.page_url or self.page_title
                 else None
             ),
             "session_id": session_id("claude", self.claude_session_id)

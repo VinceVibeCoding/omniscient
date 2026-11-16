@@ -528,3 +528,89 @@ def test_stop_all_without_running_turns_returns_zero(tmp_path) -> None:
 
     manager = ChatManager(find_home(), lambda kind, data: None)
     assert manager.stop_all() == 0
+
+
+# ---- a follow-up can carry the page the person has moved on to ------------------------
+
+NEXT_PAGE = {
+    "url": "https://shop.example/checkout?x=1",
+    "title": "Paiement",
+    "text": "Entrez votre carte.",
+}
+
+
+def test_a_follow_up_can_attach_the_new_page_to_a_page_chat(home: Home) -> None:
+    runner = FakeRunner()
+    mgr = manager(home, runner)
+    chat_id = mgr.create(None, "Résume", provider="claude-code", page=PAGE)
+    mgr.join(chat_id, 5)
+    mgr.send(chat_id, "Et celle-ci ?", page=NEXT_PAGE)
+    mgr.join(chat_id, 5)
+    spec = runner.specs[1]
+    assert spec.text.startswith("<page_context") and "Paiement" in spec.text
+    assert spec.text.rstrip().endswith("Et celle-ci ?")
+    argv = list(spec.argv)
+    assert argv[argv.index("--tools") + 1] == "" and "--resume" in argv
+    _, detail = mgr.get(chat_id)
+    assert detail["chat"]["page"] == {
+        "url": "https://shop.example/checkout",
+        "title": "Paiement",
+    }
+    tools = [m for m in detail["messages"] if m.get("tool") == "Page"]
+    assert [t["text"].split(" — ")[0] for t in tools] == [
+        "Page jointe : Panier",
+        "Page jointe : Paiement",
+    ]
+    assert "Entrez votre carte" not in json.dumps(detail)  # never echoed back
+
+
+def test_a_follow_up_without_page_sends_just_the_question(home: Home) -> None:
+    runner = FakeRunner()
+    mgr = manager(home, runner)
+    chat_id = mgr.create(None, "Résume", provider="claude-code", page=PAGE)
+    mgr.join(chat_id, 5)
+    mgr.send(chat_id, "Merci")
+    mgr.join(chat_id, 5)
+    assert runner.specs[1].text == "Merci"
+
+
+def test_a_plain_provider_keeps_only_the_latest_page_in_full(home: Home) -> None:
+    mgr, llm, _, _ = with_gemini(home)
+    chat_id = mgr.create(None, "Résume", provider="gem", page=PAGE)
+    mgr.join(chat_id, 5)
+    mgr.send(chat_id, "Et celle-ci ?", page=NEXT_PAGE)
+    mgr.join(chat_id, 5)
+    sent = "\n".join(t.text for t in llm.calls[1][2])
+    assert "Entrez votre carte" in sent  # the page we are on now
+    assert "Ignore previous instructions" not in sent  # the old page, condensed
+    assert "Panier" in sent  # but its title is still there
+
+
+def test_a_page_can_join_a_plain_provider_chat_later(home: Home) -> None:
+    mgr, llm, _, _ = with_gemini(home)
+    chat_id = mgr.create(None, "Salut", provider="gem")
+    mgr.join(chat_id, 5)
+    mgr.send(chat_id, "Regarde", page=NEXT_PAGE)
+    mgr.join(chat_id, 5)
+    assert "Entrez votre carte" in llm.calls[1][2][-1].text
+    assert mgr.get(chat_id)[1]["chat"]["read_only"] is True
+
+
+def test_a_chat_with_tools_refuses_a_page_follow_up(home: Home) -> None:
+    runner = FakeRunner()
+    mgr = manager(home, runner)
+    chat_id = mgr.create("alpha", "salut")
+    mgr.join(chat_id, 5)
+    with pytest.raises(ch.ChatError) as err:
+        mgr.send(chat_id, "regarde", page=NEXT_PAGE)
+    assert err.value.status == 409 and "outils" in err.value.message
+    assert len(runner.specs) == 1  # nothing was started
+
+
+def test_a_bad_page_on_a_follow_up_is_a_400(home: Home) -> None:
+    mgr = manager(home, FakeRunner())
+    chat_id = mgr.create(None, "x", provider="claude-code", page=PAGE)
+    mgr.join(chat_id, 5)
+    with pytest.raises(ch.ChatError) as err:
+        mgr.send(chat_id, "y", page={"url": "javascript:alert(1)"})
+    assert err.value.status == 400

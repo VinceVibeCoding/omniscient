@@ -84,15 +84,37 @@ def _claude_session_id(raw: Any) -> str:
     return raw
 
 
+def _page_context(page: Any) -> PageContext | None:
+    """The page of a request, validated (a ready PageContext passes as is); None = no page."""
+    if page is None or isinstance(page, PageContext):
+        return page
+    try:
+        return clean_page(page)
+    except PageError as exc:
+        raise ChatError(exc.status, exc.message) from exc
+
+
+def _page_fields(block: str) -> tuple[str, str]:
+    """(title, url) written in a rendered page block: each page line shows its own page."""
+    title = url = ""
+    for line in block.splitlines():
+        if line.startswith("Title: ") and not title:
+            title = line[len("Title: ") :]
+        elif line.startswith("URL: ") and not url:
+            url = line[len("URL: ") :]
+    return title, url
+
+
 def _shown(chat: Chat, message: Message) -> dict[str, Any]:
     """A message as the widget sees it; an attached page shows as one line, never its text."""
     if message.role != "context":
         return message.to_json()
-    label = chat.page_title or chat.page_url or "page"
+    title, url = _page_fields(message.text)
+    label = title or url or "page"
     return {
         "role": "tool",
         "tool": "Page",
-        "text": f"Page jointe : {label} — {chat.page_url or ''}",
+        "text": f"Page jointe : {label} — {url}" if url else f"Page jointe : {label}",
         "at": iso(message.at),
     }
 
@@ -170,12 +192,7 @@ class ChatManager:
         saved provider id (plain chat, no tools; the project is optional). None = the
         person's default provider. `page` (from the browser extension) attaches a web page
         as untrusted context: the chat then runs without any tool, and needs no project."""
-        context = page if isinstance(page, PageContext) else None
-        if page is not None and context is None:
-            try:
-                context = clean_page(page)
-            except PageError as exc:
-                raise ChatError(exc.status, exc.message) from exc
+        context = _page_context(page)
         engine = self._engine(provider)
         needs_project = engine == CLAUDE_CODE and context is None
         ref = self._project(project) if needs_project or project else self._home_ref()
@@ -224,21 +241,43 @@ class ChatManager:
         self._start(chat.chat_id, ref, prompt, native, fork=True)
         return chat.chat_id
 
-    def send(self, chat_id: str, text: Any) -> None:
+    def send(self, chat_id: str, text: Any, page: Any = None) -> None:
+        """A follow-up. `page` attaches the page the person is on now (untrusted context): only
+        to a chat that already runs without tools, or to a plain provider (it has none); a
+        Claude Code chat with tools is refused, since page text could steer them."""
         prompt = _text(text)
+        context = _page_context(page)
         with self._lock:
             chat = self._get(chat_id)
             if chat_id in self._running:
                 raise ChatError(409, "Claude répond encore : attends la fin du tour.")
+            if (
+                context is not None
+                and chat.provider == CLAUDE_CODE
+                and not chat.read_only
+            ):
+                raise ChatError(
+                    409,
+                    "Cette conversation peut utiliser des outils : commence-en une nouvelle "
+                    "pour y joindre une page web.",
+                )
             ref = self._project(chat.project)
             self._reserve_slot()
             now = utcnow()
+            if context is not None:
+                chat = replace(
+                    chat.with_message(Message("context", render_page(context), now)),
+                    read_only=True,
+                    page_url=context.url or None,
+                    page_title=context.title or None,
+                )
             chat = replace(
                 chat.with_message(Message("user", prompt, now)), state="running"
             )
             self._chats[chat_id] = chat
             self._running[chat_id] = TurnHandle()
-        self._start(chat_id, ref, prompt, chat.claude_session_id)
+        sent = f"{render_page(context)}\n\n{prompt}" if context is not None else prompt
+        self._start(chat_id, ref, sent, chat.claude_session_id)
 
     def stop(self, chat_id: str) -> bool:
         with self._lock:

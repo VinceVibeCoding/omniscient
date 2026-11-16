@@ -158,8 +158,10 @@ def clean_page(raw: Any) -> PageContext:
     if unknown:
         raise PageError(f"page : champ inconnu {min(unknown)[:40]}")
     return PageContext(
-        url=clean_url(raw.get("url")),
-        title=_clean_text(raw.get("title"), TITLE_MAX, "title"),
+        url=clean_url(raw["url"])
+        if raw.get("url")
+        else "",  # the widget may not know it
+        title=" ".join(_clean_text(raw.get("title"), TITLE_MAX, "title").split()),
         text=_clean_text(raw.get("text"), TEXT_MAX, "text"),
         selection=_clean_text(raw.get("selection"), SELECTION_MAX, "selection"),
         errors=_clean_errors(raw.get("errors")),
@@ -174,7 +176,8 @@ def _defang(text: str) -> str:
 
 def render(page: PageContext) -> str:
     """The untrusted block placed before the person's question."""
-    parts = [f"URL: {page.url}", f"Title: {_defang(page.title)}"]
+    parts = [f"URL: {page.url}"] if page.url else []
+    parts.append(f"Title: {_defang(page.title)}")
     if page.selection:
         parts.append(f"Selected text:\n{_defang(page.selection)}")
     if page.errors:
@@ -205,4 +208,7 @@ def render(page: PageContext) -> str:
 
 def summary(page: PageContext) -> str:
     """One line for the chat history (the page text itself is not shown back)."""
-    return f"Page jointe : {page.title or page.url} — {page.url}"
+    label = page.title or page.url or "page du navigateur"
+    return (
+        f"Page jointe : {label} — {page.url}" if page.url else f"Page jointe : {label}"
+    )

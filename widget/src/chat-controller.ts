@@ -4,7 +4,7 @@
 import * as osdApi from "./api-osd";
 import * as providerApi from "./api-providers";
 import type { Chat, ChatEvent, ChatMessage, Provider } from "./types";
-import { attachingBrowser, providerReady } from "./views/chat";
+import { attachingBrowser, attachingToActive, pageKey, providerReady } from "./views/chat";
 import type { ChatHandlers, ChatModel } from "./views/chat";
 
 const RELOAD_DEBOUNCE_MS = 300;
@@ -33,7 +33,7 @@ export class ChatController {
   ) {
     this.handlers = {
       open: (id) => void this.open(id),
-      close: () => this.set({ activeId: null, active: null, messages: [], draft: "" }),
+      close: () => this.set({ activeId: null, active: null, messages: [], draft: "", attachBrowser: true }),
       setProject: (project) => this.set({ project }),
       setProvider: (provider) => this.set({ provider }),
       setAttachBrowser: (attachBrowser) => this.set({ attachBrowser }),
@@ -90,6 +90,8 @@ export class ChatController {
   private async open(chatId: string): Promise<void> {
     this.set({ activeId: chatId, messages: [], draft: "" });
     await this.reload();
+    // The page is offered again when it is not the one this conversation already has.
+    this.set({ attachBrowser: pageKey(this.model.browser) !== (this.model.active?.page_key ?? "") });
   }
 
   private async reload(): Promise<void> {
@@ -123,7 +125,12 @@ export class ChatController {
     this.set({ busy: true, draft: "", messages: [...this.model.messages, this.userMessage(text)] });
     await this.guard(async () => {
       if (id) {
-        await osdApi.chatSend(id, text);
+        const attach = attachingToActive(this.model);
+        await osdApi.chatSend(id, text, attach);
+        if (attach && this.model.active) {
+          // This page is now in the conversation: offer the next one, not this one again.
+          this.set({ active: { ...this.model.active, page_key: pageKey(this.model.browser) }, attachBrowser: false });
+        }
       } else {
         const provider = this.model.provider;
         const claude = provider === "claude-code";
@@ -140,8 +147,10 @@ export class ChatController {
           state: "running",
           updated_at: now,
           session_id: null,
+          read_only: browserPage,
+          page_key: browserPage ? pageKey(this.model.browser) : "",
         };
-        this.set({ activeId: chatId, active });
+        this.set({ activeId: chatId, active, ...(browserPage ? { attachBrowser: false } : {}) });
       }
       this.set({ busy: false });
     });
@@ -190,12 +199,14 @@ export class ChatController {
     return null;
   }
 
-  /** SSE `browser_page`: the extension reported another page (metadata only). A new page
-   * starts ticked again, like in the extension. */
+  /** `browser_page`: the widget saw another browser page (title only). A new page starts
+   * ticked again. */
   onBrowserPage(raw: unknown): void {
     const browser = osdApi.toBrowserPage(raw);
-    const changed = browser?.url !== this.model.browser?.url;
-    this.set(changed ? { browser, attachBrowser: true } : { browser });
+    const changed = pageKey(browser) !== pageKey(this.model.browser);
+    // A new page is offered again: in a conversation, unless it is the page it already has.
+    const offered = this.model.activeId ? pageKey(browser) !== (this.model.active?.page_key ?? "") : true;
+    this.set(changed ? { browser, attachBrowser: offered } : { browser });
   }
 
   /** SSE `chat` event from the daemon. */
