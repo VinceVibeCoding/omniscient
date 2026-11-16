@@ -1,6 +1,6 @@
 [package]
 name = "omnigroup"
-version = "0.1.0"
+version = "0.2.0"
 description = "Omnigroup: a corner widget showing every running agent of an Omniscient home"
 license = "MIT"
 edition = "2021"
