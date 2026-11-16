@@ -4,7 +4,9 @@
 // while the owner types. Enter sends, Shift+Enter adds a line.
 import { h } from "../dom";
 import { age, clip } from "../format";
+import type { SlashEntry } from "../ext-logic";
 import type { ChatMessage } from "../types";
+import { slashPalette } from "./slash-palette";
 
 const MAX_TEXT = 20_000;
 const SHOWN_CHARS = 8000;
@@ -14,6 +16,7 @@ const ROLE_LABEL: Record<ChatMessage["role"], string> = {
   assistant: "Claude",
   tool: "Outil",
   error: "Erreur",
+  note: "Omniscient",
 };
 
 const ELEMENT_REF = /\[#(\d{1,3})\]/g;
@@ -34,6 +37,7 @@ function withShowButtons(text: string, show: (n: number) => void): (string | HTM
 }
 
 function bubble(m: ChatMessage, assistant: string, show?: (n: number) => void): HTMLElement {
+  if (m.role === "note") return h("li", { class: "msg msg--note", role: "note" }, h("p", { class: "msg__text" }, clip(m.text, SHOWN_CHARS)));
   const base = m.role === "assistant" ? assistant : ROLE_LABEL[m.role];
   const who = m.role === "tool" && m.tool ? `${ROLE_LABEL.tool} · ${m.tool}` : base;
   return h(
@@ -66,6 +70,8 @@ export interface ComposerOptions {
   busy: boolean;
   onDraft(text: string): void;
   onSend(text: string): void;
+  /** Suggestions shown while the box holds « /nom » (the chat only). */
+  slash?: readonly SlashEntry[];
 }
 
 export function composer(o: ComposerOptions): HTMLElement {
@@ -78,6 +84,7 @@ export function composer(o: ComposerOptions): HTMLElement {
     "data-keep": o.key,
   });
   area.value = o.draft;
+  const palette = o.slash ? slashPalette(area, o.slash, o.onDraft) : null;
   const send = (): void => {
     const text = area.value.trim();
     if (!text || o.busy) return;
@@ -87,6 +94,7 @@ export function composer(o: ComposerOptions): HTMLElement {
   };
   area.addEventListener("input", () => o.onDraft(area.value));
   area.addEventListener("keydown", (event) => {
+    if (palette?.onKey(event)) return;
     if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
       event.preventDefault();
       send();
@@ -95,6 +103,7 @@ export function composer(o: ComposerOptions): HTMLElement {
   return h(
     "div",
     { class: "composer" },
+    palette?.element ?? null,
     area,
     h("button", { class: "btn btn--primary", type: "button", disabled: o.busy, onclick: send }, "Envoyer"),
   );

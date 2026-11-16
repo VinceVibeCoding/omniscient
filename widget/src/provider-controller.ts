@@ -9,6 +9,7 @@ export interface AddDraft {
   kind: NewProvider["kind"];
   label: string;
   base_url: string;
+  model: string;
 }
 
 export interface ProviderModel {
@@ -24,6 +25,8 @@ export interface NewProvider {
   kind: Exclude<api.ProviderPatch["kind"], undefined>;
   label: string;
   base_url: string;
+  /** Prefilled by an extension's preset; empty to let the person choose after the test. */
+  model: string;
   api_key: string;
 }
 
@@ -48,7 +51,7 @@ export function freshId(kind: string, taken: readonly string[]): string {
 export class ProviderController {
   private state: ProviderModel = {
     list: EMPTY,
-    draft: { kind: "gemini", label: "", base_url: "" },
+    draft: { kind: "gemini", label: "", base_url: "", model: "" },
     models: {},
     busy: false,
     notice: "",
@@ -107,11 +110,12 @@ export class ProviderController {
     const id = freshId(form.kind, taken);
     const patch: api.ProviderPatch = { kind: form.kind, api_key: form.api_key };
     if (form.label) patch.label = form.label;
+    if (form.model) patch.model = form.model;
     if (form.kind === "openai-compatible") patch.base_url = form.base_url;
     if (form.kind === "openai-compatible" && !form.api_key) delete patch.api_key; // local models need none
     this.set({ busy: true, notice: "" });
     await this.run(async () => {
-      this.set({ list: await api.saveProvider(id, patch), draft: { kind: form.kind, label: "", base_url: "" } });
+      this.set({ list: await api.saveProvider(id, patch), draft: { kind: form.kind, label: "", base_url: "", model: "" } });
       await this.test(id);
     });
     this.set({ busy: false });

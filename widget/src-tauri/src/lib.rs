@@ -7,6 +7,7 @@ mod commands;
 mod context_menu;
 mod daemon_launch;
 mod drag;
+mod ext_commands;
 mod highlight;
 mod osd_commands;
 mod osd_config;
@@ -151,6 +152,11 @@ pub fn run() {
             osd_commands::chat_list,
             osd_commands::chat_get,
             osd_commands::session_transcript,
+            ext_commands::ext_list,
+            ext_commands::ext_reload,
+            ext_commands::ext_set_enabled,
+            ext_commands::ext_remove,
+            ext_commands::ext_expand,
         ])
         .build(tauri::generate_context!())
         .expect("error while building the Omnigroup widget")

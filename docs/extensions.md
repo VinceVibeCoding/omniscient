@@ -62,3 +62,29 @@ autre fichier ou lien symbolique rend l'extension invalide : elle n'est pas char
 Routes du démon (jeton widget) : `GET /extensions`, `POST /extensions/reload`,
 `PUT /extensions/{id}` (`{"enabled": bool}`), `DELETE /extensions/{id}`, `POST /extensions/expand`
 (`{"command", "args"}`), plus l'événement SSE `extensions`.
+
+## Dans le widget
+
+- **Palette `/`** : dans le chat, tape `/` au début du message. La liste propose `/reload`,
+  `/extensions` et chaque commande ou workflow des extensions activées, avec son titre ; elle se
+  filtre en tapant. Haut/Bas choisissent, Tab ou clic complètent, Entrée complète un nom partiel puis
+  envoie, Échap ferme. Un message normal part toujours avec Entrée.
+- **`/reload`** relit le dossier des extensions et écrit une ligne locale dans le chat (« Extensions
+  rechargées : N commandes, M thèmes… ») suivie de chaque erreur ; **`/extensions`** liste ce qui est
+  chargé. Ces lignes ne sont ni envoyées à l'IA ni conservées.
+- **`/commande arguments`** : le démon produit le texte, le widget l'envoie comme ton propre message
+  (fournisseur, projet et page jointe suivent les règles habituelles) ; si la commande demande la
+  page et qu'une page de navigateur est disponible, sa case est cochée pour ce message. Une commande
+  inconnue ou désactivée, ou des arguments mal formés, donnent une note locale : rien n'est envoyé.
+- **`/workflow`** envoie les étapes l'une après l'autre dans la même conversation, chaque étape
+  partant quand le tour précédent est fini ; une erreur ou « Arrêter » interrompt la suite. Un
+  workflow qui demande un projet exige d'en avoir choisi un. La progression s'affiche en « Étape 2/3 ».
+- **Réglages › Extensions** : la liste (nom, version, description, nombre de commandes, workflows,
+  thèmes, préréglages), une case pour activer ou désactiver, « Retirer » avec une confirmation,
+  les erreurs de chargement et « Recharger ». La liste se met à jour toute seule quand le démon change.
+- **Thèmes** : « Appliquer » pose les couleurs autorisées par-dessus le thème du widget (défaut,
+  terminal, tableau de bord), « Revenir au thème d'origine » les retire. Le choix est retenu et
+  réappliqué au démarrage tant que l'extension est installée et activée.
+- **Préréglages de fournisseur** : le formulaire « Ajouter un fournisseur » propose un
+  « Préréglage d'extension » qui préremplit type, nom, adresse et modèle. La clé API reste à saisir
+  toi-même ; l'adresse est contrôlée à l'enregistrement comme pour tout fournisseur.

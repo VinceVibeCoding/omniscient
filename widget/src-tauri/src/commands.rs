@@ -39,6 +39,14 @@ pub(crate) async fn post(state: &State<'_, AppState>, segments: &[&str], body: &
     daemon(state)?.post(segments, body).await.map_err(|err| err.message())
 }
 
+pub(crate) async fn put(state: &State<'_, AppState>, segments: &[&str], body: &Value) -> CmdResult<Value> {
+    daemon(state)?.put(segments, body).await.map_err(|err| err.message())
+}
+
+pub(crate) async fn delete(state: &State<'_, AppState>, segments: &[&str]) -> CmdResult<Value> {
+    daemon(state)?.delete(segments).await.map_err(|err| err.message())
+}
+
 /// One of {"decision"}, {"answers"} or {"choice"} with allowed values only.
 pub fn validate_answer(answer: &Value) -> CmdResult<Value> {
     let obj = answer.as_object().ok_or("Réponse invalide.")?;

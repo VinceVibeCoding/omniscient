@@ -108,10 +108,12 @@ impl Daemon {
                 "Jeton refusé par le démon : recouplez le widget dans les réglages.".into(),
             ));
         }
-        if status == StatusCode::NOT_FOUND {
-            return Err(DaemonError::Other("Introuvable (session ou demande terminée ?).".into()));
-        }
         let detail = Self::error_detail(resp).await;
+        if status == StatusCode::NOT_FOUND {
+            // The daemon's own French reason when it gives one (e.g. an unknown extension command).
+            let message = if detail.is_empty() { "Introuvable (session ou demande terminée ?)." } else { detail.as_str() };
+            return Err(DaemonError::Other(message.to_string()));
+        }
         Err(DaemonError::Other(format!("Le démon a répondu {status}. {detail}").trim().to_string()))
     }
 
@@ -145,6 +147,11 @@ impl Daemon {
     pub async fn put(&self, segments: &[&str], body: &Value) -> Result<Value, DaemonError> {
         let url = self.url(segments)?;
         self.send(self.http.put(url).json(body)).await
+    }
+
+    pub async fn delete(&self, segments: &[&str]) -> Result<Value, DaemonError> {
+        let url = self.url(segments)?;
+        self.send(self.http.delete(url)).await
     }
 
     /// GET with query parameters (encoded by the URL builder).

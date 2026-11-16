@@ -159,7 +159,8 @@ export type ConfigPatch = Partial<WidgetConfig>;
 
 // ---- chat (mode A: daemon-run Claude, mode B: session transcript) ------------
 
-export type ChatRole = "user" | "assistant" | "tool" | "error";
+/** "note" is a local line (never sent to the AI, never stored). */
+export type ChatRole = "user" | "assistant" | "tool" | "error" | "note";
 export type ChatState = "running" | "idle" | "error";
 
 export interface ChatMessage {

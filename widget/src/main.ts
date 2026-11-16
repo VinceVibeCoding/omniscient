@@ -6,6 +6,8 @@ import { ChatController } from "./chat-controller";
 import { AccountController } from "./account-controller";
 import * as providerApi from "./api-providers";
 import { ProviderController } from "./provider-controller";
+import { ExtController } from "./ext-controller";
+import { extensionsSection } from "./views/extensions";
 import { accountSection } from "./views/account";
 import { providersSection } from "./views/providers";
 import { wizardView } from "./views/wizard";
@@ -79,9 +81,16 @@ const providers = new ProviderController(
   (err) => toast(api.errorText(err)),
 );
 
+const extensions = new ExtController(
+  () => (state.view === "settings" || state.view === "chat") && render(),
+  (err) => toast(api.errorText(err)),
+  toast,
+);
+
 const chat = new ChatController(
   () => state.view === "chat" && render(),
   (err) => toast(api.errorText(err)),
+  extensions,
 );
 
 function update(patch: Partial<AppState>): void {
@@ -181,7 +190,9 @@ function viewFor(s: AppState): HTMLElement {
 function settingsPanel(s: AppState): HTMLElement {
   const panel = settingsView({ ...DEFAULT_SETTINGS, ...s.settings }, s.link, settingsHandlers, s.autostart);
   const body = panel.querySelector(".panel__body");
-  body?.prepend(h("h2", { class: "section-title" }, "Fournisseurs IA"), providersSection(providers.view, providers.handlers));
+  body?.prepend(h("h2", { class: "section-title" }, "Extensions"), extensionsSection(extensions.view, extensions.handlers));
+  const presets = extensions.view.view.extensions.filter((e) => e.enabled).flatMap((e) => e.presets);
+  body?.prepend(h("h2", { class: "section-title" }, "Fournisseurs IA"), providersSection(providers.view, providers.handlers, presets));
   body?.prepend(h("h2", { class: "section-title" }, "Compte"), accountSection(account.view, account.handlers));
   body?.prepend(displaySection(s.config, changeConfig));
   return withTabs(panel, tabBar("settings", selectTab));
@@ -290,6 +301,7 @@ async function openSettings(): Promise<void> {
   update({ view: "settings", settings: settings ?? state.settings, autostart: autostart ?? null });
   void providers.load();
   void account.load();
+  void extensions.load();
 }
 
 /** First run: the assistant (connect → AI provider → look) in the expanded panel. */
@@ -444,6 +456,8 @@ function onStreamEvent(event: StreamEvent): void {
     }
     case "usage":
       return onUsageEvent(event.data);
+    case "extensions":
+      return extensions.onEvent(event.data);
     case "menu_error": {
       const data = event.data as { message?: unknown } | null;
       if (data && typeof data.message === "string") toast(data.message);
@@ -466,6 +480,7 @@ async function onLink(link: LinkStatus): Promise<void> {
   const theme = await guarded(api.getTheme);
   if (theme !== undefined) applyTheme(theme);
   applyConfig((await guarded(osdApi.getConfig)) ?? null);
+  void extensions.load(); // slash commands, and the remembered extension theme
   const osd = await guarded(osdApi.getOsd);
   if (osd) update({ osd });
   await refreshSessions();
