@@ -16,6 +16,7 @@ export class ChatController {
     provider: "claude-code",
     browser: null,
     attachBrowser: true,
+    attachShot: false,
     tracking: true,
     chats: [],
     project: "",
@@ -38,7 +39,9 @@ export class ChatController {
       setProject: (project) => this.set({ project }),
       setProvider: (provider) => this.set({ provider }),
       setAttachBrowser: (attachBrowser) => this.set({ attachBrowser }),
+      setAttachShot: (attachShot) => this.set({ attachShot }),
       setTracking: (enabled) => void this.setTracking(enabled),
+      show: (n) => void this.guard(() => osdApi.showElement(n)),
       setDraft: (draft) => {
         this.model = { ...this.model, draft }; // no re-render while typing
       },
@@ -133,11 +136,12 @@ export class ChatController {
 
   private async send(text: string): Promise<void> {
     const id = this.model.activeId;
-    this.set({ busy: true, draft: "", messages: [...this.model.messages, this.userMessage(text)] });
+    const shot = this.model.attachShot; // asked for this message only: off again right away
+    this.set({ busy: true, draft: "", attachShot: false, messages: [...this.model.messages, this.userMessage(text)] });
     await this.guard(async () => {
       if (id) {
         const attach = attachingToActive(this.model);
-        await osdApi.chatSend(id, text, attach);
+        await osdApi.chatSend(id, text, attach, attach && shot);
         if (attach && this.model.active) {
           // This page is now in the conversation: offer the next one, not this one again.
           this.set({ active: { ...this.model.active, page_key: pageKey(this.model.browser) }, attachBrowser: false });
@@ -147,7 +151,7 @@ export class ChatController {
         const claude = provider === "claude-code";
         const browserPage = attachingBrowser(this.model);
         if (claude && !browserPage && !this.model.project) throw new Error("Choisissez un projet.");
-        const target = browserPage ? { provider, browserPage } : claude ? { project: this.model.project, provider } : { provider };
+        const target = browserPage ? { provider, browserPage, browserShot: shot } : claude ? { project: this.model.project, provider } : { provider };
         const chatId = await osdApi.chatCreate(text, target);
         const now = new Date().toISOString();
         const active: Chat = {

@@ -14,6 +14,8 @@ export interface ChatModel {
   /** The browser window the person was last in, and whether to attach its page. */
   browser: BrowserPage | null;
   attachBrowser: boolean;
+  /** Also attach a picture of the browser window to the next message (off unless ticked). */
+  attachShot: boolean;
   /** Page tracking is on (the person can switch it off with the button). */
   tracking: boolean;
   chats: readonly Chat[];
@@ -31,7 +33,9 @@ export interface ChatHandlers {
   setProject(name: string): void;
   setProvider(id: string): void;
   setAttachBrowser(attach: boolean): void;
+  setAttachShot(attach: boolean): void;
   setTracking(enabled: boolean): void;
+  show(n: number): void;
   setDraft(text: string): void;
   send(text: string): void;
   stop(): void;
@@ -95,11 +99,24 @@ function browserRow(m: ChatModel, on: ChatHandlers, follow = false): HTMLElement
   if (!page) return null;
   const box = h("input", { type: "checkbox", checked: m.attachBrowser, "aria-label": "Joindre la page du navigateur" });
   box.addEventListener("change", () => on.setAttachBrowser(box.checked));
-  return h(
+  const row = h(
     "label",
     { class: "setting setting--check chat__browser", title: page.url },
     box,
     h("span", { class: "setting__label" }, `${follow ? "Joindre la page actuelle" : "Joindre la page du navigateur"} : ${clip(page.title || page.origin, 60)} (${page.origin})`),
+  );
+  return h("div", { class: "chat__browser-group" }, row, m.attachBrowser ? shotRow(m, on) : null);
+}
+
+/** Optional: a picture of the same window (needs a model that sees images). Off by default. */
+function shotRow(m: ChatModel, on: ChatHandlers): HTMLElement {
+  const box = h("input", { type: "checkbox", checked: m.attachShot, "aria-label": "Joindre aussi une capture de la fenêtre" });
+  box.addEventListener("change", () => on.setAttachShot(box.checked));
+  return h(
+    "label",
+    { class: "setting setting--check chat__shot", title: "Une image de la fenêtre du navigateur seulement, jamais du reste de l'écran. Il faut un modèle qui voit les images ; elle n'est ni gardée ni réutilisée." },
+    box,
+    h("span", { class: "setting__label" }, "Joindre aussi une capture de la fenêtre"),
   );
 }
 
@@ -199,7 +216,7 @@ function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (
       running ? h("button", { class: "btn btn--danger", type: "button", onclick: on.stop }, "Arrêter") : null,
     ),
     m.active ? h("p", { class: "meta" }, `${clip(m.active.title, 80)} · ${conversationWhere(m)}`) : null,
-    messageLog(m.messages, "Envoi en cours…", "chat", assistantName(m)),
+    messageLog(m.messages, "Envoi en cours…", "chat", assistantName(m), m.tracking ? on.show : undefined),
     approvals,
     trackingRow(m, on),
     followUpPage(m, on),

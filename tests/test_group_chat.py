@@ -614,3 +614,66 @@ def test_a_bad_page_on_a_follow_up_is_a_400(home: Home) -> None:
     with pytest.raises(ch.ChatError) as err:
         mgr.send(chat_id, "y", page={"url": "javascript:alert(1)"})
     assert err.value.status == 400
+
+
+# ---- a screenshot of the same window, only when the person asks ------------------------
+
+import base64
+
+SHOT_B64 = base64.b64encode(b"\xff\xd8\xff\xe0" + b"jpeg" * 40).decode()
+SHOT_PAGE = {**NEXT_PAGE, "image": {"media_type": "image/jpeg", "data": SHOT_B64}}
+
+
+def test_claude_code_gets_the_screenshot_through_stream_json(home: Home) -> None:
+    runner = FakeRunner()
+    mgr = manager(home, runner)
+    chat_id = mgr.create(
+        None, "Où est le bouton ?", provider="claude-code", page=SHOT_PAGE
+    )
+    mgr.join(chat_id, 5)
+    spec = runner.specs[0]
+    assert spec.image == ("image/jpeg", SHOT_B64)
+    argv = list(spec.argv)
+    assert argv[argv.index("--input-format") + 1] == "stream-json"
+    assert argv[argv.index("--tools") + 1] == ""  # still no tool
+    mgr.send(chat_id, "Merci")  # the next turn does not repeat it
+    mgr.join(chat_id, 5)
+    assert runner.specs[1].image is None and "--input-format" not in list(
+        runner.specs[1].argv
+    )
+
+
+def test_the_screenshot_is_never_written_to_disk_or_echoed(home: Home) -> None:
+    mgr = manager(home, FakeRunner())
+    chat_id = mgr.create(None, "x", provider="claude-code", page=SHOT_PAGE)
+    mgr.join(chat_id, 5)
+    saved = "".join(p.read_text() for p in (home.state / "chats").glob("*.json"))
+    assert SHOT_B64 not in saved and SHOT_B64 not in json.dumps(mgr.get(chat_id)[1])
+    shown = [
+        m["text"] for m in mgr.get(chat_id)[1]["messages"] if m.get("tool") == "Page"
+    ]
+    assert shown and "capture" in shown[0]
+
+
+def test_a_plain_provider_gets_the_screenshot_on_the_current_question(
+    home: Home,
+) -> None:
+    mgr, llm, _, _ = with_gemini(home)
+    chat_id = mgr.create(None, "Où ?", provider="gem", page=SHOT_PAGE)
+    mgr.join(chat_id, 5)
+    assert llm.calls[0][2][-1].image == ("image/jpeg", SHOT_B64)
+    mgr.send(chat_id, "Merci")
+    mgr.join(chat_id, 5)
+    assert all(t.image is None for t in llm.calls[1][2])
+
+
+def test_a_refused_image_explains_that_the_model_may_not_see_pictures(
+    home: Home,
+) -> None:
+    mgr, _, _, _ = with_gemini(home, fail="Gemini a refusé la demande.")
+    chat_id = mgr.create(None, "Où ?", provider="gem", page=SHOT_PAGE)
+    mgr.join(chat_id, 5)
+    error = next(m for m in mgr.get(chat_id)[1]["messages"] if m["role"] == "error")[
+        "text"
+    ]
+    assert "capture" in error and "images" in error

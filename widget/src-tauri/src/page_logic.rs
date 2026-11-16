@@ -75,15 +75,35 @@ pub fn place(item: Rect, view: Rect) -> String {
     format!("visible, {row} {col}")
 }
 
-fn tidy(text: &str) -> String {
+pub fn tidy(text: &str) -> String {
     let joined = text.split_whitespace().collect::<Vec<_>>().join(" ");
     joined.chars().take(TEXT_ITEM_MAX).collect()
 }
 
-/// Headings first, then links / buttons / fields, each in page order, deduplicated and capped.
+/// One outline entry with what is needed to find it again on the screen (« Montrer »).
+#[derive(Clone, Debug)]
+pub struct Picked {
+    pub kind: Kind,
+    pub text: String,
+    pub rect: Rect,
+    pub place: String,
+}
+
+impl Picked {
+    pub fn outline(&self) -> OutlineItem {
+        OutlineItem { role: self.kind.role(), text: self.text.clone(), place: self.place.clone() }
+    }
+}
+
 pub fn build_outline(items: &[RawItem], view: Rect) -> Vec<OutlineItem> {
+    pick_outline(items, view).iter().map(Picked::outline).collect()
+}
+
+/// Headings first, then links / buttons / fields, each in page order, deduplicated and capped.
+/// The position in the result is the element's number (#1, #2…) in the outline the model gets.
+pub fn pick_outline(items: &[RawItem], view: Rect) -> Vec<Picked> {
     let mut seen: HashSet<(&'static str, String, i32)> = HashSet::new();
-    let mut pick = |wanted: fn(Kind) -> bool, cap: usize| -> Vec<OutlineItem> {
+    let mut pick = |wanted: fn(Kind) -> bool, cap: usize| -> Vec<Picked> {
         let mut out = Vec::new();
         for item in items.iter().filter(|i| wanted(i.kind)) {
             let text = tidy(&item.name);
@@ -95,7 +115,7 @@ pub fn build_outline(items: &[RawItem], view: Rect) -> Vec<OutlineItem> {
             if !seen.insert((item.kind.role(), text.clone(), band)) {
                 continue;
             }
-            out.push(OutlineItem { role: item.kind.role(), text, place: place(item.rect, view) });
+            out.push(Picked { kind: item.kind, place: place(item.rect, view), text, rect: item.rect });
         }
         out
     };
@@ -167,6 +187,58 @@ pub fn normalize_url(raw: &str) -> Option<String> {
     Some(format!("{scheme}://{rest}"))
 }
 
+// ---- picture of the window: pixel and text helpers (no Windows API) ----------------------------
+
+/// Windows gives blue-green-red-alpha rows; JPEG wants red-green-blue.
+pub fn bgra_to_rgb(bgra: &[u8]) -> Vec<u8> {
+    bgra.chunks_exact(4).flat_map(|px| [px[2], px[1], px[0]]).collect()
+}
+
+/// Shrinks an RGB picture so its longest side is at most `max_edge` (average of each block of
+/// source pixels: text stays readable). A picture already small enough is returned as is.
+pub fn downscale_rgb(rgb: &[u8], width: usize, height: usize, max_edge: usize) -> (Vec<u8>, usize, usize) {
+    let longest = width.max(height);
+    if longest <= max_edge || width == 0 || height == 0 {
+        return (rgb.to_vec(), width, height);
+    }
+    let new_w = (width * max_edge / longest).max(1);
+    let new_h = (height * max_edge / longest).max(1);
+    let mut out = Vec::with_capacity(new_w * new_h * 3);
+    for y in 0..new_h {
+        let (y0, y1) = (y * height / new_h, ((y + 1) * height / new_h).max(y * height / new_h + 1));
+        for x in 0..new_w {
+            let (x0, x1) = (x * width / new_w, ((x + 1) * width / new_w).max(x * width / new_w + 1));
+            let mut sum = [0u32; 3];
+            for sy in y0..y1.min(height) {
+                for sx in x0..x1.min(width) {
+                    let at = (sy * width + sx) * 3;
+                    for (c, total) in sum.iter_mut().enumerate() {
+                        *total += u32::from(rgb[at + c]);
+                    }
+                }
+            }
+            let count = ((y1.min(height) - y0) * (x1.min(width) - x0)).max(1) as u32;
+            out.extend(sum.iter().map(|total| (total / count) as u8));
+        }
+    }
+    (out, new_w, new_h)
+}
+
+const BASE64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/// Standard base64 with padding (what the daemon decodes).
+pub fn base64_encode(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let n = (u32::from(chunk[0]) << 16) | (u32::from(*chunk.get(1).unwrap_or(&0)) << 8) | u32::from(*chunk.get(2).unwrap_or(&0));
+        out.push(BASE64[(n >> 18) as usize & 63] as char);
+        out.push(BASE64[(n >> 12) as usize & 63] as char);
+        out.push(if chunk.len() > 1 { BASE64[(n >> 6) as usize & 63] as char } else { '=' });
+        out.push(if chunk.len() > 2 { BASE64[n as usize & 63] as char } else { '=' });
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -232,6 +304,38 @@ mod tests {
         assert_eq!(clean_title("Mon - site - Microsoft\u{200b} Edge"), "Mon - site");
         assert_eq!(clean_title("Panier"), "Panier");
         assert_eq!(clean_title("Rapport - Q3"), "Rapport - Q3");
+    }
+
+    #[test]
+    fn base64_matches_the_standard_vectors() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
+        assert_eq!(base64_encode(&[0xff, 0xd8, 0xff]), "/9j/");
+    }
+
+    #[test]
+    fn windows_pixels_become_rgb() {
+        assert_eq!(bgra_to_rgb(&[1, 2, 3, 255, 10, 20, 30, 255]), [3, 2, 1, 30, 20, 10]);
+    }
+
+    #[test]
+    fn a_big_picture_is_averaged_down_and_a_small_one_is_left_alone() {
+        let small = vec![9u8; 4 * 2 * 3];
+        assert_eq!(downscale_rgb(&small, 4, 2, 100), (small.clone(), 4, 2));
+        // 4x2 picture, left half black, right half white, shrunk to 2x1: one black and one white pixel
+        let mut rgb = Vec::new();
+        for _ in 0..2 {
+            rgb.extend([0u8; 6]);
+            rgb.extend([255u8; 6]);
+        }
+        let (out, w, h) = downscale_rgb(&rgb, 4, 2, 2);
+        assert_eq!((w, h), (2, 1));
+        assert_eq!(out, [0, 0, 0, 255, 255, 255]);
+        let (_, w, h) = downscale_rgb(&vec![0u8; 3000 * 1500 * 3], 3000, 1500, 1280);
+        assert_eq!((w, h), (1280, 640));
     }
 
     #[test]

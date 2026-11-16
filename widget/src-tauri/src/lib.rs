@@ -7,6 +7,7 @@ mod commands;
 mod context_menu;
 mod daemon_launch;
 mod drag;
+mod highlight;
 mod osd_commands;
 mod osd_config;
 mod page_logic;
@@ -25,6 +26,7 @@ mod stream;
 mod tray;
 mod vault;
 mod window;
+mod window_shot;
 
 use state::AppState;
 use tauri::{Manager, RunEvent, WindowEvent};
@@ -51,6 +53,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(AppState::new(http, config_dir, loaded.settings, token.unwrap_or_default(), placement));
     tray::build(app)?;
     page_watch::start(app.handle().clone());
+    highlight::prepare(app.handle());
     let window = app.get_webview_window("main").ok_or("main window missing")?;
     scale::apply_to(&window)?; // zoom + size from window.json, docked on the anchor
     window.show()?;
@@ -127,6 +130,7 @@ pub fn run() {
             osd_commands::chat_fork,
             osd_commands::browser_page,
             osd_commands::page_tracking,
+            osd_commands::show_element,
             osd_commands::set_page_tracking,
             auth_commands::auth_status,
             auth_commands::auth_start,

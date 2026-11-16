@@ -183,11 +183,18 @@ export interface ChatTarget {
   provider?: string;
   /** Attach the page open in the browser (then the chat runs without any tool). */
   browserPage?: boolean;
+  /** Also attach a picture of the browser window (only with browserPage). */
+  browserShot?: boolean;
 }
 
 export function toBrowserPage(raw: unknown): BrowserPage | null {
   if (!isRecord(raw) || raw.available !== true) return null;
   return { available: true, url: str(raw.url), origin: str(raw.origin), title: str(raw.title) };
+}
+
+/** « Montrer »: frame element #n of the page outline Claude was given, on the screen. */
+export async function showElement(n: number): Promise<void> {
+  await invoke("show_element", { n });
 }
 
 export async function getPageTracking(): Promise<boolean> {
@@ -203,7 +210,7 @@ export async function getBrowserPage(): Promise<BrowserPage | null> {
 }
 
 export async function chatCreate(text: string, target: ChatTarget): Promise<string> {
-  const res = await invoke<unknown>("chat_create", { text, project: target.project, provider: target.provider, browserPage: target.browserPage });
+  const res = await invoke<unknown>("chat_create", { text, project: target.project, provider: target.provider, browserPage: target.browserPage, withImage: target.browserShot });
   if (!isRecord(res) || typeof res.chat_id !== "string") throw new Error("Réponse du démon invalide.");
   return res.chat_id;
 }
@@ -216,8 +223,8 @@ export async function chatFork(sessionId: string, text: string): Promise<string>
 }
 
 /** `browserPage`: also read the page open in the browser now and send it with the message. */
-export function chatSend(chatId: string, text: string, browserPage = false): Promise<unknown> {
-  return invoke("chat_send", { chatId, text, browserPage });
+export function chatSend(chatId: string, text: string, browserPage = false, withImage = false): Promise<unknown> {
+  return invoke("chat_send", { chatId, text, browserPage, withImage });
 }
 
 export function chatStop(chatId: string): Promise<unknown> {
