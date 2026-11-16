@@ -14,7 +14,7 @@ from omniscient.home import Home
 from tests.test_group_e2e import ASK_USER_QUESTION, WIDGET, call, open_pending
 
 
-@pytest.mark.parametrize("n", range(6))
+@pytest.mark.parametrize("n", range(12))
 def test_diag(tmp_path: Path, n: int) -> None:
     server = srv.create_server(
         Home(tmp_path / "home"), port=0, show_code=lambda c: True
@@ -30,7 +30,9 @@ def test_diag(tmp_path: Path, n: int) -> None:
         except Exception as exc:
             log.append(f"{method} {url} -> EXC {exc!r}")
             raise
-        log.append(f"{method} {url.split('/', 3)[-1]} -> {json.dumps(out)[:200]}")
+        log.append(
+            f"{method} {url.split('/', 3)[-1]} -> {json.dumps({k: v for k, v in out.items() if k in ('status', 'answer', 'answered_at', 'expires_at')} if isinstance(out, dict) else out)}"
+        )
         return out
 
     ctx = HookContext(
