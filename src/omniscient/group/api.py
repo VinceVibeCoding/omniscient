@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 from omniscient.group import (
     api_auth,
     api_chat,
+    api_ext,
     api_osd,
     api_pair,
     api_providers,
@@ -395,6 +396,15 @@ ROUTES: tuple[Route, ...] = (
         "POST",
         f"/providers/{_SEG}/remove",
         api_providers.remove_provider,
+    ),
+    _route("extensions", "GET", "/extensions", api_ext.list_extensions),
+    _route(
+        "extensions_reload", "POST", "/extensions/reload", api_ext.reload_extensions
+    ),
+    _route("extensions_expand", "POST", "/extensions/expand", api_ext.expand_command),
+    _route("extension_put", "PUT", f"/extensions/{_SEG}", api_ext.put_extension),
+    _route(
+        "extension_delete", "DELETE", f"/extensions/{_SEG}", api_ext.delete_extension
     ),
     _route("chats", "GET", "/chats", api_chat.list_chats),
     _route("chat_create", "POST", "/chats", api_chat.create_chat, W, CHAT_PAGE_BODY),
