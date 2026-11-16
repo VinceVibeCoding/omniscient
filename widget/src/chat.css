@@ -47,3 +47,28 @@ select {
   background: transparent; color: var(--accent, #f5b83d); font: inherit; font-size: 0.85em; cursor: pointer;
 }
 .msg__show:hover, .msg__show:focus-visible { background: rgba(245, 184, 61, 0.18); }
+
+/* ---- slash palette (views/slash-palette.ts) and local notes ---------------- */
+.composer { position: relative; }
+.slash {
+  position: absolute; left: 0; right: 0; bottom: 100%; margin: 0 0 4px; padding: 3px; z-index: 5;
+  list-style: none; max-height: 200px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+}
+.slash[hidden] { display: none; }
+.slash__item { display: flex; align-items: baseline; gap: 8px; padding: 5px 8px; border-radius: 7px; cursor: pointer; }
+.slash__item--on, .slash__item:hover { background: var(--raised); }
+.slash__name { font-weight: 600; color: var(--accent); font-family: "Cascadia Code", ui-monospace, monospace; }
+.slash__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slash__kind { font-size: 10.5px; color: var(--muted); }
+.msg--note {
+  align-self: stretch; max-width: 100%; font-size: 11.5px; color: var(--muted);
+  background: transparent; border: 1px dashed var(--border);
+}
+
+/* ---- Réglages › Extensions (views/extensions.ts) --------------------------- */
+.ext__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ext__row { display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; }
+.ext__row .setting__hint { margin: 0; }
+.ext__theme { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ext__confirm { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
