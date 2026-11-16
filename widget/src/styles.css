@@ -88,6 +88,11 @@ code, pre { font-family: "Cascadia Code", "JetBrains Mono", ui-monospace, monosp
   padding: 10px 10px 10px 12px;
   border-bottom: 1px solid var(--border);
 }
+
+.bar--toggle {
+  cursor: pointer;
+}
+
 .bar__title { flex: 1; margin: 0; font-size: 14px; font-weight: 650; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .icon-btn {

@@ -12,9 +12,15 @@ export interface ListHandlers {
 }
 
 export function header(link: LinkStatus, on: ListHandlers, title = "Omnigroup"): HTMLElement {
+  // A click on the bar itself (not on one of its buttons) folds the panel back to the OSD,
+  // like the OSD's own click unfolds it. A drag never ends in a click (see drag.ts).
+  const onBarClick = (event: MouseEvent): void => {
+    if ((event.target as Element | null)?.closest("button, a, input, select, textarea")) return;
+    on.collapse();
+  };
   return h(
     "header",
-    { class: "bar" },
+    { class: "bar bar--toggle", title: "Clic : réduire", onclick: onBarClick as EventListener },
     eyeMark(20, link.state === "connected"),
     h("h1", { class: "bar__title" }, title),
     h("span", {
