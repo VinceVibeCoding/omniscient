@@ -174,3 +174,42 @@ def test_the_address_is_optional() -> None:
 def test_a_given_address_is_still_checked() -> None:
     with pytest.raises(pc.PageError):
         pc.clean_page(page(url="javascript:alert(1)"))
+
+
+# ---- an optional screenshot of the same window ----------------------------------------
+
+import base64
+
+JPEG = b"\xff\xd8\xff\xe0" + b"fake-jpeg-bytes" * 20
+IMAGE = {"media_type": "image/jpeg", "data": base64.b64encode(JPEG).decode()}
+
+
+def test_a_screenshot_is_kept_for_the_turn_but_never_rendered_as_text() -> None:
+    ctx = pc.clean_page(page(image=IMAGE))
+    assert ctx.image is not None and ctx.image.media_type == "image/jpeg"
+    assert base64.b64decode(ctx.image.data) == JPEG
+    out = pc.render(ctx)
+    assert "Screenshot" in out and IMAGE["data"] not in out
+
+
+def test_no_screenshot_by_default() -> None:
+    ctx = pc.clean_page(page())
+    assert ctx.image is None and "Screenshot" not in pc.render(ctx)
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "x",
+        {"media_type": "image/png", "data": IMAGE["data"]},  # only JPEG
+        {"media_type": "image/jpeg", "data": "not base64 !!"},
+        {"media_type": "image/jpeg", "data": base64.b64encode(b"GIF89a...").decode()},
+        {"media_type": "image/jpeg", "data": "A" * (pc.IMAGE_B64_MAX + 4)},
+        {**IMAGE, "extra": 1},
+        {"media_type": "image/jpeg"},
+        {"media_type": "image/jpeg", "data": 5},
+    ],
+)
+def test_bad_screenshots_are_refused(bad) -> None:
+    with pytest.raises(pc.PageError):
+        pc.clean_page(page(image=bad))

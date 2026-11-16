@@ -72,6 +72,9 @@ class TurnSpec:
     text: str
     timeout_s: float = DEFAULT_TIMEOUT_S
     env: Mapping[str, str] | None = None
+    image: tuple[str, str] | None = (
+        None  # (media type, base64) of this turn's screenshot
+    )
 
 
 @dataclass(frozen=True)
@@ -101,6 +104,7 @@ def build_argv(
     max_budget_usd: float | None = None,
     fork: bool = False,
     tools_off: bool = False,
+    with_image: bool = False,
 ) -> list[str]:
     """`fork`: resume a COPY of the session (--fork-session), so a session that is still
     open in a terminal or IDE is never written to from here."""
@@ -114,6 +118,10 @@ def build_argv(
         argv += ["--resume", resume]
         if fork:
             argv += ["--fork-session"]
+    if (
+        with_image
+    ):  # the prompt is then one stream-json user message (see prompt_payload)
+        argv += ["--input-format", "stream-json"]
     if tools_off:  # a web page is attached: its text is untrusted, so no tool at all
         argv += ["--tools", ""]
     if max_budget_usd is not None:
@@ -245,10 +253,38 @@ def _drain_stderr(proc: subprocess.Popen[str], keep: list[str]) -> None:
             keep.pop(0)
 
 
-def _send_prompt(proc: subprocess.Popen[str], text: str) -> None:
+def prompt_payload(text: str, image: tuple[str, str] | None) -> str:
+    """What goes to claude's stdin: the text, or - with a screenshot - one stream-json
+    user message holding the image and the text."""
+    if image is None:
+        return text
+    media_type, data = image
+    message = {
+        "type": "user",
+        "message": {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": media_type,
+                        "data": data,
+                    },
+                },
+                {"type": "text", "text": text},
+            ],
+        },
+    }
+    return json.dumps(message, ensure_ascii=False) + "\n"
+
+
+def _send_prompt(
+    proc: subprocess.Popen[str], text: str, image: tuple[str, str] | None = None
+) -> None:
     assert proc.stdin is not None
     try:
-        proc.stdin.write(text)
+        proc.stdin.write(prompt_payload(text, image))
         proc.stdin.close()
     except (BrokenPipeError, OSError):
         log.warning("omnigroup chat: claude closed its input early")
@@ -288,7 +324,7 @@ def run_turn(
     reader = threading.Thread(target=_drain_stderr, args=(proc, errors), daemon=True)
     reader.start()
     threading.Thread(target=_watchdog, args=(proc, spec, handle, grace_s, timed_out), daemon=True).start()  # fmt: skip
-    _send_prompt(proc, spec.text)
+    _send_prompt(proc, spec.text, spec.image)
     session_id, cost, result = None, None, None
     assert proc.stdout is not None
     for line in _lines(proc.stdout):

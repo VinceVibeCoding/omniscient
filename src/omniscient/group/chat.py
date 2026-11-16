@@ -94,6 +94,13 @@ def _page_context(page: Any) -> PageContext | None:
         raise ChatError(exc.status, exc.message) from exc
 
 
+def _image_of(context: PageContext | None) -> tuple[str, str] | None:
+    """The screenshot of this turn, if the person attached one (never stored)."""
+    if context is None or context.image is None:
+        return None
+    return context.image.media_type, context.image.data
+
+
 def _page_fields(block: str) -> tuple[str, str]:
     """(title, url) written in a rendered page block: each page line shows its own page."""
     title = url = ""
@@ -111,10 +118,13 @@ def _shown(chat: Chat, message: Message) -> dict[str, Any]:
         return message.to_json()
     title, url = _page_fields(message.text)
     label = title or url or "page"
+    line = f"Page jointe : {label} — {url}" if url else f"Page jointe : {label}"
     return {
         "role": "tool",
         "tool": "Page",
-        "text": f"Page jointe : {label} — {url}" if url else f"Page jointe : {label}",
+        "text": f"{line} · avec capture"
+        if "Screenshot: a picture" in message.text
+        else line,
         "at": iso(message.at),
     }
 
@@ -220,7 +230,9 @@ class ChatManager:
             self._chats[chat.chat_id] = chat.with_message(Message("user", prompt, now))
             self._running[chat.chat_id] = TurnHandle()
         self._prune()
-        self._start(chat.chat_id, ref, prompt_for_claude, None)
+        self._start(
+            chat.chat_id, ref, prompt_for_claude, None, image=_image_of(context)
+        )
         return chat.chat_id
 
     def fork(self, session_native_id: Any, cwd: Any, text: Any) -> str:
@@ -277,7 +289,9 @@ class ChatManager:
             self._chats[chat_id] = chat
             self._running[chat_id] = TurnHandle()
         sent = f"{render_page(context)}\n\n{prompt}" if context is not None else prompt
-        self._start(chat_id, ref, sent, chat.claude_session_id)
+        self._start(
+            chat_id, ref, sent, chat.claude_session_id, image=_image_of(context)
+        )
 
     def stop(self, chat_id: str) -> bool:
         with self._lock:
@@ -402,13 +416,14 @@ class ChatManager:
         prompt: str,
         resume: str | None,
         fork: bool = False,
+        image: tuple[str, str] | None = None,
     ) -> None:
         self._save(chat_id)
         self._emit(chat_id, "state", state="running")
         if self._chats[chat_id].provider == CLAUDE_CODE:
-            target, args = self._run, (chat_id, ref, prompt, resume, fork)
+            target, args = self._run, (chat_id, ref, prompt, resume, fork, image)
         else:
-            target, args = self._run_plain, (chat_id,)
+            target, args = self._run_plain, (chat_id, image)
         thread = threading.Thread(
             target=target, args=args, daemon=True, name=f"omnigroup-chat-{chat_id[:8]}",
         )  # fmt: skip
@@ -422,15 +437,21 @@ class ChatManager:
         prompt: str,
         resume: str | None,
         fork: bool = False,
+        image: tuple[str, str] | None = None,
     ) -> None:
         handle = self._running[chat_id]
         try:
             with self._lock:
                 tools_off = self._chats[chat_id].read_only
             argv = chat_runner.build_argv(
-                self._claude, resume, self._budget, fork, tools_off=tools_off
+                self._claude,
+                resume,
+                self._budget,
+                fork,
+                tools_off=tools_off,
+                with_image=image is not None,
             )
-            spec = TurnSpec(argv, ref.path, prompt, self._timeout_s)
+            spec = TurnSpec(argv, ref.path, prompt, self._timeout_s, image=image)
             outcome = self._runner(spec, lambda e: self._on_event(chat_id, e), handle)
         except Exception as exc:  # never leave a chat stuck in "running"
             log.exception("omnigroup chat: turn crashed")
@@ -439,7 +460,7 @@ class ChatManager:
             )
         self._finish(chat_id, outcome)
 
-    def _run_plain(self, chat_id: str) -> None:
+    def _run_plain(self, chat_id: str, image: tuple[str, str] | None = None) -> None:
         """One turn with a non-Claude-Code provider: the whole conversation in, one reply out."""
         handle = self._running[chat_id]
         try:
@@ -451,7 +472,7 @@ class ChatManager:
                     "Ce fournisseur a été retiré : choisissez-en un autre."
                 )
             provider, key = found
-            turns = llm_chat.build_turns(chat.messages)
+            turns = llm_chat.build_turns(chat.messages, image=image)
             reply = self._llm(provider, key, turns, resolver=self._providers.resolver)
             if handle.stop_requested.is_set():
                 outcome = TurnOutcome(False, error="Tour arrêté.", stopped=True)
@@ -460,7 +481,13 @@ class ChatManager:
                 self._on_event(chat_id, RunnerEvent("result"))
                 outcome = TurnOutcome(True)
         except llm_chat.LlmError as exc:
-            outcome = TurnOutcome(False, error=exc.message)
+            hint = (
+                " La capture jointe n'est peut-être pas acceptée par ce modèle (images) : "
+                "décochez-la."
+                if image is not None
+                else ""
+            )
+            outcome = TurnOutcome(False, error=exc.message + hint)
         except Exception as exc:  # never leave a chat stuck in "running"
             log.exception("omnigroup chat: provider turn crashed")
             outcome = TurnOutcome(

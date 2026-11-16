@@ -100,11 +100,13 @@ pub async fn chat_create(
     project: Option<String>,
     provider: Option<String>,
     browser_page: Option<bool>,
+    with_image: Option<bool>,
     text: String,
 ) -> CmdResult<Value> {
     let mut body = json!({ "text": validate_text(&text)? });
     if browser_page == Some(true) {
-        body["page"] = page_watch::read_current().await?; // read now, only because the box is ticked
+        // Read now, only because the box is ticked; the picture only if its own box is too.
+        body["page"] = page_watch::read_current(with_image == Some(true)).await?;
     }
     if let Some(project) = project.as_deref() {
         body["project"] = json!(validate_project(project)?);
@@ -153,11 +155,12 @@ pub async fn chat_send(
     state: State<'_, AppState>,
     chat_id: String,
     browser_page: Option<bool>,
+    with_image: Option<bool>,
     text: String,
 ) -> CmdResult<Value> {
     let mut body = json!({ "text": validate_text(&text)? });
     if browser_page == Some(true) {
-        body["page"] = page_watch::read_current().await?; // the page the person is on now
+        body["page"] = page_watch::read_current(with_image == Some(true)).await?; // the page the person is on now
     }
     post(&state, &["chats", validate_id(&chat_id)?, "messages"], &body).await
 }

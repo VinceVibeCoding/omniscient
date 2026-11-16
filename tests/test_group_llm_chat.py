@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC
 from typing import Any
 
 import httpx
@@ -279,3 +280,73 @@ def test_listing_models() -> None:
     assert lc.list_models(OPENAI, KEY, client=c, resolver=public) == ["gpt-a", "gpt-b"]
     assert lc.list_models(CLAUDE, KEY, client=c, resolver=public) == ["claude-1"]
     assert lc.list_models(GEMINI, KEY, client=c, resolver=public) == ["gemini-a"]
+
+
+# ---- a screenshot goes with the last question only -------------------------------------
+
+SHOT = ("image/jpeg", "QUJD")  # (media type, base64)
+SHOT_TURNS = [*TURNS[:-1], lc.Turn("user", "où est le bouton ?", SHOT)]
+
+
+def sent_body(provider: Provider) -> dict[str, Any]:
+    seen: dict[str, Any] = {}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(req.content))
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": "ok"}}],
+                "content": [{"type": "text", "text": "ok"}],
+                "candidates": [{"content": {"parts": [{"text": "ok"}]}}],
+            },
+        )
+
+    run(provider, "k", handler, SHOT_TURNS)
+    return seen
+
+
+def test_openai_gets_the_image_as_a_data_url_on_the_last_turn() -> None:
+    messages = sent_body(OPENAI)["messages"]
+    assert messages[1]["content"] == "salut"  # earlier turns stay plain text
+    last = messages[-1]["content"]
+    assert last[0] == {"type": "text", "text": "où est le bouton ?"}
+    assert last[1] == {
+        "type": "image_url",
+        "image_url": {"url": "data:image/jpeg;base64,QUJD"},
+    }
+
+
+def test_anthropic_gets_a_base64_image_block() -> None:
+    last = sent_body(CLAUDE)["messages"][-1]["content"]
+    assert last[0] == {
+        "type": "image",
+        "source": {"type": "base64", "media_type": "image/jpeg", "data": "QUJD"},
+    }
+    assert last[1] == {"type": "text", "text": "où est le bouton ?"}
+
+
+def test_gemini_gets_inline_data() -> None:
+    parts = sent_body(GEMINI)["contents"][-1]["parts"]
+    assert parts[0] == {"text": "où est le bouton ?"}
+    assert parts[1] == {"inlineData": {"mimeType": "image/jpeg", "data": "QUJD"}}
+
+
+def test_a_local_model_gets_the_openai_shape_too() -> None:
+    assert sent_body(LOCAL)["messages"][-1]["content"][1]["type"] == "image_url"
+
+
+def test_build_turns_puts_the_image_on_the_last_user_turn_only() -> None:
+    from datetime import datetime
+
+    from omniscient.group.chat_store import Message
+
+    now = datetime.now(UTC)
+    msgs = [
+        Message("user", "a", now),
+        Message("assistant", "b", now),
+        Message("user", "c", now),
+    ]
+    turns = lc.build_turns(msgs, image=SHOT)
+    assert [t.image for t in turns] == [None, None, SHOT]
+    assert [t.image for t in lc.build_turns(msgs)] == [None, None, None]

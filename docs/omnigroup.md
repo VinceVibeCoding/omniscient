@@ -46,6 +46,12 @@ joint à votre question la page web ouverte dans Chrome, Edge, Brave, Vivaldi ou
 widget la lit lui-même avec l'accessibilité de Windows (UI Automation) : **aucune extension à
 installer**.
 
+- **Capture (facultative)** : sous la case de la page, « Joindre aussi une capture de la fenêtre »
+  (décochée, et redécochée après chaque envoi). Le widget n'a **pas besoin** d'images pour voir
+  la page : il en lit le contenu comme vous la voyez. La capture sert quand le visuel compte (une
+  mise en page, un graphique). C'est une image de **cette fenêtre de navigateur seulement**, jamais
+  du reste de l'écran, réduite à 1280 px ; elle part pour un seul message, n'est jamais enregistrée
+  et demande un modèle qui voit les images (sinon, décochez-la).
 - **Montrer** : quand Claude désigne un élément de la page (« le bouton Payer »), il cite son
   numéro `[#3]` ; la réponse affiche alors un bouton « ▸ Montrer #3 ». Un clic dessine, quelques
   secondes, un cadre doré autour de l'élément sur votre écran (la page défile d'elle-même si
