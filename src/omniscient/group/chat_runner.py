@@ -7,8 +7,9 @@ stream-json (code.claude.com/docs/en/headless): `system/init` carries the sessio
 `result` and `total_cost_usd` (the conversation's total when resuming). Unknown lines are
 ignored: the format belongs to Claude Code.
 
-No shell anywhere: argv lists only. The process runs in its own session so stop/timeout
-reach its children: SIGINT first (ends the turn cleanly), SIGTERM after a grace delay.
+No shell anywhere: argv lists only. The process runs in its own session / process group (procctl.py, also native Windows)
+so stop/timeout reach its children: interrupt first (ends the turn cleanly), terminate
+then kill after a grace delay.
 
 `--permission-mode default` is always passed, so an ambient `bypassPermissions` or
 `acceptEdits` default (user or project settings) never applies to a widget chat: every
@@ -21,9 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
-import signal
 import subprocess
 import threading
 from collections.abc import Callable, Mapping, Sequence
@@ -31,6 +30,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from omniscient.group import procctl
 from omniscient.redact import redact_secrets
 
 log = logging.getLogger(__name__)
@@ -95,7 +95,7 @@ class TurnHandle:
 
     def stop(self) -> None:
         self.stop_requested.set()
-        _signal(self.process, signal.SIGINT)
+        procctl.interrupt(self.process)
 
 
 def build_argv(
@@ -200,17 +200,6 @@ def parse_line(line: str) -> tuple[RunnerEvent, ...]:
 # ---- one turn --------------------------------------------------------------------------
 
 
-def _signal(proc: subprocess.Popen[str] | None, sig: int) -> None:
-    if proc is None or proc.poll() is not None:
-        return
-    try:
-        os.killpg(proc.pid, sig)
-    except (ProcessLookupError, PermissionError):
-        return
-    except OSError:
-        log.exception("omnigroup chat: signal %s failed", sig)
-
-
 def _watchdog(
     proc: subprocess.Popen[str],
     spec: TurnSpec,
@@ -218,16 +207,16 @@ def _watchdog(
     grace_s: float,
     timed_out: threading.Event,
 ) -> None:
-    """SIGINT at timeout (or after a stop request), SIGTERM then SIGKILL after grace."""
+    """Interrupt at timeout (or after a stop request), terminate then kill after grace."""
     if not handle.stop_requested.wait(spec.timeout_s):
         timed_out.set()
-        _signal(proc, signal.SIGINT)
-    for sig in (signal.SIGTERM, signal.SIGKILL):
+        procctl.interrupt(proc)
+    for escalate in procctl.stop_ladder():
         try:
             proc.wait(grace_s)
             return
         except subprocess.TimeoutExpired:
-            _signal(proc, sig)
+            escalate(proc)
 
 
 def _start(spec: TurnSpec) -> subprocess.Popen[str]:
@@ -241,7 +230,7 @@ def _start(spec: TurnSpec) -> subprocess.Popen[str]:
         text=True,
         encoding="utf-8",
         errors="replace",
-        start_new_session=True,
+        **procctl.spawn_kwargs(),
     )
 
 
@@ -318,7 +307,7 @@ def run_turn(
         return TurnOutcome(False, error=f"Impossible de lancer Claude Code : {exc}")
     handle.process = proc
     if handle.stop_requested.is_set():
-        _signal(proc, signal.SIGINT)
+        procctl.interrupt(proc)
     timed_out = threading.Event()
     errors: list[str] = []
     reader = threading.Thread(target=_drain_stderr, args=(proc, errors), daemon=True)
