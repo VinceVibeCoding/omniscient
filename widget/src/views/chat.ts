@@ -32,6 +32,7 @@ export interface ChatHandlers {
   setProvider(id: string): void;
   setAttachBrowser(attach: boolean): void;
   setTracking(enabled: boolean): void;
+  show(n: number): void;
   setDraft(text: string): void;
   send(text: string): void;
   stop(): void;
@@ -199,7 +200,7 @@ function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (
       running ? h("button", { class: "btn btn--danger", type: "button", onclick: on.stop }, "Arrêter") : null,
     ),
     m.active ? h("p", { class: "meta" }, `${clip(m.active.title, 80)} · ${conversationWhere(m)}`) : null,
-    messageLog(m.messages, "Envoi en cours…", "chat", assistantName(m)),
+    messageLog(m.messages, "Envoi en cours…", "chat", assistantName(m), m.tracking ? on.show : undefined),
     approvals,
     trackingRow(m, on),
     followUpPage(m, on),

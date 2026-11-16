@@ -39,6 +39,7 @@ export class ChatController {
       setProvider: (provider) => this.set({ provider }),
       setAttachBrowser: (attachBrowser) => this.set({ attachBrowser }),
       setTracking: (enabled) => void this.setTracking(enabled),
+      show: (n) => void this.guard(() => osdApi.showElement(n)),
       setDraft: (draft) => {
         this.model = { ...this.model, draft }; // no re-render while typing
       },

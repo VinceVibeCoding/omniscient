@@ -194,11 +194,13 @@ def render(page: PageContext) -> str:
         )
     if page.outline:
         lines = (
-            f"- [{i.role}] {_defang(i.text)} — {_defang(i.where)}" for i in page.outline
+            f"- #{n} [{i.role}] {_defang(i.text)} — {_defang(i.where)}"
+            for n, i in enumerate(page.outline, 1)
         )
         parts.append(
-            "Page outline (what is on the page and where it is on the screen):\n"
-            + "\n".join(lines)
+            "Page outline (what is on the page and where it is on the screen). When you point "
+            "the user at one of these elements, write its number like [#3]: the app then "
+            "highlights it on their screen.\n" + "\n".join(lines)
         )
     if page.text:
         parts.append(f"Visible page text:\n{_defang(page.text)}")

@@ -75,15 +75,35 @@ pub fn place(item: Rect, view: Rect) -> String {
     format!("visible, {row} {col}")
 }
 
-fn tidy(text: &str) -> String {
+pub fn tidy(text: &str) -> String {
     let joined = text.split_whitespace().collect::<Vec<_>>().join(" ");
     joined.chars().take(TEXT_ITEM_MAX).collect()
 }
 
-/// Headings first, then links / buttons / fields, each in page order, deduplicated and capped.
+/// One outline entry with what is needed to find it again on the screen (« Montrer »).
+#[derive(Clone, Debug)]
+pub struct Picked {
+    pub kind: Kind,
+    pub text: String,
+    pub rect: Rect,
+    pub place: String,
+}
+
+impl Picked {
+    pub fn outline(&self) -> OutlineItem {
+        OutlineItem { role: self.kind.role(), text: self.text.clone(), place: self.place.clone() }
+    }
+}
+
 pub fn build_outline(items: &[RawItem], view: Rect) -> Vec<OutlineItem> {
+    pick_outline(items, view).iter().map(Picked::outline).collect()
+}
+
+/// Headings first, then links / buttons / fields, each in page order, deduplicated and capped.
+/// The position in the result is the element's number (#1, #2…) in the outline the model gets.
+pub fn pick_outline(items: &[RawItem], view: Rect) -> Vec<Picked> {
     let mut seen: HashSet<(&'static str, String, i32)> = HashSet::new();
-    let mut pick = |wanted: fn(Kind) -> bool, cap: usize| -> Vec<OutlineItem> {
+    let mut pick = |wanted: fn(Kind) -> bool, cap: usize| -> Vec<Picked> {
         let mut out = Vec::new();
         for item in items.iter().filter(|i| wanted(i.kind)) {
             let text = tidy(&item.name);
@@ -95,7 +115,7 @@ pub fn build_outline(items: &[RawItem], view: Rect) -> Vec<OutlineItem> {
             if !seen.insert((item.kind.role(), text.clone(), band)) {
                 continue;
             }
-            out.push(OutlineItem { role: item.kind.role(), text, place: place(item.rect, view) });
+            out.push(Picked { kind: item.kind, place: place(item.rect, view), text, rect: item.rect });
         }
         out
     };

@@ -40,3 +40,10 @@ select {
 
 .transcript { display: flex; flex-direction: column; gap: 8px; }
 .transcript .section-title { margin: 0; }
+
+/* « Montrer #n »: frames the element Claude points at. */
+.msg__show {
+  margin: 0 2px; padding: 1px 8px; border: 1px solid var(--accent, #f5b83d); border-radius: 999px;
+  background: transparent; color: var(--accent, #f5b83d); font: inherit; font-size: 0.85em; cursor: pointer;
+}
+.msg__show:hover, .msg__show:focus-visible { background: rgba(245, 184, 61, 0.18); }
