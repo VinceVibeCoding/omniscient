@@ -181,6 +181,18 @@ export interface Chat {
   provider: string;
 }
 
+// ---- the page open in the browser (GET /browser/page, SSE `browser_page`) ----
+
+/** What the Omnigroup extension reported: metadata only, never the page text. */
+export interface BrowserPage {
+  available: boolean;
+  /** The person unticked « Joindre cette page » in the extension, for this page. */
+  excluded: boolean;
+  url: string;
+  origin: string;
+  title: string;
+}
+
 // ---- account (GET /auth, SSE `auth`) ----------------------------------------
 
 export type AuthProvider = "google" | "github";

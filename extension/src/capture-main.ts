@@ -1,6 +1,7 @@
 // Content script injected at document_start in the page's own world, only on sites the
 // person allowed: it keeps the last console errors so the side panel can attach them.
-// Nothing is sent anywhere from here; the panel reads the list when asked.
+// Nothing is sent anywhere from here: it only nudges watch.js that the page changed, and
+// the extension reads the list when it reports the page to the local daemon.
 (() => {
   const MAX = 30;
   const ITEM_MAX = 300;
@@ -11,6 +12,7 @@
   const push = (text: string): void => {
     errors.push(text.slice(0, ITEM_MAX));
     if (errors.length > MAX) errors.splice(0, errors.length - MAX);
+    window.postMessage({ __omnigroup: "changed" }, location.origin); // just a nudge, no data
   };
   const show = (value: unknown): string => {
     if (value instanceof Error) return `${value.name}: ${value.message}`;

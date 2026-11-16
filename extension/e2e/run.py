@@ -19,6 +19,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.request
 from http.server import (
     BaseHTTPRequestHandler,
@@ -122,12 +123,9 @@ def make_home(root: Path) -> Path:
 
 
 def test_extension(root: Path) -> Path:
-    """A copy of the built extension that may also read http://localhost (the test page)."""
+    """A copy of the built extension, as people load it."""
     ext = root / "ext"
     shutil.copytree(DIST, ext)
-    manifest = json.loads((ext / "manifest.json").read_text())
-    manifest["host_permissions"].append("http://localhost/*")
-    (ext / "manifest.json").write_text(json.dumps(manifest))
     return ext
 
 
@@ -156,6 +154,65 @@ def pairing_code(home: Path) -> str:
     return codes[0]
 
 
+def api(
+    token: str, method: str, path: str, body: dict | None = None
+) -> tuple[int, dict]:
+    """The daemon, as the widget calls it."""
+    data = json.dumps(body).encode() if body is not None else None
+    headers = {"Authorization": f"Bearer {token}"}
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{DAEMON_PORT}{path}",
+        data=data,
+        method=method,
+        headers=headers,
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.status, json.loads(resp.read() or b"{}")
+    except urllib.error.HTTPError as exc:
+        return exc.code, json.loads(exc.read() or b"{}")
+
+
+def widget_token(home: Path) -> str:
+    """Pairs a second client, standing in for the Windows widget."""
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{DAEMON_PORT}/pair/finish",
+        data=json.dumps(
+            {"code": pairing_code(home), "client_name": "e2e widget"}
+        ).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read())["token"]
+
+
+def poll(fn, until, seconds: float = 20):
+    deadline = time.monotonic() + seconds
+    value = fn()
+    while not until(value) and time.monotonic() < deadline:
+        time.sleep(0.4)
+        value = fn()
+    return value
+
+
+def ask(token: str, text: str) -> tuple[int, dict, str]:
+    """A widget chat with « Joindre la page du navigateur »: (status, body, reply)."""
+    status, body = api(
+        token, "POST", "/chats", {"text": text, "provider": "e2e", "browser_page": True}
+    )
+    if status != 202:
+        return status, body, ""
+    chat = poll(
+        lambda: api(token, "GET", f"/chats/{body['chat_id']}")[1],
+        lambda c: c["chat"]["state"] != "running",
+    )
+    replies = [m["text"] for m in chat["messages"] if m["role"] == "assistant"]
+    return status, chat, replies[-1] if replies else ""
+
+
 def run_checks(ctx, home: Path, check) -> None:
     sw = (
         ctx.service_workers[0]
@@ -164,57 +221,74 @@ def run_checks(ctx, home: Path, check) -> None:
     )
     ext_id = sw.url.split("/")[2]
     check("extension ID is the pinned one", ext_id == PINNED, ext_id)
-    page = ctx.new_page()
-    page.goto(f"http://localhost:{SITE_PORT}/")
-    panel = ctx.new_page()
-    panel.goto(f"chrome-extension://{ext_id}/panel.html")
-    expect(panel.locator("#pair")).to_be_visible(timeout=10_000)
+    popup = ctx.new_page()
+    popup.goto(f"chrome-extension://{ext_id}/popup.html")
+    expect(popup.locator("#pair")).to_be_visible(timeout=10_000)
     check("an unpaired extension asks to pair", True)
-    panel.evaluate(
+    popup.evaluate(
         f"chrome.storage.local.set({{base: 'http://127.0.0.1:{DAEMON_PORT}'}})"
     )
-    panel.fill("#daemon", f"http://127.0.0.1:{DAEMON_PORT}")
-    panel.fill("#pair-code", pairing_code(home))
-    panel.click("#pair-finish")
-    expect(panel.locator("#main")).to_be_visible(timeout=15_000)
+    popup.fill("#daemon", f"http://127.0.0.1:{DAEMON_PORT}")
+    popup.fill("#pair-code", pairing_code(home))
+    popup.click("#pair-finish")
+    expect(popup.locator("#main")).to_be_visible(timeout=15_000)
     check("pairing with the 6-digit code works", True)
-    registered = sw.evaluate(
-        "chrome.scripting.getRegisteredContentScripts().then(l => l.map(s => s.id + ':' + s.matches.join(',')))"
-    )
-    check(
-        "the console collector is registered for allowed sites",
-        any("omnigroup-capture" in r and "localhost" in r for r in registered),
-        str(registered),
-    )
-    page.reload()  # as the panel says after allowing a site: reload to capture console errors
-    time.sleep(1.5)
+
+    token = widget_token(home)
+    page = ctx.new_page()
+    page.goto(f"http://localhost:{SITE_PORT}/")
     page.bring_to_front()
-    site = panel.locator("#site")
-    expect(site).to_contain_text(
-        f"Partage activé : http://localhost:{SITE_PORT}", timeout=10_000
+    meta = poll(
+        lambda: api(token, "GET", "/browser/page")[1],
+        lambda m: m.get("title") == "Boutique de test",
     )
-    check("the allowed site shows as shared", True)
-    check("attach is ticked for an allowed site", panel.locator("#attach").is_checked())
-    panel.select_option("#provider", "e2e")
-    panel.fill("#text", "Pourquoi le paiement échoue ?")
-    panel.click("#send")
-    reply = panel.locator(".msg--assistant").first
-    expect(reply).to_contain_text("page=", timeout=20_000)
-    text = reply.inner_text()
-    for flag in ("page", "errors", "failed", "injection_inside", "secret_masked"):
-        check(f"the provider got {flag}", f"{flag}=yes" in text, text)
-    expect(panel.locator("#status")).to_contain_text("sans outils", timeout=10_000)
-    check("the chat says it runs without tools", True)
     check(
-        "the history shows the page as one line",
-        "Page jointe" in panel.locator(".msg--tool").first.inner_text(),
+        "the extension reports the page you are on",
+        meta.get("title") == "Boutique de test",
+        str(meta),
     )
-    other = ctx.new_page()
-    other.goto(f"http://127.0.0.1:{SITE_PORT}/")
-    other.bring_to_front()
-    panel.locator("#new-chat").click()
-    expect(site).not_to_contain_text("Partage activé", timeout=10_000)
-    check("a page on 127.0.0.1 is never shared", panel.locator("#attach").is_disabled())
+    check(
+        "the widget only sees metadata",
+        "text" not in meta and "errors" not in meta,
+        str(meta),
+    )
+    time.sleep(2)  # let the console error and the failed request be reported too
+    status, chat, reply = ask(token, "Pourquoi le paiement échoue ?")
+    check("a widget chat can attach the browser page", status == 202, str(chat))
+    for flag in ("page", "errors", "failed", "injection_inside", "secret_masked"):
+        check(f"the provider got {flag}", f"{flag}=yes" in reply, reply)
+    check("that chat runs without tools", chat.get("chat", {}).get("read_only") is True)
+
+    popup.reload()
+    attach = popup.locator("#attach")
+    expect(attach).to_be_checked(timeout=10_000)
+    check("any web page is attachable by default", True)
+    attach.uncheck()
+    meta = poll(
+        lambda: api(token, "GET", "/browser/page")[1],
+        lambda m: m.get("excluded") is True,
+    )
+    check(
+        "unticking it in the extension tells the widget",
+        meta.get("excluded") is True,
+        str(meta),
+    )
+    status, body, _ = ask(token, "Et maintenant ?")
+    check("an unticked page cannot be attached", status == 409, f"{status} {body}")
+
+    page.goto(f"http://localhost:{SITE_PORT}/index.html")  # another page
+    meta = poll(
+        lambda: api(token, "GET", "/browser/page")[1],
+        lambda m: (
+            m.get("url", "").endswith("/index.html") and m.get("excluded") is False
+        ),
+    )
+    check("a new page starts ticked again", meta.get("excluded") is False, str(meta))
+
+    page.goto(f"http://127.0.0.1:{DAEMON_PORT}/health")
+    popup.reload()
+    expect(popup.locator("#attach")).to_be_disabled(timeout=10_000)
+    check("the daemon's own pages are never attached", True)
 
 
 def main() -> int:

@@ -67,7 +67,7 @@ def _clean_text(raw: Any, limit: int, field: str) -> str:
     return redact_secrets(text, keep_paths=True)
 
 
-def _clean_url(raw: Any, field: str = "url") -> str:
+def clean_url(raw: Any, field: str = "url") -> str:
     if not isinstance(raw, str) or not raw or len(raw) > URL_MAX:
         raise PageError(f"page.{field} : adresse invalide")
     parts = urlsplit(raw)
@@ -103,7 +103,7 @@ def _clean_network(raw: Any) -> tuple[Request, ...]:
             or not 0 <= status <= 999
         ):
             raise PageError("page.network : méthode ou statut invalide")
-        out.append(Request(method, _clean_url(item.get("url"), "network.url"), status))
+        out.append(Request(method, clean_url(item.get("url"), "network.url"), status))
     return tuple(out)
 
 
@@ -115,7 +115,7 @@ def clean_page(raw: Any) -> PageContext:
     if unknown:
         raise PageError(f"page : champ inconnu {min(unknown)[:40]}")
     return PageContext(
-        url=_clean_url(raw.get("url")),
+        url=clean_url(raw.get("url")),
         title=_clean_text(raw.get("title"), TITLE_MAX, "title"),
         text=_clean_text(raw.get("text"), TEXT_MAX, "text"),
         selection=_clean_text(raw.get("selection"), SELECTION_MAX, "selection"),

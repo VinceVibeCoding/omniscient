@@ -98,9 +98,13 @@ pub async fn chat_create(
     state: State<'_, AppState>,
     project: Option<String>,
     provider: Option<String>,
+    browser_page: Option<bool>,
     text: String,
 ) -> CmdResult<Value> {
     let mut body = json!({ "text": validate_text(&text)? });
+    if browser_page == Some(true) {
+        body["browser_page"] = json!(true); // the daemon attaches the page the extension reported
+    }
     if let Some(project) = project.as_deref() {
         body["project"] = json!(validate_project(project)?);
     }
@@ -108,6 +112,12 @@ pub async fn chat_create(
         body["provider"] = json!(if provider == "claude-code" { provider } else { validate_provider_id(provider)? });
     }
     post(&state, &["chats"], &body).await
+}
+
+/// The page open in the browser, as the extension reported it: metadata only (title, address).
+#[tauri::command]
+pub async fn browser_page(state: State<'_, AppState>) -> CmdResult<Value> {
+    get(&state, &["browser", "page"]).await
 }
 
 /// Continues a running Claude Code session (terminal, IDE) in a widget chat: the daemon

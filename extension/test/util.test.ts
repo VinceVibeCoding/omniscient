@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { expectedProof, newNonce, proves } from "../src/lib/proof.js";
-import { clip, constantTimeEq, originOf, pickTab, pushCapped, shareableOrigin, stripQuery, validDaemonUrl } from "../src/lib/util.js";
+import { clip, constantTimeEq, originOf, pageKey, pickTab, pushCapped, shareableOrigin, stripQuery, validDaemonUrl } from "../src/lib/util.js";
 
 test("only http(s) pages have an origin we may read", () => {
   assert.equal(originOf("https://shop.example/cart?x=1"), "https://shop.example");
@@ -11,11 +11,18 @@ test("only http(s) pages have an origin we may read", () => {
   }
 });
 
-test("pages on the daemon's own address are never shared", () => {
-  assert.equal(shareableOrigin("http://127.0.0.1:3000/"), null);
-  assert.equal(shareableOrigin("http://[::1]:3000/"), null);
-  assert.equal(shareableOrigin("http://localhost:3000/a"), "http://localhost:3000");
-  assert.equal(shareableOrigin("https://shop.example/x"), "https://shop.example");
+test("every web page can be attached, except the daemon's own pages", () => {
+  const daemon = "http://127.0.0.1:7341";
+  assert.equal(shareableOrigin("http://127.0.0.1:7341/health", daemon), null);
+  assert.equal(shareableOrigin("http://127.0.0.1:3000/", daemon), "http://127.0.0.1:3000");
+  assert.equal(shareableOrigin("http://localhost:3000/a", daemon), "http://localhost:3000");
+  assert.equal(shareableOrigin("https://shop.example/x", daemon), "https://shop.example");
+  assert.equal(shareableOrigin("chrome://settings", daemon), null);
+});
+
+test("an exclusion is about one page, whatever its query", () => {
+  assert.equal(pageKey("https://shop.example/cart?step=2#x"), "https://shop.example/cart");
+  assert.equal(pageKey(undefined), "");
 });
 
 test("the panel never takes itself for the page", () => {

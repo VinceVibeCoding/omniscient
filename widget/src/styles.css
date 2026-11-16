@@ -315,3 +315,6 @@ html[data-theme="dashboard"] .ustrip__pct { font-size: 13px; }
 .acct__form { border-top: 1px solid var(--border); padding-top: 10px; }
 .acct__switch { align-self: flex-start; }
 .notice--error { border-color: var(--error); color: var(--error); }
+
+/* The page open in the browser, offered to a new chat (views/chat.ts). */
+.chat__browser { margin: 4px 0; }
