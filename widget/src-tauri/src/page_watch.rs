@@ -11,6 +11,10 @@ use crate::page_reader::{self, Snapshot};
 use crate::state::lock;
 use crate::stream::STREAM_EVENT;
 use serde_json::{json, Value};
+use std::fs;
+use std::io;
+use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
@@ -24,6 +28,49 @@ const POLL: Duration = Duration::from_millis(400);
 const READ_TIMEOUT: Duration = Duration::from_secs(6);
 const PATH_MAX: usize = 1024;
 const TITLE_MAX: usize = 512;
+/// A file in the app config folder: present = the person switched page tracking off.
+const OFF_MARKER: &str = "page-tracking-off";
+
+static TRACKING: AtomicBool = AtomicBool::new(true);
+
+fn marker_says_off(dir: &Path) -> bool {
+    dir.join(OFF_MARKER).exists()
+}
+
+fn write_marker(dir: &Path, tracking: bool) -> io::Result<()> {
+    let marker = dir.join(OFF_MARKER);
+    if tracking {
+        match fs::remove_file(&marker) {
+            Err(err) if err.kind() != io::ErrorKind::NotFound => Err(err),
+            _ => Ok(()),
+        }
+    } else {
+        fs::create_dir_all(dir)?;
+        fs::write(&marker, b"")
+    }
+}
+
+/// Reads the saved choice (call once at start-up, before `start`).
+pub fn init(config_dir: &Path) {
+    TRACKING.store(!marker_says_off(config_dir), Ordering::SeqCst);
+}
+
+/// False when the person switched page tracking off: nothing is remembered or read.
+pub fn tracking() -> bool {
+    TRACKING.load(Ordering::SeqCst)
+}
+
+/// The button: switches tracking on or off, and remembers the choice across restarts.
+/// Off forgets the remembered window at once.
+pub fn set_tracking(app: &AppHandle, config_dir: &Path, on: bool) -> Result<(), String> {
+    write_marker(config_dir, on).map_err(|err| format!("Réglage non enregistré : {err}"))?;
+    TRACKING.store(on, Ordering::SeqCst);
+    if !on {
+        *lock(slot()) = None;
+        announce(app, None);
+    }
+    Ok(())
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Remembered {
@@ -60,12 +107,14 @@ fn announce(app: &AppHandle, remembered: Option<&Remembered>) {
 /// Starts the watcher thread (it lives as long as the app).
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || loop {
-        // SAFETY: GetForegroundWindow has no preconditions.
-        let foreground = unsafe { GetForegroundWindow() };
-        if !foreground.0.is_null() {
-            observe(&app, foreground);
+        if tracking() {
+            // SAFETY: GetForegroundWindow has no preconditions.
+            let foreground = unsafe { GetForegroundWindow() };
+            if !foreground.0.is_null() {
+                observe(&app, foreground);
+            }
+            forget_if_closed(&app);
         }
-        forget_if_closed(&app);
         std::thread::sleep(POLL);
     });
 }
@@ -143,6 +192,9 @@ fn payload(remembered: &Remembered, snapshot: Snapshot) -> Value {
 
 /// Reads the remembered browser window's page, for the daemon's `page` field.
 pub async fn read_current() -> Result<Value, String> {
+    if !tracking() {
+        return Err("Le suivi de la page est désactivé : réactivez-le dans l'onglet Chat.".into());
+    }
     let Some(remembered) = lock(slot()).clone() else {
         return Err("Aucune page de navigateur à joindre : ouvrez une page dans Chrome ou Edge, ou décochez « Joindre ».".into());
     };
@@ -156,4 +208,25 @@ pub async fn read_current() -> Result<Value, String> {
         .map_err(|err| format!("Lecture de la page interrompue : {err}"))?;
     let snapshot = waited.map_err(|_| "La lecture de la page a pris trop de temps.".to_string())??;
     Ok(payload(&remembered, snapshot))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("omnigroup-{name}-{}", std::process::id()))
+    }
+
+    #[test]
+    fn the_choice_survives_a_restart() {
+        let dir = temp_dir("tracking-a");
+        assert!(!marker_says_off(&dir)); // nothing saved: tracking is on
+        write_marker(&dir, false).expect("switch off");
+        assert!(marker_says_off(&dir));
+        write_marker(&dir, true).expect("switch on");
+        assert!(!marker_says_off(&dir));
+        write_marker(&dir, true).expect("switching on twice is fine");
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

@@ -14,6 +14,8 @@ export interface ChatModel {
   /** The browser window the person was last in, and whether to attach its page. */
   browser: BrowserPage | null;
   attachBrowser: boolean;
+  /** Page tracking is on (the person can switch it off with the button). */
+  tracking: boolean;
   chats: readonly Chat[];
   project: string;
   activeId: string | null;
@@ -29,6 +31,7 @@ export interface ChatHandlers {
   setProject(name: string): void;
   setProvider(id: string): void;
   setAttachBrowser(attach: boolean): void;
+  setTracking(enabled: boolean): void;
   setDraft(text: string): void;
   send(text: string): void;
   stop(): void;
@@ -73,6 +76,17 @@ export function canAttachToActive(m: ChatModel): boolean {
 /** True when the next message of the open conversation will carry the current page. */
 export function attachingToActive(m: ChatModel): boolean {
   return canAttachToActive(m) && m.attachBrowser && m.browser !== null;
+}
+
+/** The switch for page tracking: always visible, so it can be turned back on. */
+function trackingRow(m: ChatModel, on: ChatHandlers): HTMLElement {
+  const label = m.tracking ? "Désactiver le suivi des pages" : "Activer le suivi des pages";
+  return h(
+    "div",
+    { class: "chat__tracking" },
+    m.tracking ? null : h("p", { class: "setting__hint" }, "Suivi des pages désactivé : aucune page de navigateur n'est retenue ni lue."),
+    h("button", { class: "btn btn--ghost", type: "button", "aria-pressed": String(m.tracking), title: m.tracking ? "Le widget retient la dernière fenêtre de navigateur (son titre) pour pouvoir joindre sa page." : "Le widget ne retient ni ne lit aucune page.", onclick: () => on.setTracking(!m.tracking) }, label),
+  );
 }
 
 /** « Page du navigateur » : ticked by default, what will be attached, or why nothing will. */
@@ -130,6 +144,7 @@ function home(m: ChatModel, on: ChatHandlers): (HTMLElement | null)[] {
           : "Nouvelle conversation : un simple échange, sans outils ni accès à vos fichiers.",
     ),
     providerPicker(m, on),
+    trackingRow(m, on),
     browserRow(m, on),
     m.provider === "claude-code" && !attachingBrowser(m) ? projectPicker(m, on) : null,
     composer({
@@ -186,6 +201,7 @@ function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (
     m.active ? h("p", { class: "meta" }, `${clip(m.active.title, 80)} · ${conversationWhere(m)}`) : null,
     messageLog(m.messages, "Envoi en cours…", "chat", assistantName(m)),
     approvals,
+    trackingRow(m, on),
     followUpPage(m, on),
     composer({
       key: `chat-${m.activeId ?? ""}`,

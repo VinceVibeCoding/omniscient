@@ -46,6 +46,9 @@ joint à votre question la page web ouverte dans Chrome, Edge, Brave, Vivaldi ou
 widget la lit lui-même avec l'accessibilité de Windows (UI Automation) : **aucune extension à
 installer**.
 
+- **Couper le suivi** : le bouton « Désactiver le suivi des pages » (onglet Chat) arrête tout :
+  le widget ne retient plus aucune fenêtre de navigateur et ne lit aucune page. Le choix est
+  gardé après un redémarrage ; « Activer le suivi des pages » le rétablit.
 - **Quand** : seulement à l'envoi de la question, case cochée. Entre-temps le widget ne
   retient que le *titre* de la dernière fenêtre de navigateur (en mémoire, jamais sur disque).
   Rien n'est lu dans les autres applications.
