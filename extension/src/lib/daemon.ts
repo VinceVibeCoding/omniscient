@@ -15,6 +15,12 @@ export class DaemonError extends Error {
   }
 }
 
+export interface OutlineItem {
+  role: string;
+  text: string;
+  where: string;
+}
+
 export interface PagePayload {
   url: string;
   title: string;
@@ -22,6 +28,7 @@ export interface PagePayload {
   selection: string;
   errors: string[];
   network: { method: string; url: string; status: number }[];
+  outline?: OutlineItem[];
 }
 
 async function request(base: string, method: string, path: string, token: string | null, body?: unknown): Promise<unknown> {
@@ -82,7 +89,15 @@ export class Daemon {
   }
 
   /** The page in the browser, or that the person unticked it (PUT /browser/page). */
-  reportPage(body: { page: PagePayload } | { excluded: true; url: string; title: string }): Promise<unknown> {
-    return this.call("PUT", "/browser/page", body);
+  async reportPage(body: { page: PagePayload } | { excluded: true; url: string; title: string }): Promise<unknown> {
+    try {
+      return await this.call("PUT", "/browser/page", body);
+    } catch (err) {
+      // A daemon older than this extension refuses the « outline » field: report without it.
+      if (err instanceof DaemonError && err.status === 400 && "page" in body && /outline/.test(err.message)) {
+        return this.call("PUT", "/browser/page", { page: { ...body.page, outline: undefined } });
+      }
+      throw err;
+    }
   }
 }

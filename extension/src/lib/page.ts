@@ -1,17 +1,73 @@
 // Reading the page the person is on, only for a site they allowed. Functions passed to
 // chrome.scripting.executeScript run inside the page, so they must be self-contained.
 import { pageKey, shareableOrigin, stripQuery } from "./util.js";
-import type { PagePayload } from "./daemon.js";
+import type { OutlineItem, PagePayload } from "./daemon.js";
 
 const TEXT_MAX = 20_000;
 const SELECTION_MAX = 4_000;
 const LIST_MAX = 30;
+const OUTLINE_MAX = 80;
 
 /** Runs in the page (isolated world): visible text, selection, title. Field values (and so
  * passwords) are not part of innerText. */
 function readVisible(): { url: string; title: string; text: string; selection: string } {
   const text = (document.body?.innerText ?? "").replace(/\n{3,}/g, "\n\n");
   return { url: location.href, title: document.title, text: text.slice(0, 20_000), selection: String(window.getSelection() ?? "").slice(0, 4_000) };
+}
+
+/** Runs in the page (isolated world): the headings, landmarks and controls with where each one
+ * is on the screen, as short text (« visible, en haut à droite »). Never reads field values
+ * (passwords), nor link addresses (they often carry tokens). Self-contained: it is serialised. */
+function readOutline(): { role: string; text: string; where: string }[] {
+  const vw = window.innerWidth || 1;
+  const vh = window.innerHeight || 1;
+  const place = (r: DOMRect): string => {
+    if (r.bottom <= 0) return "plus haut dans la page (hors de l'écran)";
+    if (r.top >= vh) return `plus bas dans la page (à environ ${Math.max(1, Math.round((r.top - vh) / vh + 0.5))} écran(s) sous l'écran visible)`;
+    const cx = (r.left + r.right) / 2 / vw;
+    const cy = (r.top + r.bottom) / 2 / vh;
+    const row = cy < 0.33 ? "en haut" : cy > 0.66 ? "en bas" : "au milieu";
+    const col = cx < 0.33 ? "à gauche" : cx > 0.66 ? "à droite" : "au centre";
+    return `visible, ${row} ${col}`;
+  };
+  const roleOf = (el: Element): string => {
+    const tag = el.tagName.toLowerCase();
+    if (/^h[1-3]$/.test(tag)) return "heading";
+    if (tag === "a") return "link";
+    if (tag === "input" || tag === "select" || tag === "textarea") return "field";
+    if (tag === "button" || el.getAttribute("role") === "button") return "button";
+    return tag; // nav, main, header, footer, aside
+  };
+  const labelOf = (el: Element): string => {
+    const aria = el.getAttribute("aria-label");
+    const own = (el as HTMLElement).innerText ?? "";
+    const field = el as HTMLInputElement;
+    const named = aria || (field.labels?.[0]?.innerText ?? "") || field.placeholder || field.name || "";
+    const text = roleOf(el) === "field" ? named : own || named;
+    return text.replace(/\s+/g, " ").trim().slice(0, 100);
+  };
+  const seen = new Set<string>();
+  const collect = (selector: string, cap: number): { role: string; text: string; where: string }[] => {
+    const out: { role: string; text: string; where: string }[] = [];
+    for (const el of document.querySelectorAll(selector)) {
+      if (out.length >= cap) break;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2 || (el.checkVisibility && !el.checkVisibility())) continue;
+      if (el instanceof HTMLInputElement && ["hidden", "password"].includes(el.type)) continue;
+      const role = roleOf(el);
+      const text = labelOf(el);
+      const key = `${role}|${text}|${Math.round(rect.top / 40)}`;
+      if (!text && !["nav", "main", "header", "footer", "aside"].includes(role)) continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ role, text: text || role, where: place(rect) });
+    }
+    return out;
+  };
+  return [
+    ...collect("h1, h2, h3, nav, main, header, footer, aside", 30),
+    ...collect("button, [role=button], a[href], input, select, textarea", 50),
+  ];
 }
 
 /** Runs in the page (main world): the console errors capture-main.js collected. */
@@ -40,6 +96,7 @@ export async function capturePage(tab: chrome.tabs.Tab, daemonBase: string): Pro
   if (tab.id === undefined || !shareableOrigin(tab.url, daemonBase)) throw new Error("Cette page ne peut pas être jointe.");
   const target = { tabId: tab.id };
   const [visible] = await chrome.scripting.executeScript({ target, func: readVisible });
+  const [outline] = await chrome.scripting.executeScript({ target, func: readOutline }).catch(() => [{ result: [] as OutlineItem[] }]);
   const [errors] = await chrome.scripting.executeScript({ target, func: readErrors, world: "MAIN" }).catch(() => [{ result: [] as string[] }]);
   const key = `net:${tab.id}`;
   const stored = (await chrome.storage.session.get(key))[key];
@@ -52,5 +109,6 @@ export async function capturePage(tab: chrome.tabs.Tab, daemonBase: string): Pro
     selection: page.selection.slice(0, SELECTION_MAX),
     errors: (errors?.result ?? []).slice(-LIST_MAX),
     network: Array.isArray(stored) ? stored.slice(-LIST_MAX) : [],
+    outline: Array.isArray(outline?.result) ? outline.result.slice(0, OUTLINE_MAX) : [],
   };
 }
