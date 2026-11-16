@@ -22,7 +22,15 @@ TITLE_MAX = 300
 ITEM_MAX = 300
 LIST_MAX = 30
 URL_MAX = 2048
-FIELDS = frozenset({"url", "title", "text", "selection", "errors", "network"})
+OUTLINE_MAX = 80
+OUTLINE_TEXT_MAX = 100
+OUTLINE_WHERE_MAX = 80
+OUTLINE_ROLES = frozenset(
+    {"heading", "nav", "main", "header", "footer", "aside", "button", "link", "field"}
+)
+FIELDS = frozenset(
+    {"url", "title", "text", "selection", "errors", "network", "outline"}
+)
 METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _CLOSE = re.compile(r"</\s*page_context", re.IGNORECASE)
@@ -49,6 +57,15 @@ class Request:
 
 
 @dataclass(frozen=True)
+class OutlineItem:
+    """One thing on the page (a heading, a button, a link...) and where it is on screen."""
+
+    role: str
+    text: str
+    where: str
+
+
+@dataclass(frozen=True)
 class PageContext:
     url: str
     title: str
@@ -56,6 +73,7 @@ class PageContext:
     selection: str
     errors: tuple[str, ...]
     network: tuple[Request, ...]
+    outline: tuple[OutlineItem, ...] = ()
 
 
 def _clean_text(raw: Any, limit: int, field: str) -> str:
@@ -107,6 +125,31 @@ def _clean_network(raw: Any) -> tuple[Request, ...]:
     return tuple(out)
 
 
+def _clean_outline(raw: Any) -> tuple[OutlineItem, ...]:
+    if raw is None:
+        return ()
+    if not isinstance(raw, list):
+        raise PageError("page.outline : liste attendue")
+    out = []
+    for item in raw[:OUTLINE_MAX]:
+        if not isinstance(item, dict) or set(item) != {"role", "text", "where"}:
+            raise PageError("page.outline : élément invalide")
+        if item["role"] not in OUTLINE_ROLES:
+            raise PageError("page.outline : rôle inconnu")
+        out.append(
+            OutlineItem(
+                item["role"],
+                " ".join(
+                    _clean_text(item["text"], OUTLINE_TEXT_MAX, "outline").split()
+                ),
+                " ".join(
+                    _clean_text(item["where"], OUTLINE_WHERE_MAX, "outline").split()
+                ),
+            )
+        )
+    return tuple(out)
+
+
 def clean_page(raw: Any) -> PageContext:
     """A validated, capped, redacted page; PageError (400) otherwise."""
     if not isinstance(raw, dict):
@@ -121,6 +164,7 @@ def clean_page(raw: Any) -> PageContext:
         selection=_clean_text(raw.get("selection"), SELECTION_MAX, "selection"),
         errors=_clean_errors(raw.get("errors")),
         network=_clean_network(raw.get("network")),
+        outline=_clean_outline(raw.get("outline")),
     )
 
 
@@ -144,6 +188,14 @@ def render(page: PageContext) -> str:
                 f"- {r.method} {r.url} -> {r.status or 'network error'}"
                 for r in page.network
             )
+        )
+    if page.outline:
+        lines = (
+            f"- [{i.role}] {_defang(i.text)} — {_defang(i.where)}" for i in page.outline
+        )
+        parts.append(
+            "Page outline (what is on the page and where it is on the screen):\n"
+            + "\n".join(lines)
         )
     if page.text:
         parts.append(f"Visible page text:\n{_defang(page.text)}")

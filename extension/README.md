@@ -26,7 +26,8 @@ que vous y êtes (une nouvelle page repart cochée), et le widget l'affiche comm
 
 À chaque changement de page, d'onglet, de sélection ou d'erreur, l'extension transmet au démon
 **local** : l'adresse (sans paramètres ni ancre), le titre, le texte visible, votre sélection,
-les dernières erreurs de console et les requêtes en échec. Le démon garde **seulement la dernière
+un **plan de la page** (titres, boutons, liens, champs, avec leur position à l'écran : « visible, en
+haut à droite »), les dernières erreurs de console et les requêtes en échec. Le démon garde **seulement la dernière
 page, en mémoire**, jamais sur disque, oubliée après 15 minutes. Le widget n'en voit que le titre
 et l'adresse. **Rien ne part vers une IA tant que vous n'envoyez pas une question** avec la case
 cochée dans le widget.
