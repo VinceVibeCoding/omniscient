@@ -52,6 +52,11 @@ installer**.
 - **Quoi** : l'adresse (sans paramètres), le titre, le texte de la page, et un plan (titres,
   liens, boutons, champs) avec leur position à l'écran (« visible, en haut à droite », « plus
   bas dans la page »), pour répondre à « où est le bouton X ? ».
+- **Quand vous changez de page** : le widget vous propose « Joindre la page actuelle » (cochée
+  si la page n'est pas déjà dans la conversation) : la nouvelle page rejoint la conversation,
+  l'ancienne n'y reste que par son titre et son adresse. Une conversation Claude Code qui a
+  des outils refuse d'y joindre une page (démarrez-en une nouvelle) : le texte d'une page peut
+  chercher à les détourner.
 - **Jamais lu** : les valeurs des champs (donc les mots de passe), les cookies, les en-têtes.
   Le démon masque les secrets, borne la taille et place le tout dans un bloc « donnée non
   fiable » : une conversation avec une page tourne sans aucun outil.

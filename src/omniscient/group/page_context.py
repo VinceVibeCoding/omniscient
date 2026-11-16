@@ -161,7 +161,7 @@ def clean_page(raw: Any) -> PageContext:
         url=clean_url(raw["url"])
         if raw.get("url")
         else "",  # the widget may not know it
-        title=_clean_text(raw.get("title"), TITLE_MAX, "title"),
+        title=" ".join(_clean_text(raw.get("title"), TITLE_MAX, "title").split()),
         text=_clean_text(raw.get("text"), TEXT_MAX, "text"),
         selection=_clean_text(raw.get("selection"), SELECTION_MAX, "selection"),
         errors=_clean_errors(raw.get("errors")),

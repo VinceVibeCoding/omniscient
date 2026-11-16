@@ -60,8 +60,23 @@ export function attachingBrowser(m: ChatModel): boolean {
   return m.attachBrowser && m.browser !== null && !m.browser.excluded;
 }
 
+/** What identifies a page: its address, else its title. */
+export function pageKey(page: BrowserPage | null): string {
+  return page ? page.url || page.title : "";
+}
+
+/** A follow-up may carry the page when the chat already runs without tools, or on a plain provider. */
+export function canAttachToActive(m: ChatModel): boolean {
+  return m.active !== null && (m.active.provider !== "claude-code" || m.active.read_only === true);
+}
+
+/** True when the next message of the open conversation will carry the current page. */
+export function attachingToActive(m: ChatModel): boolean {
+  return canAttachToActive(m) && m.attachBrowser && m.browser !== null && !m.browser.excluded;
+}
+
 /** « Page du navigateur » : ticked by default, what will be attached, or why nothing will. */
-function browserRow(m: ChatModel, on: ChatHandlers): HTMLElement | null {
+function browserRow(m: ChatModel, on: ChatHandlers, follow = false): HTMLElement | null {
   const page = m.browser;
   if (!page) return null;
   if (page.excluded) {
@@ -73,7 +88,7 @@ function browserRow(m: ChatModel, on: ChatHandlers): HTMLElement | null {
     "label",
     { class: "setting setting--check chat__browser", title: page.url },
     box,
-    h("span", { class: "setting__label" }, `Joindre la page du navigateur : ${clip(page.title || page.origin, 60)} (${page.origin})`),
+    h("span", { class: "setting__label" }, `${follow ? "Joindre la page actuelle" : "Joindre la page du navigateur"} : ${clip(page.title || page.origin, 60)} (${page.origin})`),
   );
 }
 
@@ -154,6 +169,13 @@ function conversationWhere(m: ChatModel): string {
   return m.providers.find((p) => p.id === active.provider)?.label ?? active.provider;
 }
 
+/** The box above the answer field: attach the page the person is on now, or why it can't be. */
+function followUpPage(m: ChatModel, on: ChatHandlers): HTMLElement | null {
+  if (!m.browser) return null;
+  if (canAttachToActive(m)) return browserRow(m, on, true);
+  return h("p", { class: "setting__hint chat__browser" }, "Cette conversation utilise des outils : démarrez-en une nouvelle pour y joindre une page web.");
+}
+
 function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (HTMLElement | null)[] {
   const running = m.active?.state === "running";
   return [
@@ -167,6 +189,7 @@ function conversation(m: ChatModel, on: ChatHandlers, approvals: HTMLElement): (
     m.active ? h("p", { class: "meta" }, `${clip(m.active.title, 80)} · ${conversationWhere(m)}`) : null,
     messageLog(m.messages, "Envoi en cours…", "chat", assistantName(m)),
     approvals,
+    followUpPage(m, on),
     composer({
       key: `chat-${m.activeId ?? ""}`,
       placeholder: running ? `${assistantName(m)} répond… (vous pouvez préparer la suite)` : "Répondre…",

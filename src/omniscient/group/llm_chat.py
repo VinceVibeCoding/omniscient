@@ -56,20 +56,37 @@ class Turn:
     text: str
 
 
+def _old_page(block: str) -> str:
+    """A page the person has moved on from: only its address and title stay in the history."""
+    kept = [
+        line for line in block.splitlines() if line.startswith(("URL: ", "Title: "))
+    ]
+    return "(Page jointe plus haut, contenu retiré) " + " | ".join(kept)
+
+
 def build_turns(messages: Iterable[Message]) -> list[Turn]:
     """The user/assistant messages only, same-role neighbours merged, capped from the
     oldest end, always starting with a user turn (what every provider requires)."""
+    messages = list(messages)
+    latest_page = max(
+        (i for i, m in enumerate(messages) if m.role == "context"), default=-1
+    )
     turns: list[Turn] = []
-    for m in messages:
+    for index, m in enumerate(messages):
         role = (
             "user" if m.role == "context" else m.role
         )  # an attached page goes with the question
-        if role not in ("user", "assistant") or not m.text.strip():
+        text = (
+            _old_page(m.text)
+            if m.role == "context" and index != latest_page
+            else m.text
+        )
+        if role not in ("user", "assistant") or not text.strip():
             continue
         if turns and turns[-1].role == role:
-            turns[-1] = Turn(role, f"{turns[-1].text}\n\n{m.text}")
+            turns[-1] = Turn(role, f"{turns[-1].text}\n\n{text}")
         else:
-            turns.append(Turn(role, m.text))
+            turns.append(Turn(role, text))
     while turns and (
         turns[0].role != "user" or sum(len(t.text) for t in turns) > MAX_HISTORY_CHARS
     ):

@@ -105,7 +105,7 @@ def get_chat(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:
 
 def send_chat(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:
     manager = _manager(app)
-    _guard(lambda: manager.send(ids["id"], body.get("text")))
+    _guard(lambda: manager.send(ids["id"], body.get("text"), body.get("page")))
     return 202, {"ok": True}
 
 

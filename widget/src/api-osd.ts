@@ -130,6 +130,8 @@ function toChat(raw: unknown): Chat | null {
     updated_at: str(raw.updated_at),
     session_id: typeof raw.session_id === "string" && raw.session_id !== "" ? raw.session_id : null,
     provider: str(raw.provider, "claude-code") || "claude-code",
+    read_only: raw.read_only === true,
+    page_key: isRecord(raw.page) ? str(raw.page.url) || str(raw.page.title) : "",
   };
 }
 
@@ -205,8 +207,9 @@ export async function chatFork(sessionId: string, text: string): Promise<string>
   return res.chat_id;
 }
 
-export function chatSend(chatId: string, text: string): Promise<unknown> {
-  return invoke("chat_send", { chatId, text });
+/** `browserPage`: also read the page open in the browser now and send it with the message. */
+export function chatSend(chatId: string, text: string, browserPage = false): Promise<unknown> {
+  return invoke("chat_send", { chatId, text, browserPage });
 }
 
 export function chatStop(chatId: string): Promise<unknown> {

@@ -130,8 +130,16 @@ pub async fn chat_fork(state: State<'_, AppState>, session_id: String, text: Str
 }
 
 #[tauri::command]
-pub async fn chat_send(state: State<'_, AppState>, chat_id: String, text: String) -> CmdResult<Value> {
-    let body = json!({ "text": validate_text(&text)? });
+pub async fn chat_send(
+    state: State<'_, AppState>,
+    chat_id: String,
+    browser_page: Option<bool>,
+    text: String,
+) -> CmdResult<Value> {
+    let mut body = json!({ "text": validate_text(&text)? });
+    if browser_page == Some(true) {
+        body["page"] = page_watch::read_current().await?; // the page the person is on now
+    }
     post(&state, &["chats", validate_id(&chat_id)?, "messages"], &body).await
 }
 
