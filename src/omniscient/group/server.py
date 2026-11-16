@@ -31,6 +31,7 @@ from omniscient.group.credentials import (
 )
 from omniscient.group.gates import Presence, TicketBook
 from omniscient.group.pairing import PairingDesk, show_code_on_windows
+from omniscient.group.procctl import install_stop_signals
 from omniscient.group.store import Store
 from omniscient.home import Home
 
@@ -432,10 +433,14 @@ def serve(
     )
     server.start_background()
     print(
-        f"omnigroup écoute sur http://{BIND_HOST}:{server.port} (Ctrl-C pour arrêter)"
+        f"omnigroup écoute sur http://{BIND_HOST}:{server.port} (Ctrl-C pour arrêter)",
+        flush=True,
     )
     try:
-        server.app.stopping.wait()
+        install_stop_signals(server.app.stopping)
+        # a timed wait: on Windows an untimed Event.wait() ignores Ctrl-C
+        while not server.app.stopping.wait(SERVE_POLL_S):
+            pass
     except KeyboardInterrupt:
         print("\nArrêt d'omnigroup.")
     finally:

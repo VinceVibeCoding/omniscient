@@ -14,6 +14,7 @@ import pytest
 from omniscient.group import chat as ch
 from omniscient.group.chat_runner import RunnerEvent, TurnHandle, TurnOutcome, TurnSpec
 from omniscient.home import Home
+from tests.platform_marks import WINDOWS
 
 REPO_MD = """---
 name: {name}
@@ -501,8 +502,10 @@ def test_persistence_and_permissions(home: Home) -> None:
     mgr.join(chat_id, 5)
     folder = home.state / "chats"
     file = folder / f"{chat_id}.json"
-    assert stat.S_IMODE(os.stat(file).st_mode) == 0o600
-    assert stat.S_IMODE(os.stat(folder).st_mode) == 0o700
+    if not WINDOWS:
+        assert stat.S_IMODE(os.stat(file).st_mode) == 0o600
+    if not WINDOWS:
+        assert stat.S_IMODE(os.stat(folder).st_mode) == 0o700
     again = manager(home, FakeRunner())
     chats = again.list()
     assert [c["chat_id"] for c in chats] == [chat_id]

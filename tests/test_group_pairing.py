@@ -10,6 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 from omniscient import cli
+from omniscient.group import pairing
 from omniscient.group.credentials import db_path, token_hash
 from omniscient.group.pairing import (
     POWERSHELL_SCRIPT,
@@ -100,7 +101,10 @@ def test_expired_code_is_refused() -> None:
         desk.finish(code)
 
 
-def test_windows_commands_take_the_code_as_an_argument_only() -> None:
+def test_windows_commands_take_the_code_as_an_argument_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(pairing, "is_native_windows", lambda: False)  # the WSL route
     seen: list[list[str]] = []
 
     def launcher(argv: Sequence[str]) -> bool:

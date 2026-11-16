@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -114,11 +115,11 @@ def test_test_call_failure_is_a_502_with_a_safe_message(
 def test_claude_code_test_checks_the_binary(
     app: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(api_providers.shutil, "which", lambda name: "/usr/bin/claude")
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/claude")
     assert (
         api_providers.test_provider(app, {"id": "claude-code"}, {}, {})[1]["ok"] is True
     )
-    monkeypatch.setattr(api_providers.shutil, "which", lambda name: None)
+    monkeypatch.setattr(shutil, "which", lambda name: None)
     assert (
         api_providers.test_provider(app, {"id": "claude-code"}, {}, {})[1]["ok"]
         is False

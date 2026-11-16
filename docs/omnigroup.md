@@ -276,6 +276,42 @@ utile Copilot (`sessionId` en camelCase, pas de `session_id`) :
   rapporte l'événement : une seule fois) ;
 - sinon il le rapporte comme session Copilot, en suivi seulement (pas de décision).
 
+## Windows natif
+
+Le démon, le client de hooks et le chat tournent directement sous Windows 10/11, sans WSL
+(vérifié en CI sur `windows-latest`, Python 3.12). Ce qui change par rapport à Linux :
+
+- **Commande des hooks.** Claude Code lance une chaîne `command` dans Git Bash quand
+  Git for Windows est installé, sinon dans PowerShell
+  (<https://code.claude.com/docs/en/hooks>, champ `shell`) : aucune syntaxe de guillemets
+  ne marche dans les deux. Sous Windows, `omniscient group hooks install --write` écrit
+  donc la **forme exec** : `command` = le chemin de `omniscient-hook.exe`, `args` = ses
+  arguments (aucun shell, pas de guillemets, les espaces du chemin sont sans danger). La
+  forme exec exige un vrai `.exe` (un raccourci `.cmd` ne peut pas être lancé sans shell) :
+  c'est le cas de l'exécutable de `uv tool install` ou `pip install`. Les chemins s'écrivent
+  avec des `/`. Sous Linux et WSL, la sortie est inchangée.
+- **Ligne d'état.** `statusLine.command` n'accepte qu'une chaîne : un chemin sans espace
+  est écrit tel quel, un chemin avec espaces est remplacé par son nom court 8.3, à défaut
+  mis entre guillemets doubles (marche sous Git Bash, pas sous PowerShell seul).
+- **Fichiers secrets.** Pas de bits 0600/0700 : `restrict_to_current_user` (credentials.py)
+  lance `icacls <chemin> /inheritance:r /grant:r "DOMAINE\utilisateur:(F)"` (avec
+  `(OI)(CI)` pour un dossier) sur le dossier d'état, le jeton, les clés et les sessions.
+  Au mieux : un échec est journalisé, jamais fatal.
+- **Claude Code.** `claude.exe` (installateur natif, WinGet, npm) est lancé sans shell ; un
+  vieux raccourci `claude.cmd` est remplacé par le vrai `.exe` voisin, sinon lancé par
+  `cmd.exe /d /c` avec des arguments « simples » seulement. `omniscient group status` et
+  `setup` disent « claude introuvable » avec la commande d'installation.
+- **Couplage.** Le code s'affiche dans une boîte de dialogue Windows (`MessageBoxW`) ; sous
+  WSL, la route PowerShell reste. Le repli `--allow-terminal-pairing` marche partout.
+- **Arrêt.** Ctrl-C ou `CTRL_BREAK_EVENT` arrête le démon proprement. Un tour de chat est
+  arrêté par `taskkill /T /F` sur l'arbre du processus : `CTRL_BREAK_EVENT` ne peut pas
+  atteindre un enfant sans fenêtre (il est livré par console, donc au démon lui-même).
+- **Désactivé sous Windows** : les collecteurs herdr et AgentRun (Linux seulement), et le
+  retour à une session par herdr ou par WSL.
+- **`omniscient group setup`** : mode Windows natif (aucune étape WSL, pas de téléchargement
+  du widget : c'est lui qui t'a installé). Il installe les hooks, vérifie `claude`, puis
+  t'invite à ouvrir le widget Omnigroup.
+
 ## Fournisseurs IA (chat du widget)
 
 Claude Code reste le moteur par défaut du chat : il agit dans un projet, avec ses outils et

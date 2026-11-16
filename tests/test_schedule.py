@@ -17,6 +17,12 @@ from omniscient.schedule import (
     render_units,
     unit_dir,
 )
+from tests.platform_marks import WINDOWS
+
+pytestmark = pytest.mark.skipif(
+    WINDOWS,
+    reason="systemd user units are Linux-only (schedule renders and installs them)",
+)
 
 
 @pytest.fixture

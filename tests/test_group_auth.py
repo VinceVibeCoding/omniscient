@@ -16,6 +16,7 @@ import httpx
 import pytest
 
 from omniscient.group import auth as au
+from tests.platform_marks import WINDOWS
 
 URL = "https://abcdefgh.supabase.co"
 ANON = "eyJhbGciOiJIUzI1NiJ9.anon-public-key.sig"
@@ -212,7 +213,8 @@ def test_configuration_is_saved_private_and_env_wins(
 ) -> None:
     s = make(tmp_path, fake, events, clock)
     path = tmp_path / "state" / "auth_config.json"
-    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+    if not WINDOWS:
+        assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
     other = au.AuthService(
         tmp_path / "state", lambda *a: None, client=httpx.Client(transport=httpx.MockTransport(fake)),
         resolver=public, clock=clock,
@@ -262,7 +264,8 @@ def test_full_oauth_round_trip(
     for secret in ("access-1", "refresh-1", ANON):
         assert secret not in dumped
     session_file = tmp_path / "state" / "auth_session.json"
-    assert stat.S_IMODE(os.stat(session_file).st_mode) == 0o600
+    if not WINDOWS:
+        assert stat.S_IMODE(os.stat(session_file).st_mode) == 0o600
     assert "refresh-1" in session_file.read_text()
     assert events and events[-1][0] == "auth" and "refresh-1" not in json.dumps(events)
 

@@ -9,10 +9,10 @@ Handlers take (app, ids, query, body) like api.py; `app.providers` is a Provider
 
 from __future__ import annotations
 
-import shutil
 from typing import TYPE_CHECKING, Any
 
 from omniscient.group import llm_chat
+from omniscient.group.claude_locate import find_claude
 from omniscient.group.providers import CLAUDE_CODE, ProviderError, ProviderStore
 
 if TYPE_CHECKING:
@@ -58,7 +58,7 @@ def remove_provider(app: App, ids: dict, query: dict, body: dict) -> tuple[int, 
 def test_provider(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:
     store = _store(app)
     if ids["id"] == CLAUDE_CODE:
-        return 200, {"ok": shutil.which("claude") is not None, "models": []}
+        return 200, {"ok": find_claude() is not None, "models": []}
     found = store.get(ids["id"])
     if found is None:
         raise _api_error(404, "Fournisseur inconnu.")

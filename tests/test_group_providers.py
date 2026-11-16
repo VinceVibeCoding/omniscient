@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from omniscient.group import providers as pv
+from tests.platform_marks import WINDOWS
 
 KEY = "sk-test-0123456789abcdefghij"
 
@@ -41,10 +42,11 @@ def test_save_keeps_the_key_write_only(store: pv.ProviderStore, tmp_path: Path) 
     assert KEY not in dumped and "api_key" not in dumped
     provider, key = store.get("gemini-perso")
     assert key == KEY and provider.kind == "gemini" and provider.model == "gemini-x"
-    for name in ("providers.json", "provider_keys.json"):
+    for name in () if WINDOWS else ("providers.json", "provider_keys.json"):
         mode = stat.S_IMODE(os.stat(tmp_path / "state" / name).st_mode)
         assert mode == 0o600, name
-    assert stat.S_IMODE(os.stat(tmp_path / "state").st_mode) == 0o700
+    if not WINDOWS:
+        assert stat.S_IMODE(os.stat(tmp_path / "state").st_mode) == 0o700
     assert KEY not in (tmp_path / "state" / "providers.json").read_text()
 
 

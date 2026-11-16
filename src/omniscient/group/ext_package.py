@@ -34,7 +34,7 @@ def git_clone(url: str, dest: Path) -> None:
     """A shallow, hook-less clone of a public https GitHub repository (nothing runs)."""
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_CONFIG_NOSYSTEM": "1"}
     cmd = [
-        "git", "-c", "core.hooksPath=/dev/null", "-c", "core.symlinks=false",
+        "git", "-c", f"core.hooksPath={os.devnull}", "-c", "core.symlinks=false",
         "-c", "protocol.allow=never", "-c", "protocol.https.allow=always",
         "clone", "--depth", "1", "--no-tags", "--single-branch", "--", url, str(dest),
     ]  # fmt: skip

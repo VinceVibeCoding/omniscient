@@ -13,6 +13,7 @@ import hashlib
 import mimetypes
 import shutil
 import subprocess
+import sys
 import threading
 from collections.abc import Callable
 from http import HTTPStatus
@@ -32,6 +33,13 @@ RELOAD_SCRIPT = (
     "const t=await r.text();if(v!==null&&t!==v)location.reload();v=t;"
     "}catch(e){}},1000);})();</script>"
 ).encode()
+
+
+# A busy port is EADDRINUSE on POSIX but WSAEACCES (10013) on Windows, where another
+# socket owns the port exclusively.
+BUSY_PORT_ERRNOS = {errno.EADDRINUSE} | (
+    {errno.EACCES} if sys.platform == "win32" else set()
+)
 
 
 class DevServerError(Exception):
@@ -181,7 +189,7 @@ def _bind(handler: type[_Handler], port: int | None) -> ThreadingHTTPServer:
         try:
             return ThreadingHTTPServer((HOST, port), handler)
         except OSError as exc:
-            if exc.errno != errno.EADDRINUSE:
+            if exc.errno not in BUSY_PORT_ERRNOS:
                 raise DevServerError(f"port {port} : {exc}") from exc
     try:
         return ThreadingHTTPServer((HOST, 0), handler)

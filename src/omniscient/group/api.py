@@ -214,7 +214,7 @@ def _pending(app: App, pid: str) -> Pending:
 
 def wait_pending(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:
     pending = _pending(app, ids["id"])
-    if not pending.is_open:
+    if pending.status not in ("open", "answering"):  # closed: nothing to wait for
         return 200, to_json(pending)
     timeout = _int(
         query.get("timeout"), DEFAULT_WAIT_S, MIN_WAIT_S, MAX_WAIT_S, "timeout"

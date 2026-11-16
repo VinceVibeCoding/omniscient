@@ -18,6 +18,7 @@ from omniscient.group.sanitize import PAYLOAD_TEXT_MAX
 from omniscient.group.store import Store
 from omniscient.home import Home
 from omniscient.redact import SECRET_MARK
+from tests.platform_marks import WINDOWS
 
 
 def perm(tool: str, args: Any, **extra: Any) -> dict[str, Any]:
@@ -159,9 +160,12 @@ def test_state_folder_database_and_token_are_private(tmp_path: Path) -> None:
     wal.touch(mode=0o644)
     cred.load_or_create_hook_token(home)
     Store(db).close()
-    assert mode(home.state) == 0o700
-    assert mode(db) == 0o600 and mode(wal) == 0o600
-    assert mode(cred.hook_token_path(home)) == 0o600
+    if not WINDOWS:
+        assert mode(home.state) == 0o700
+    if not WINDOWS:
+        assert mode(db) == 0o600 and mode(wal) == 0o600
+    if not WINDOWS:
+        assert mode(cred.hook_token_path(home)) == 0o600
     leftovers = [p.name for p in home.state.iterdir() if p.name.endswith(".tmp")]
     assert leftovers == []
 

@@ -372,6 +372,9 @@ def _collect(vault: Path, idea: str | None = None) -> Snapshot:
     )
 
 
+@pytest.mark.skipif(
+    not hasattr(time, "tzset"), reason="time.tzset exists on POSIX only"
+)
 def test_collect_merges_sources_newest_first(
     vault: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
