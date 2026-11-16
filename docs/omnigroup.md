@@ -34,6 +34,11 @@ Widget : installateur NSIS dans les releases GitHub (tags `widget-v*`, avec
 `SHA256SUMS` et une attestation de provenance) ou artefact `omnigroup-windows-nsis` du
 workflow *Widget*. Couplage : voir plus bas.
 
+**Rouvrir le widget** : l'installateur crée une entrée « Omnigroup » dans le menu Démarrer. Clic
+droit dessus › *Épingler à la barre des tâches* : un clic sur cette icône ouvre le widget, ou
+le fait réapparaître s'il tourne déjà (une seule instance à la fois). L'icône près de
+l'horloge fait aussi apparaître / disparaître le widget.
+
 ## Modèle de menace
 
 **Ce qu'on protège :** l'agent surveillé (Claude Code, Copilot) ne doit pas pouvoir
