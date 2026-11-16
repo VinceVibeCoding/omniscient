@@ -49,6 +49,13 @@ pub fn transcript_limit(limit: Option<u32>) -> u32 {
     limit.unwrap_or(TRANSCRIPT_DEFAULT).clamp(1, TRANSCRIPT_MAX)
 }
 
+/// Minimizes the main window to its taskbar button (« − » in the widget's controls).
+/// The taskbar button, the tray icon and the pinned icon restore it, as for « Masquer ».
+#[tauri::command]
+pub fn minimize_window(app: AppHandle) {
+    crate::tray::hide_window(&app);
+}
+
 #[tauri::command]
 pub async fn get_osd(state: State<'_, AppState>) -> CmdResult<Value> {
     get(&state, &["osd"]).await

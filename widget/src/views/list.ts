@@ -4,6 +4,7 @@ import { eyeMark } from "../eye";
 import { age, clip, cwdTail, sourceLabel, sourceMark, stateLabel } from "../format";
 import type { LinkStatus, Session } from "../types";
 import { rowGauge } from "./usage";
+import { windowControls } from "./window-controls";
 
 export interface ListHandlers {
   open(id: string): void;
@@ -30,7 +31,7 @@ export function header(link: LinkStatus, on: ListHandlers, title = "Omnigroup"):
       title: link.message,
     }),
     h("button", { class: "icon-btn", "aria-label": "Réglages", title: "Réglages", onclick: on.settings }, "⚙"),
-    h("button", { class: "icon-btn", "aria-label": "Réduire", title: "Réduire (Échap)", onclick: on.collapse }, "▁"),
+    windowControls("large", { toggle: on.collapse }),
   );
 }
 

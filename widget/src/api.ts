@@ -87,6 +87,11 @@ export function setWindowMode(mode: WindowMode): Promise<void> {
   return invoke("set_window_mode", { mode });
 }
 
+/** Minimizes the widget to its taskbar button (the tray / pinned icon restores it). */
+export function minimizeWindow(): Promise<void> {
+  return invoke("minimize_window");
+}
+
 export function getScale(): Promise<number> {
   return invoke<number>("get_scale");
 }
