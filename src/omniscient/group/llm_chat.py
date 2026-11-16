@@ -54,6 +54,7 @@ class LlmError(Exception):
 class Turn:
     role: str  # user | assistant
     text: str
+    image: tuple[str, str] | None = None  # (media type, base64): this turn only
 
 
 def _old_page(block: str) -> str:
@@ -64,7 +65,9 @@ def _old_page(block: str) -> str:
     return "(Page jointe plus haut, contenu retiré) " + " | ".join(kept)
 
 
-def build_turns(messages: Iterable[Message]) -> list[Turn]:
+def build_turns(
+    messages: Iterable[Message], image: tuple[str, str] | None = None
+) -> list[Turn]:
     """The user/assistant messages only, same-role neighbours merged, capped from the
     oldest end, always starting with a user turn (what every provider requires)."""
     messages = list(messages)
@@ -93,6 +96,10 @@ def build_turns(messages: Iterable[Message]) -> list[Turn]:
         turns.pop(0)
     if turns and len(turns[-1].text) > MAX_HISTORY_CHARS:
         turns[-1] = Turn(turns[-1].role, turns[-1].text[-MAX_HISTORY_CHARS:])
+    if image is not None and turns and turns[-1].role == "user":
+        turns[-1] = Turn(
+            "user", turns[-1].text, image
+        )  # the screenshot goes with the question
     return turns
 
 
@@ -103,6 +110,37 @@ def _model_path(model: str) -> str:
     return model.removeprefix("models/")
 
 
+def _openai_content(turn: Turn) -> Any:
+    if turn.image is None:
+        return turn.text
+    media_type, data = turn.image
+    return [
+        {"type": "text", "text": turn.text},
+        {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{data}"}},
+    ]
+
+
+def _anthropic_content(turn: Turn) -> Any:
+    if turn.image is None:
+        return turn.text
+    media_type, data = turn.image
+    return [
+        {
+            "type": "image",
+            "source": {"type": "base64", "media_type": media_type, "data": data},
+        },
+        {"type": "text", "text": turn.text},
+    ]
+
+
+def _gemini_parts(turn: Turn) -> list[dict[str, Any]]:
+    parts: list[dict[str, Any]] = [{"text": turn.text}]
+    if turn.image is not None:
+        media_type, data = turn.image
+        parts.append({"inlineData": {"mimeType": media_type, "data": data}})
+    return parts
+
+
 def _request(
     provider: Provider, key: str | None, turns: list[Turn], system: str
 ) -> tuple[str, dict, dict]:
@@ -111,19 +149,19 @@ def _request(
     if provider.kind == "gemini":
         body = {
             "systemInstruction": {"parts": [{"text": system}]},
-            "contents": [{"role": "user" if t.role == "user" else "model", "parts": [{"text": t.text}]} for t in turns],
+            "contents": [{"role": "user" if t.role == "user" else "model", "parts": _gemini_parts(t)} for t in turns],
         }  # fmt: skip
         url = f"{base}/v1beta/models/{_model_path(provider.model)}:generateContent"
         return url, {"x-goog-api-key": key or ""}, body
     if provider.kind == "anthropic":
         body = {
             "model": provider.model, "max_tokens": MAX_OUTPUT_TOKENS, "system": system,
-            "messages": [{"role": t.role, "content": t.text} for t in turns],
+            "messages": [{"role": t.role, "content": _anthropic_content(t)} for t in turns],
         }  # fmt: skip
         headers = {"x-api-key": key or "", "anthropic-version": ANTHROPIC_VERSION}
         return f"{base}/v1/messages", headers, body
     messages = [{"role": "system", "content": system}] + [
-        {"role": t.role, "content": t.text} for t in turns
+        {"role": t.role, "content": _openai_content(t)} for t in turns
     ]
     headers = {"Authorization": f"Bearer {key}"} if key else {}
     return (

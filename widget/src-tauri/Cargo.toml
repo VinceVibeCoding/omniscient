@@ -31,11 +31,14 @@ keyring = { version = "=3.6.3", features = ["windows-native"] }
 sha2 = "=0.11.1"
 hmac = "=0.13.0"
 getrandom = "=0.4.3"
+# JPEG encoder for the optional window screenshot (no dependency; MIT/Apache-2.0 + IJG).
+jpeg-encoder = "=0.7.1"
 # Reading the browser window the person is on (UI Automation). Already in the lock file
 # through tauri: same exact version, so no new crate.
 windows = { version = "=0.62.2", features = [
   "Win32_Foundation", "Win32_System_Com", "Win32_System_Ole", "Win32_System_Variant",
   "Win32_System_Threading", "Win32_UI_Accessibility", "Win32_UI_WindowsAndMessaging",
+  "Win32_Graphics_Gdi", "Win32_Storage_Xps",
 ] }
 
 [profile.release]

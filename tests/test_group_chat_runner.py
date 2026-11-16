@@ -186,3 +186,26 @@ def test_run_turn_timeout_and_stop(fake_claude: list[str], tmp_path: Path) -> No
     outcome2 = cr.run_turn(spec2, lambda e: None, handle, grace_s=0.2)
     timer.join()
     assert not outcome2.ok and outcome2.stopped
+
+
+# ---- an image goes in through stream-json input ----------------------------------------
+
+
+def test_without_an_image_the_prompt_is_plain_text_and_argv_unchanged() -> None:
+    assert cr.prompt_payload("bonjour", None) == "bonjour"
+    assert "--input-format" not in cr.build_argv(["claude"])
+
+
+def test_with_an_image_the_prompt_is_one_stream_json_user_message() -> None:
+    line = cr.prompt_payload("où est le bouton ?", ("image/jpeg", "QUJD"))
+    assert line.endswith("\n") and line.count("\n") == 1
+    message = json.loads(line)
+    assert message["type"] == "user" and message["message"]["role"] == "user"
+    image, text = message["message"]["content"]
+    assert image == {
+        "type": "image",
+        "source": {"type": "base64", "media_type": "image/jpeg", "data": "QUJD"},
+    }
+    assert text == {"type": "text", "text": "où est le bouton ?"}
+    argv = cr.build_argv(["claude"], with_image=True)
+    assert argv[argv.index("--input-format") + 1] == "stream-json"

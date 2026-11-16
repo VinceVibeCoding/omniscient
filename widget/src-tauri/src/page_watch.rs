@@ -7,10 +7,11 @@
 //! once, when a question is sent with « Joindre la page du navigateur » ticked.
 
 use crate::highlight;
-use crate::page_logic::{browser_label, clean_title, normalize_url, pick_outline, Picked};
+use crate::page_logic::{base64_encode, browser_label, clean_title, normalize_url, pick_outline, Picked};
 use crate::page_reader::{self, Snapshot};
 use crate::state::lock;
 use crate::stream::STREAM_EVENT;
+use crate::window_shot;
 use serde_json::{json, Value};
 use std::fs;
 use std::io;
@@ -190,7 +191,7 @@ fn exe_name(pid: u32) -> Option<String> {
     }
 }
 
-fn payload(remembered: &Remembered, snapshot: Snapshot) -> Value {
+fn payload(remembered: &Remembered, snapshot: Snapshot, jpeg: Option<Vec<u8>>) -> Value {
     let picked = pick_outline(&snapshot.items, snapshot.view);
     let outline: Vec<_> = picked.iter().map(Picked::outline).collect();
     *lock(last()) = Some(Last { hwnd: remembered.hwnd, picked });
@@ -201,6 +202,9 @@ fn payload(remembered: &Remembered, snapshot: Snapshot) -> Value {
     });
     if let Some(url) = snapshot.address.as_deref().and_then(normalize_url) {
         page["url"] = json!(url);
+    }
+    if let Some(jpeg) = jpeg {
+        page["image"] = json!({ "media_type": "image/jpeg", "data": base64_encode(&jpeg) });
     }
     page
 }
@@ -229,7 +233,9 @@ pub async fn show(app: &AppHandle, n: usize) -> Result<(), String> {
 }
 
 /// Reads the remembered browser window's page, for the daemon's `page` field.
-pub async fn read_current() -> Result<Value, String> {
+///
+/// `with_image`: also a picture of that one window (the « capture » box), never of the screen.
+pub async fn read_current(with_image: bool) -> Result<Value, String> {
     if !tracking() {
         return Err("Le suivi de la page est désactivé : réactivez-le dans l'onglet Chat.".into());
     }
@@ -239,13 +245,17 @@ pub async fn read_current() -> Result<Value, String> {
     let hwnd = remembered.hwnd;
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
-        let _ = tx.send(page_reader::read(hwnd));
+        let read = page_reader::read(hwnd).and_then(|snapshot| {
+            let jpeg = if with_image { Some(window_shot::capture(hwnd)?) } else { None };
+            Ok((snapshot, jpeg))
+        });
+        let _ = tx.send(read);
     });
     let waited = tauri::async_runtime::spawn_blocking(move || rx.recv_timeout(READ_TIMEOUT))
         .await
         .map_err(|err| format!("Lecture de la page interrompue : {err}"))?;
-    let snapshot = waited.map_err(|_| "La lecture de la page a pris trop de temps.".to_string())??;
-    Ok(payload(&remembered, snapshot))
+    let (snapshot, jpeg) = waited.map_err(|_| "La lecture de la page a pris trop de temps.".to_string())??;
+    Ok(payload(&remembered, snapshot, jpeg))
 }
 
 #[cfg(test)]

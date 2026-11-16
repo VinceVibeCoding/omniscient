@@ -26,6 +26,7 @@ mod stream;
 mod tray;
 mod vault;
 mod window;
+mod window_shot;
 
 use state::AppState;
 use tauri::{Manager, RunEvent, WindowEvent};
