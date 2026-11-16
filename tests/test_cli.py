@@ -360,7 +360,7 @@ def test_work_attaches_project_files_through_the_files_api(
     repos = tmp_path / "repos"
     repos.mkdir()
     (repos / "cards.md").write_text(
-        "---\nname: cards\npath: /tmp/cards\npurpose: p\ngit: true\n---\n"
+        f"---\nname: cards\npath: {tmp_path.as_posix()}/cards\npurpose: p\ngit: true\n---\n"
     )
     client = _FilesClient()
     monkeypatch.setattr(cli, "make_client", lambda: client)

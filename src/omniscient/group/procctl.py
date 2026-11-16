@@ -28,10 +28,13 @@ def is_windows() -> bool:
     return sys.platform == "win32"
 
 
-def spawn_kwargs(windows: bool | None = None) -> dict[str, Any]:
-    """Popen keywords that put the child in its own group/session."""
+def spawn_kwargs(windows: bool | None = None, hidden: bool = True) -> dict[str, Any]:
+    """Popen keywords that put the child in its own group/session. `hidden` (Windows):
+    no console window, which also means CTRL_BREAK cannot reach the child (its console
+    is not ours): it is for children of a daemon that has no console."""
     if windows if windows is not None else is_windows():
-        return {"creationflags": CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW}
+        flags = CREATE_NEW_PROCESS_GROUP | (CREATE_NO_WINDOW if hidden else 0)
+        return {"creationflags": flags}
     return {"start_new_session": True}
 
 
@@ -99,5 +102,7 @@ def kill(proc: subprocess.Popen[Any] | None, run: Run = subprocess.run) -> None:
 
 
 def stop_ladder() -> Sequence[Callable[[subprocess.Popen[Any] | None], None]]:
-    """The escalation after the first interrupt: terminate, then kill."""
-    return (terminate, kill)
+    """The escalation after the first interrupt: terminate, then kill. On Windows a
+    hidden child ignores `taskkill /T` without /F (no window to close), so go straight
+    to the forced kill."""
+    return (kill,) if is_windows() else (terminate, kill)

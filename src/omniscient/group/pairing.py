@@ -161,6 +161,10 @@ def code_commands(code: str) -> list[list[str]]:
     ]
 
 
+def is_native_windows() -> bool:
+    return sys.platform == "win32"
+
+
 def native_message_box(code: str) -> bool:
     """Show the code in a Windows message box (user32 MessageBoxW) without blocking the
     daemon: the box lives on its own thread. False when user32 is not available."""
@@ -190,6 +194,6 @@ def show_code_on_windows(
 ) -> bool:
     """True when the code was shown on the Windows desktop: natively when the daemon
     runs on Windows, else through the Windows commands reachable from WSL."""
-    if sys.platform == "win32":
+    if is_native_windows():
         return native(code)
     return any(launcher(argv) for argv in code_commands(code))

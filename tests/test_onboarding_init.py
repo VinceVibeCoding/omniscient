@@ -1,5 +1,6 @@
 import stat
 import sys
+import tomllib
 import types
 from pathlib import Path
 from typing import Any
@@ -113,7 +114,9 @@ def test_first_run_creates_home_profile_registry_and_env(tmp_path: Path) -> None
     _run(home, script, tmp_path, secrets=["sk-ant-SECRET", "", "ghp_SECRET"])
 
     # Assert
-    assert home.exists and f'projects_root = "{root}"' in home.config.read_text()
+    assert home.exists
+    paths = tomllib.loads(home.config.read_text(encoding="utf-8"))["paths"]
+    assert paths["projects_root"] == str(root)
     assert all(
         (home.vault / d).is_dir() for d in ("news", "ideas", "tech", "maps", "ops")
     )

@@ -23,6 +23,12 @@ from omniscient.studio.skills import (
     scan_skills,
 )
 from omniscient.studio.skills_screen import NO_HERDR, SkillsScreen
+from tests.platform_marks import WINDOWS
+
+pytestmark = pytest.mark.skipif(
+    WINDOWS, reason="studio (herdr board) is a Linux/WSL tool"
+)
+
 
 SIZE = (140, 40)
 

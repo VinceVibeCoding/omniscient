@@ -91,7 +91,7 @@ def daemon(tmp_path: Path):
         text=True,
         encoding="utf-8",
         errors="replace",
-        **procctl.spawn_kwargs(),
+        **procctl.spawn_kwargs(hidden=False),
     )
     try:
         yield port, proc

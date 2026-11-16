@@ -270,7 +270,7 @@ def test_hook_streams_are_switched_to_utf8() -> None:
 def test_native_windows_pairing_uses_the_message_box(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(pairing.sys, "platform", "win32")
+    monkeypatch.setattr(pairing, "is_native_windows", lambda: True)
     shown: list[str] = []
     assert pairing.show_code_on_windows(
         "123456", lambda a: False, lambda c: shown.append(c) or True
@@ -281,7 +281,7 @@ def test_native_windows_pairing_uses_the_message_box(
 def test_pairing_under_wsl_keeps_the_powershell_route(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(pairing.sys, "platform", "linux")
+    monkeypatch.setattr(pairing, "is_native_windows", lambda: False)
     seen: list[list[str]] = []
 
     def launcher(argv: Any) -> bool:

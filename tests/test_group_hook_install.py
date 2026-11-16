@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from omniscient.group import hook_command, hook_install
 from omniscient.group.hook_install import (
     HookInstallError,
     apply,
@@ -39,9 +40,17 @@ USER_SETTINGS = """{
 """
 
 
+@pytest.fixture(autouse=True)
+def posix_hook_forms(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests pin the POSIX shell-string form; the Windows exec form is covered in
+    test_group_windows.py."""
+    monkeypatch.setattr(hook_command, "is_windows", lambda: False)
+    monkeypatch.setattr(hook_install, "is_windows", lambda: False)
+
+
 def settings(tmp_path: Path, text: str = USER_SETTINGS) -> Path:
     path = tmp_path / "settings.json"
-    path.write_text(text, encoding="utf-8")
+    path.write_text(text, encoding="utf-8", newline="\n")
     return path
 
 
