@@ -187,11 +187,9 @@ export interface Chat {
 
 // ---- the page open in the browser (GET /browser/page, SSE `browser_page`) ----
 
-/** What the Omnigroup extension reported: metadata only, never the page text. */
+/** The browser window the widget remembers (title only; the page is read when a message is sent). */
 export interface BrowserPage {
   available: boolean;
-  /** The person unticked « Joindre cette page » in the extension, for this page. */
-  excluded: boolean;
   url: string;
   origin: string;
   title: string;

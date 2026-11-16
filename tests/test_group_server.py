@@ -144,35 +144,3 @@ def test_hook_validates_source_event_and_translation(daemon: Daemon) -> None:
         "POST", "/hook", {"source": "claude", "event": {"boom": 1}}
     )
     assert status == 400 and "illisible" in body["error"]
-
-
-# ---- browser extension origin -------------------------------------------------------------
-
-
-def test_the_pinned_extension_origin_is_accepted(daemon: Daemon) -> None:
-    origin = f"chrome-extension://{srv.EXTENSION_IDS[0]}"
-    status, _, resp = daemon.call(
-        "GET", "/health", auth=False, headers={"Origin": origin}
-    )
-    assert status == 200 and resp.getheader("Access-Control-Allow-Origin") == origin
-
-
-def test_another_extension_is_refused(daemon: Daemon) -> None:
-    status, _, _ = daemon.call(
-        "GET",
-        "/health",
-        auth=False,
-        headers={"Origin": "chrome-extension://" + "a" * 32},
-    )
-    assert status == 403
-
-
-def test_extra_extension_ids_come_from_the_environment(monkeypatch) -> None:
-    monkeypatch.setenv(
-        "OMNIGROUP_EXTENSION_IDS",
-        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, not-an-id ,cccccccccccccccccccccccccccccccc",
-    )
-    origins = srv.allowed_origins()
-    assert "chrome-extension://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" in origins
-    assert "chrome-extension://cccccccccccccccccccccccccccccccc" in origins
-    assert not any("not-an-id" in o for o in origins)

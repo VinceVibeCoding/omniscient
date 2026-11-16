@@ -40,7 +40,7 @@ fn slot() -> &'static Mutex<Option<Remembered>> {
 /// What the Chat tab shows: the remembered browser window (title only), or not available.
 fn view(remembered: Option<&Remembered>) -> Value {
     match remembered {
-        Some(r) => json!({ "available": true, "excluded": false, "url": "", "origin": r.browser, "title": r.title }),
+        Some(r) => json!({ "available": true, "url": "", "origin": r.browser, "title": r.title }),
         None => json!({ "available": false }),
     }
 }

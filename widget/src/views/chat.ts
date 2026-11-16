@@ -11,7 +11,7 @@ export interface ChatModel {
   providers: readonly Provider[];
   /** The provider a new conversation will use ("claude-code" or a saved provider id). */
   provider: string;
-  /** The page open in the browser (from the extension), and whether to attach it. */
+  /** The browser window the person was last in, and whether to attach its page. */
   browser: BrowserPage | null;
   attachBrowser: boolean;
   chats: readonly Chat[];
@@ -57,7 +57,7 @@ function providerPicker(m: ChatModel, on: ChatHandlers): HTMLElement | null {
 
 /** True when a new conversation will carry the browser page (and so needs no project). */
 export function attachingBrowser(m: ChatModel): boolean {
-  return m.attachBrowser && m.browser !== null && !m.browser.excluded;
+  return m.attachBrowser && m.browser !== null;
 }
 
 /** What identifies a page: its address, else its title. */
@@ -72,16 +72,13 @@ export function canAttachToActive(m: ChatModel): boolean {
 
 /** True when the next message of the open conversation will carry the current page. */
 export function attachingToActive(m: ChatModel): boolean {
-  return canAttachToActive(m) && m.attachBrowser && m.browser !== null && !m.browser.excluded;
+  return canAttachToActive(m) && m.attachBrowser && m.browser !== null;
 }
 
 /** « Page du navigateur » : ticked by default, what will be attached, or why nothing will. */
 function browserRow(m: ChatModel, on: ChatHandlers, follow = false): HTMLElement | null {
   const page = m.browser;
   if (!page) return null;
-  if (page.excluded) {
-    return h("p", { class: "setting__hint chat__browser" }, `Page du navigateur non jointe (décochée dans l'extension) : ${page.origin}`);
-  }
   const box = h("input", { type: "checkbox", checked: m.attachBrowser, "aria-label": "Joindre la page du navigateur" });
   box.addEventListener("change", () => on.setAttachBrowser(box.checked));
   return h(

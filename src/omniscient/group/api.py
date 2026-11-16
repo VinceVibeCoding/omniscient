@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, Any
 
 from omniscient.group import (
     api_auth,
-    api_browser,
     api_chat,
     api_osd,
     api_pair,
@@ -385,10 +384,6 @@ ROUTES: tuple[Route, ...] = (
     _route("auth_signout", "POST", "/auth/signout", api_auth.signout),
     _route("auth_callback", "GET", "/auth/callback", api_auth.callback, "none"),
     _route("auth_confirmed", "GET", "/auth/confirmed", api_auth.confirmed, "none"),
-    _route("browser_page", "GET", "/browser/page", api_browser.get_page),
-    _route(
-        "browser_page_put", "PUT", "/browser/page", api_browser.put_page, W, CHAT_BODY
-    ),
     _route("providers", "GET", "/providers", api_providers.list_providers),
     _route("provider_put", "PUT", f"/providers/{_SEG}", api_providers.put_provider),
     _route(

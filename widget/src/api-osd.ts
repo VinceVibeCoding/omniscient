@@ -187,7 +187,7 @@ export interface ChatTarget {
 
 export function toBrowserPage(raw: unknown): BrowserPage | null {
   if (!isRecord(raw) || raw.available !== true) return null;
-  return { available: true, excluded: raw.excluded === true, url: str(raw.url), origin: str(raw.origin), title: str(raw.title) };
+  return { available: true, url: str(raw.url), origin: str(raw.origin), title: str(raw.title) };
 }
 
 export async function getBrowserPage(): Promise<BrowserPage | null> {

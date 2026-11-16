@@ -17,10 +17,6 @@ from omniscient.group.transcript_view import session_transcript as read_transcri
 if TYPE_CHECKING:
     from omniscient.group.server import App
 
-NO_BROWSER_PAGE = (
-    "Aucune page du navigateur à joindre : ouvrez-la dans Chrome ou Edge avec l'extension "
-    "Omnigroup (case « Joindre cette page » cochée), ou décochez « Joindre » ici."
-)
 TRANSCRIPT_DEFAULT = 50
 TRANSCRIPT_MAX = 200
 
@@ -65,19 +61,12 @@ def create_chat(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict
         if "project" in body:
             raise _api_error(400, "Indiquez soit project, soit session.")
         return 202, {"chat_id": _fork(app, manager, body)}
-    page = body.get("page")
-    if (
-        body.get("browser_page") is True
-    ):  # « Joindre la page du navigateur » in the widget
-        if page is not None:
-            raise _api_error(400, "Indiquez soit page, soit browser_page.")
-        browser = getattr(app, "browser", None)
-        page = browser.latest() if browser is not None else None
-        if page is None:
-            raise _api_error(409, NO_BROWSER_PAGE)
     chat_id = _guard(
         lambda: manager.create(
-            body.get("project"), body.get("text"), body.get("provider"), page
+            body.get("project"),
+            body.get("text"),
+            body.get("provider"),
+            body.get("page"),
         )
     )
     return 202, {"chat_id": chat_id}
