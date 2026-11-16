@@ -9,6 +9,7 @@ import { limitLevel, pct, rate, resetIn } from "../osd-format";
 import type { Limit, LinkStatus, Osd, Session, Skin, WidgetConfig } from "../types";
 import { countSessions } from "./pill";
 import { tickerStrip } from "./ticker";
+import { windowControls } from "./window-controls";
 
 export interface OsdModel {
   osd: Osd | null;
@@ -25,7 +26,7 @@ const PLACEHOLDER: readonly Limit[] = [
   { id: "seven_day", label: "Weekly", used_pct: 0, resets_at: null },
 ];
 
-function header(m: OsdModel): HTMLElement {
+function header(m: OsdModel, expand: () => void): HTMLElement {
   const osd = m.osd;
   const waiting = countSessions([...m.sessions]).waiting;
   const subagents = osd?.subagents ?? 0;
@@ -42,6 +43,7 @@ function header(m: OsdModel): HTMLElement {
     live
       ? h("span", { class: "osd__live" }, `● LIVE ${rate(osd?.live.tokens_per_minute ?? 0)} tok/min`)
       : h("span", { class: "osd__idle" }, "○ repos"),
+    windowControls("small", { toggle: expand }),
   );
 }
 
@@ -146,7 +148,7 @@ export function osdView(m: OsdModel, expand: () => void): HTMLElement {
         }
       }) as EventListener,
     },
-    header(m),
+    header(m, expand),
     online ? body(m) : offline(m),
     online && m.config.show_ticker ? tickerStrip(m.osd?.ticker ?? []) : null,
   );

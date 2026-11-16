@@ -380,6 +380,7 @@ function changeConfig(patch: ConfigPatch): void {
 
 const detailHandlers = {
   back: () => update({ view: "list", detail: null, transcript: null }),
+  collapse,
   answer: (pending: Pending, answer: api.Answer) =>
     void guarded(async () => {
       await api.answerPending(pending.id, answer);
@@ -409,6 +410,7 @@ const detailHandlers = {
 
 const settingsHandlers = {
   back: () => update({ view: "list" }),
+  collapse,
   wizard: () => void startWizard(),
   autostart: (enabled: boolean) =>
     void guarded(async () => {

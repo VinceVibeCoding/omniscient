@@ -118,6 +118,7 @@ pub fn run() {
             commands::unpair,
             commands::set_window_mode,
             drag::start_drag,
+            osd_commands::minimize_window,
             osd_commands::get_osd,
             osd_commands::get_config,
             osd_commands::set_config,

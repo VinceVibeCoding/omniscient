@@ -6,9 +6,12 @@ import type { Pending, SessionDetail, Step } from "../types";
 import { pendingCard } from "./pending";
 import type { Conversation } from "./transcript";
 import { usageBlock } from "./usage";
+import { windowControls } from "./window-controls";
 
 export interface DetailHandlers {
   back(): void;
+  /** Fold to the small OSD layout. */
+  collapse(): void;
   answer(pending: Pending, answer: Answer): void;
   jump(id: string): void;
   dismiss(id: string): void;
@@ -85,6 +88,7 @@ export function detailView(s: SessionDetail, on: DetailHandlers, conversation: C
       h("span", { class: `src src--${s.source}`, title: sourceLabel(s.source), "aria-hidden": "true" }, sourceMark(s.source)),
       h("h1", { class: "bar__title", title: s.title }, clip(s.title || s.native_id, 40)),
       h("span", { class: `chip chip--${s.state}` }, stateLabel(s.state)),
+      windowControls("large", { toggle: on.collapse }),
     ),
     h(
       "div",

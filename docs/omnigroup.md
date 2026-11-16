@@ -39,6 +39,11 @@ droit dessus › *Épingler à la barre des tâches* : un clic sur cette icône 
 le fait réapparaître s'il tourne déjà (une seule instance à la fois). L'icône près de
 l'horloge fait aussi apparaître / disparaître le widget.
 
+**Boutons de la fenêtre** (en haut à droite, dans la vue compacte comme dans le panneau) :
+« − » réduit le widget dans la barre des tâches (cliquez son icône pour le rouvrir) ; « + » passe
+de la vue compacte à la grande vue, et le bouton de repli de la grande vue revient à la compacte
+(un clic sur l'en-tête ou Échap fait de même).
+
 ## Lire la page du navigateur (sans extension)
 
 Dans l'onglet **Chat**, la case « Joindre la page du navigateur : *titre* » (cochée par défaut)
