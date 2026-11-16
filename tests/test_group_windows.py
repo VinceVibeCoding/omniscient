@@ -367,7 +367,10 @@ def test_restrict_to_current_user_leaves_only_this_account(tmp_path: Path) -> No
         user = cred.current_account().split("\\")[-1].lower()
         assert user in listing.lower()
         assert "(I)" not in listing  # nothing inherited
-        assert "BUILTIN" not in listing and "Everyone" not in listing
+        # administrators and SYSTEM may remain (they can take ownership anyway); other
+        # people and groups must not be able to read the secret
+        for broad in ("Everyone", "BUILTIN\\Users", "Authenticated Users"):
+            assert broad not in listing
     assert secret.read_text(encoding="utf-8") == "x" * 40  # still ours to read
     (folder / "new.json").write_text("{}", encoding="utf-8")  # and to write
 
