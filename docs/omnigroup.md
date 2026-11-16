@@ -303,6 +303,13 @@ Connexion facultative (Google, GitHub, e-mail + mot de passe) : voir [accounts.m
 
 ## Usage et contexte
 
+> **D'où viennent les jauges Session / Weekly.** Uniquement de la ligne d'état de Claude Code
+> (`rate_limits`), qui n'est envoyée que quand Claude Code tourne : le widget ne lit jamais vos
+> identifiants et n'interroge pas Anthropic. Il peut donc **retarder** sur l'usage réel si vous
+> consommez ailleurs (claude.ai, un autre ordinateur) jusqu'au prochain message dans Claude Code.
+> Une fenêtre dont l'heure de réinitialisation est passée repasse à 0 % au lieu de garder son
+> ancien chiffre.
+
 Les hooks ne portent pas l'usage, seulement `transcript_path`. Le démon (jamais le hook)
 appelle `hook_usage.translate_usage(source, event, cursor)` à chaque `POST /hook` (seuls
 `Stop`, `PostToolUse`, `SubagentStop`, `Notification` et la ligne d'état comptent), avec

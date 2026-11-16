@@ -139,7 +139,7 @@ class OsdState:
             self.tail.scan(now, since=min(midnight, now - TICKER_WINDOW_S))
             today = self.tail.turns(since=midnight)
             recent = self.tail.turns(since=now - TICKER_WINDOW_S)
-            limits = dict(self.limits)
+            limits = {wid: _current(entry, now) for wid, entry in self.limits.items()}
         live = live_rate(recent, now)
         costs = [t.cost_usd for t in today if t.cost_usd is not None]
         return {
@@ -160,6 +160,21 @@ class OsdState:
 
     def config_view(self) -> dict[str, Any]:
         return config_store.effective(self.paths)
+
+
+def _current(entry: Mapping[str, Any], now: float) -> dict[str, Any]:
+    """A limit window as it stands now. Claude Code only reports a window while it is active,
+    so once its reset time has passed the stored figure is stale and the real usage is back to
+    0 until the next report."""
+    resets = entry.get("resets_at")
+    if isinstance(resets, str):
+        try:
+            ended = datetime.fromisoformat(resets).timestamp() <= now
+        except ValueError:
+            ended = False
+        if ended:
+            return {"used_pct": 0.0, "resets_at": None}
+    return dict(entry)
 
 
 def _as_status(saved: Any) -> Any:
