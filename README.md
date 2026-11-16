@@ -1,302 +1,226 @@
-# omniscient-factory
+<div align="center">
 
-**An idea factory for builders.** Omniscient reads tech and AI news, turns it into ideas
-about what you could build now, has a council of agents debate and score them, plans the
-best ones, and builds throwaway proofs of concept in a sandbox. You steer it from a
-terminal **studio** that runs inside **herdr** (a terminal workspace manager):
-an idea board plus one "atelier" (workshop) per idea, where Claude Code helps you push the
-idea further.
+<img src="widget/src-tauri/icons/128x128@2x.png" alt="Omniscient: a golden eye on a deep-blue tile" width="112" />
+
+# Omniscient
+
+**An idea factory for builders, and a desktop widget that sees the page you see.**
+
+[![CI](https://github.com/VinceVibeCoding/omniscient-factory/actions/workflows/ci.yml/badge.svg)](https://github.com/VinceVibeCoding/omniscient-factory/actions/workflows/ci.yml)
+[![Widget build](https://github.com/VinceVibeCoding/omniscient-factory/actions/workflows/widget.yml/badge.svg)](https://github.com/VinceVibeCoding/omniscient-factory/actions/workflows/widget.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB.svg)](https://www.python.org/)
+
+[Quick start](#quick-start) · [Omnigroup widget](#omnigroup-the-widget) · [Ideas](#ideas-the-factory) · [Bring your own AI](#bring-your-own-ai) · [Privacy](#privacy-and-security) · [Roadmap](#roadmap) · [Contributing](#contributing)
+
+</div>
+
+---
+
+Omniscient has two halves that work alone or together:
+
+| | What it is | You use it to |
+|---|---|---|
+| **Omnigroup** (the widget) | A small always-on-top Windows app. | Watch every AI agent you run, approve their requests, and **chat with the AI of your choice about the web page you are looking at**. |
+| **The idea factory** | A terminal studio plus five background loops. | Turn tech news into ideas, have a council of agents debate and score them, and build throwaway prototypes. |
+
+Free and MIT-licensed. Bring your own AI: Claude Code, an API key, or a local model. Your keys and
+conversations stay on your computer.
+
+> **Language.** The interface is currently in **French**. Agent-written notes follow the language in
+> your profile (`fr` or `en`). Making the UI translatable is a welcome contribution
+> (see `src/omniscient/i18n.py`).
+
+## Quick start
+
+### The widget (Windows 10/11)
+
+```bash
+# In WSL or Linux (Python 3.12+ and uv): the engine that runs next to the widget
+uv tool install git+https://github.com/VinceVibeCoding/omniscient-factory
+omniscient group setup            # preview: daemon, hooks, widget download, pairing
+omniscient group setup --write    # do it (your settings are backed up first)
+```
+
+Then run the installer it downloads, open **Omnigroup**, and follow the first-run assistant:
+pair the widget with a 6-digit code, pick your AI, choose a look. That's it.
+
+Pin it to your taskbar from the Start menu (right-click › *Pin to taskbar*): one click on that icon
+brings the widget back, even after you quit it.
+
+### The idea factory
+
+```bash
+uv tool install git+https://github.com/VinceVibeCoding/omniscient-factory
+omniscient init                   # home folder, profile, projects, keys
+herdr                             # open herdr, then inside it:
+omniscient studio                 # the idea board
+```
+
+The studio needs no API key. Details: [docs/factory.md](docs/factory.md).
+
+## Omnigroup, the widget
+
+One window, three tabs.
+
+**Sessions.** Every agent you run in one list: Claude Code (terminal and VS Code), GitHub Copilot,
+herdr panes and Omniscient's own runs. Open one to see its steps. Approve a permission, answer a
+question or raise a budget cap without leaving what you are doing. If you do not answer in time,
+the agent shows its normal prompt: the widget never blocks an agent.
+
+**Chat.** Talk to the AI you chose, with or without a project:
+
+- **It sees the page you see.** In Chrome, Edge, Brave, Vivaldi or Opera, the widget reads the page
+  itself (text, headings, links, buttons, fields and *where each one is on screen*). **No browser
+  extension.** Ask "where is the pay button?" and it answers from the real page.
+- **It follows you.** Move to another page and the next message offers the new one.
+- **Show me.** When the AI points at an element, a **Montrer** button frames it on your screen (the
+  page scrolls to it if needed). The widget only draws a frame: it never clicks, types or navigates
+  in your page.
+- **Screenshot, only if you want.** An optional box adds a picture of that one browser window (never
+  the rest of your screen) for questions where the look matters. It is off by default, sent for one
+  message, and never saved.
+- **Switch it all off.** One button, *Désactiver le suivi des pages*, stops the widget from
+  remembering or reading any page. The choice survives restarts.
+- **Continue a session.** Take a Claude Code session running in a terminal or IDE and continue it in
+  the widget, on a copy.
+
+**Réglages.** Your AI providers, your account (optional), the look (three skins, two gauges),
+launch at login, the daemon address, and the first-run assistant.
+
+The OSD (the small collapsed view) shows your Claude limits and live token rate; click it, or the
+panel's header, to unfold and fold it. Right-click it for views, themes and the ticker.
+
+Full guide, hooks, threat model and verified behaviour: [docs/omnigroup.md](docs/omnigroup.md) (in French).
+
+## Ideas, the factory
+
+Omniscient reads the news, then helps you decide what to build.
 
 ```
 news ──▶ ideas ──▶ council (debate + score) ──▶ game plan ──▶ prototype (PoC)
  Sense     Think          Think                    Plan          Build
-                         ▲
-              studio: you riff, fork, remix and judge ideas
+                          ▲
+             studio: you riff, fork, remix and judge ideas
 ```
 
-> **Language note.** The interface (CLI messages, studio, Slack texts) is currently in
-> **French**. Agent-written content follows the language in your profile (`fr` or `en`).
-> Contributions that make the UI translatable are very welcome (see `src/omniscient/i18n.py`).
+- **Sense.** GitHub, Hacker News, and the Anthropic, OpenAI, Gemini and Meta AI news pages, boosted by
+  your interests, with the topics you avoid dropped.
+- **Think.** A visionary proposes ideas by crossing news with what is newly possible and with *your*
+  projects. A council (challenger, simplifier, risk checker) debates each one and scores it on
+  novelty, feasibility, impact, effort and fit.
+- **Plan.** A strategist promotes the best ideas within your work-in-progress limit.
+- **Build.** A builder makes the smallest testable version in a Docker box, never touching your
+  real projects without your approval.
+- **Learn.** What the agents learn becomes a knowledge base for the next cycle.
+
+You steer it from the **studio**, a terminal idea board that runs inside
+[herdr](https://herdr.dev): one *atelier* (workshop) per idea, with Claude Code ready to push the idea
+further. Create an idea (`n`), riff on it, make a variant (`v`), remix two or three (`space`, `m`),
+pursue or drop it (`p` / `x`). Ideas are plain Markdown notes you can open in Obsidian.
+
+More: [docs/factory.md](docs/factory.md) (init, ateliers, AgentRun, daily schedule, themes, costs, architecture).
+
+## Bring your own AI
+
+| Provider | Needs | Notes |
+|---|---|---|
+| **Claude Code** | your Claude subscription | Can use tools in a project. A chat with a web page attached runs with no tools. |
+| **Anthropic API** | an API key | Plain chat, no tools. |
+| **OpenAI** | an API key | Plain chat, no tools. |
+| **Gemini** | an API key | Plain chat, no tools. |
+| **Local model** (Ollama, LM Studio, any OpenAI-compatible server) | nothing | Stays entirely on your machine. |
+
+Keys are write-only (you can replace one, never read it back), kept in a file only you can read, and
+sent only to the provider's own address. The widget's *Tester* button checks that a provider works.
+Screenshots need a model that can see images.
+
+## Accounts (optional, free)
+
+An account only identifies your install: sign in with **Google**, **GitHub** or **e-mail and
+password**, through [Supabase Auth](https://supabase.com/docs/guides/auth)'s free plan. Your AI keys
+and conversations never leave your computer, and the widget works fully without an account.
+Setup for the project owner: [docs/accounts.md](docs/accounts.md).
+
+## Privacy and security
+
+- Everything listens on `127.0.0.1` only. Two separate credentials: the agents' hooks can only post
+  events, and only your paired widget can answer them.
+- The widget reads a web page **only when you send a message with the box ticked**. Between messages
+  it remembers just the title of your last browser window, in memory. Field values and passwords are
+  never read; secrets in a page are masked before anything leaves.
+- Text from a web page is treated as untrusted: a chat with a page attached has **no tools**, so a
+  hostile page cannot steer your agent.
+- Tokens live in the Windows Credential Manager; the daemon keeps only a hash.
+- No analytics, no telemetry.
+
+Threat model and reporting: [docs/omnigroup.md](docs/omnigroup.md) and [SECURITY.md](SECURITY.md).
 
 ## Requirements
 
 | Tool | Needed for | Required? |
 |---|---|---|
-| [uv](https://docs.astral.sh/uv/) and Python 3.12+ (tested on 3.12 and 3.14) | installing and running | yes |
-| git | project registry, prototypes | yes |
-| herdr | the studio (ateliers are herdr workspaces) | for `studio` |
-| [Claude Code](https://claude.com/claude-code) | the default atelier agent | for ateliers |
-| [AgentRun](https://pypi.org/project/parcha-agentrun/) server on `127.0.0.1:7340` + Docker | the factory loops (news, ideas, council, plan, builds) | for the factory |
-| Anthropic API key | the factory loops (AgentRun calls the models) | for the factory |
-| Slack app (Socket Mode) | daily digest, buttons, debate threads | optional |
-| Windows 10/11 x64 (WebView2, installed by the installer if missing) | the Omnigroup widget | for the widget |
-| Chrome, Edge, Brave, Vivaldi or Opera on Windows | the widget reads the open web page itself (no extension) | optional |
-| Another LLM provider key (Gemini, OpenAI, Anthropic API) or a local model (Ollama, LM Studio) | chatting without Claude Code | optional |
+| [uv](https://docs.astral.sh/uv/) and Python 3.12+ (tested on 3.12 and 3.14) | the engine | yes |
+| Windows 10/11 x64 (WebView2 is installed for you if missing) | the widget | for the widget |
+| Chrome, Edge, Brave, Vivaldi or Opera | reading the page you look at | optional |
+| git | project registry, prototypes | for the factory |
+| [Claude Code](https://claude.com/claude-code) | the default agent | optional |
+| herdr | the studio | for the studio |
+| [AgentRun](https://pypi.org/project/parcha-agentrun/) + Docker + an Anthropic API key | the factory loops | for the factory |
 
-Node, TypeScript and Rust are only needed to build the widget from source:
-people who install Omniscient get built files.
+Node, TypeScript and Rust are only needed to **build** the widget from source: people who install
+Omniscient get built files. `omniscient init` checks your setup and never installs anything for you.
+Linux and WSL2 are the tested platforms for the engine.
 
-`omniscient init` checks these for you and never installs anything. Linux and WSL2 are
-the tested platforms; `scripts/install-docker-wsl.sh` and `scripts/agentrun-up.sh` help on WSL2.
+## Roadmap
 
-## Install
+- **Now (V1).** Windows widget; Chromium-family browsers; Claude Code, Anthropic, OpenAI, Gemini and
+  local models; accounts with Google, GitHub and e-mail.
+- **V2.** A **macOS** app (menu-bar and Dock icon, signed and notarized) with page reading through the
+  macOS accessibility API; Firefox.
+- **Later.** More agents in the Sessions list; a translated interface.
 
-```bash
-uv tool install git+https://github.com/VinceVibeCoding/omniscient-factory
-omniscient init
-```
+Ideas and votes welcome: open an issue.
 
-Contributors: clone and run from the checkout.
+## Contributing
+
+Contributions are welcome and every pull request is reviewed by the maintainer before it lands.
+Open your pull request against the **`dev`** branch (`main` is what people install). Start with
+[CONTRIBUTING.md](CONTRIBUTING.md); tests run fully offline (`uv run pytest -q`). Security issues:
+[SECURITY.md](SECURITY.md).
 
 ```bash
 git clone https://github.com/VinceVibeCoding/omniscient-factory
 cd omniscient-factory
 uv sync
-uv run omniscient --help
+uv run pytest -q
 ```
-
-## `omniscient init`
-
-An interactive, re-runnable setup (re-running updates without deleting your data):
-
-1. prints a prerequisites table (uv, git, Docker, herdr, Claude Code, AgentRun);
-2. creates your **home** folder (default `~/.omniscient`) from the packaged templates,
-   asks for your projects folder (default `~/projects`) and copies the studio skills;
-3. writes your **profile**: language (`fr`/`en`), name, interests, topics to avoid;
-4. registers your projects: scans your projects folder and/or lists your public GitHub
-   repos so you pick which ones the factory may read and propose upgrades for (an
-   optional `GITHUB_TOKEN` is asked right before the GitHub listing, to avoid rate limits);
-5. stores secrets in `<home>/.env` (mode 600, written atomically, never echoed):
-   `ANTHROPIC_API_KEY` (skip it to use the studio only), `AGENTRUN_API_KEY` (see
-   [AgentRun](#agentrun)), and optional Slack tokens. Run it in a real terminal: when
-   stdin is not a TTY, `init` warns that typed secrets may be echoed;
-6. prints the next steps.
-
-Add a project later with `omniscient project add <path | owner/name | GitHub URL | GitHub user>`
-and see them with `omniscient project list`. A bare `NAME` that is both a folder in the
-current directory and a possible GitHub user is read as the folder only if it holds
-`.git` or a manifest (`pyproject.toml`, `package.json`, …); otherwise it is the GitHub
-user. Write `./NAME` to force the folder.
-
-## Your first 5 minutes
-
-```bash
-omniscient init                    # home, profile, projects, keys
-herdr                              # open herdr, then inside it:
-omniscient studio                  # the idea board
-```
-
-On the board: `n` new idea (Claude Code sharpens your raw idea into a note, then the
-council scores it), `Entrée` opens the idea's atelier, `v` variant, `space` + `m` remix
-2-3 ideas, `p`/`x` pursue/abandon, `f` filter, `s` skills library, `w` war room.
-
-An **atelier** is a herdr workspace split 2×2:
-
-- **agent**: Claude Code on your own subscription, primed with `/omniscient-riff`,
-  `/omniscient-variant`, `/omniscient-remix` or `/omniscient-seed`; `a` switches to
-  another agent (e.g. an Omniscient agent through `omniscient chat`, budget-capped);
-- **à faire** (to do): the idea's checklist and a compact view of the note;
-- **UI**: build progress and a local live-reload server for the prototype; `b` builds
-  only after a cost confirmation;
-- **salle de crise** (war room): who did what on which idea, agent relays, costs.
-
-When AgentRun and an API key are set up, run the factory once by hand:
-
-```bash
-omniscient agents-push             # send the agent definitions to AgentRun
-omniscient cycle                   # ingest -> learn-sync -> think -> plan -> slack-digest
-```
-
-## AgentRun
-
-The factory loops run their agents on a local [AgentRun](https://pypi.org/project/parcha-agentrun/)
-server (`http://127.0.0.1:7340`, override with `AGENTRUN_BASE_URL`). Start it, then its
-runner (on WSL2, `scripts/agentrun-up.sh server` and `scripts/agentrun-up.sh runner`).
-AgentRun is what calls the models, so your Anthropic key must be available to the
-AgentRun server (see AgentRun's docs). Omniscient itself only needs AgentRun's **API
-key**, read in this order:
-
-1. the `AGENTRUN_API_KEY` environment variable;
-2. `AGENTRUN_API_KEY` in `<home>/.env` (asked by `omniscient init`; leave it empty to use 3);
-3. `~/.agentrun/.token`, which the local AgentRun server writes on its first start.
-
-If no key is found or the server does not answer, `omniscient cycle` stops before any
-stage with one message saying what to fix, and `think`, `plan`, `agents-push`… exit with
-the same message.
-
-## Daily schedule (systemd)
-
-`omniscient schedule install` prints systemd **user** units for a daily cycle (and
-optional Slack bot and [Omnigroup](#omnigroup) daemon services), rendered with your home
-folder and the absolute path of the `omniscient` executable you are running. Nothing is
-written until you add `--write` (to `~/.config/systemd/user/`), and Omniscient never runs
-`systemctl`: it prints the command for you to run.
-
-```bash
-omniscient schedule install            # preview the units
-omniscient schedule install --write    # write them, then run what it prints:
-systemctl --user daemon-reload && systemctl --user enable --now omniscient-cycle.timer
-omniscient schedule status             # are the unit files written and up to date?
-omniscient schedule uninstall --write  # after `systemctl --user disable --now …`
-```
-
-On WSL2, systemd must be enabled (`[boot] systemd=true` in `/etc/wsl.conf`).
-
-## Omnigroup
-
-**Omnigroup** is a small always-on-top Windows widget that shows every agent you have
-running: Claude Code (VS Code and CLI), GitHub Copilot (through hooks), herdr panes and
-Omniscient's AgentRun runs. Click a session to see its steps; approve a permission,
-answer a question, raise a budget cap, jump back to the session or cross it off, without
-opening VS Code. It is **widget first, with a fallback**: if you do not answer in time,
-the agent shows its normal prompt.
-
-```bash
-omniscient group serve                       # the daemon (127.0.0.1:7341 only), Ctrl-C to stop
-omniscient group hooks install --target all --protect  # preview the hook changes (a diff)
-omniscient group hooks install --target all --protect --write   # backup, then write
-omniscient group hooks install --target claude --statusline --write   # optional status line
-omniscient group status                      # is the daemon up? sessions and open requests
-omniscient group pair                        # how to pair the widget (code on the Windows desktop)
-omniscient group pair --revoke               # forget every paired widget
-omniscient group widget                      # where to get the Windows installer, pairing
-```
-
-- **Install the widget.** Download the NSIS installer from the
-  [releases](https://github.com/VinceVibeCoding/omniscient-factory/releases) (`widget-v*`
-  tags) or the `omnigroup-windows-nsis` artifact of the latest *Widget* workflow run.
-- **Pairing.** In the widget's settings, *Demander un code*: the daemon shows a 6-digit
-  code on the Windows desktop only (a native message box), you type it in the widget
-  (2 minutes, 5 tries, then a 10-minute lock). The daemon returns a widget token once and
-  keeps only its SHA-256; the widget stores it in the Windows Credential Manager (DPAPI),
-  never in its settings file or its web page. To start the daemon with your session, `omniscient schedule install --write` also writes an optional
-  `omnigroup.service` (`systemctl --user enable --now omnigroup.service`).
-- **Hooks.** The installer writes the absolute path of the light `omniscient-hook` script
-  (about 60 ms to start, against about 400 ms for the full CLI) into
-  `~/.claude/settings.json` and `~/.copilot/hooks/omnigroup.json`, keeps every other
-  hook, and backs the file up first. `uninstall` removes only its own entries.
-- **Fallback.** A hook waits for your answer at most 100 s for Claude Code (hook timeout
-  110 s) and 25 s for Copilot (`timeoutSec` 30), then exits without output. If the daemon
-  is down or the token is missing, it exits at once, silently: the agent behaves as usual.
-- **Two credentials.** The hooks' token (`<home>/.omniscient/group.token`, mode 600) can
-  only post events and wait — with a single-use ticket — for the request its own call
-  opened; it cannot read sessions or answer anything (403). Only a paired widget token can
-  answer. The widget checks the daemon (an HMAC proof over a nonce) before sending its
-  token. `--protect` adds Claude Code deny rules around the state folder; an agent with
-  unrestricted Bash as your user can still get around them — see the threat model in
-  [docs/omnigroup.md](docs/omnigroup.md).
-- **Privacy and what hooks can do.** The daemon listens on `127.0.0.1` only (state
-  folder 0700, database and token 0600), and only the widget's origins are allowed. Hooks
-  can allow or deny one tool call, add one exact allow rule **for the current session
-  only** ("Toujours (cette session)", the rule is shown before you click), and answer
-  `AskUserQuestion`; nothing is ever written to your permission settings. Previews show
-  the full tool input (paths included, secrets masked, hidden characters made visible);
-  an input over 64 KB can only be refused from the widget. With no widget connected in the
-  last 30 s, hooks do not wait at all.
-- **Not verified yet** (see [docs/omnigroup.md](docs/omnigroup.md)): the herdr send-keys
-  mapping used to answer a Claude pane's dialog (other agents' panes are answered in the
-  terminal), the pairing message box on every Windows edition, the Credential Manager
-  storage (CI builds the widget but never runs it), Copilot hook payloads and replies, the
-  `AskUserQuestion` answers format, and the full `allow` round trip on a live Claude Code
-  session (a hook that prints nothing was checked to fall back correctly).
-
-## Themes
-
-The studio is themeable: `omniscient theme list`, `omniscient theme set <name>` and
-`omniscient theme preview <name>`. Palettes follow the popular Omarchy-style themes
-(tokyo-night, catppuccin, catppuccin-latte, gruvbox, nord, everforest, kanagawa,
-rose-pine, matte-black, osaka-jade, ristretto) plus `omniscient`, the house theme (deep
-indigo, a warm gold eye, a cyan signal). WSL users can export the palette as a
-Windows Terminal color scheme and as herdr colors so the whole terminal matches.
-
-## Costs
-
-Two kinds of spending, kept separate on purpose:
-
-- **API credit (the factory).** News, ideation, council, planning, builds and
-  `omniscient chat` run through AgentRun on your Anthropic API key. Each agent has a
-  per-run cap (`max_cost_usd`) and the code enforces a daily cap and a per-cycle cap
-  (`[budget] daily_usd`, `per_cycle_usd` in `config/omniscient.toml`; the template ships
-  with $5/day and $2/cycle). A run that could cross the daily cap is refused, and
-  `max_cycles_per_day` stops repeated cycles. Routine work runs on Haiku, coding on
-  Sonnet, ideation and strategy on Opus.
-- **Your Claude Code subscription (the ateliers).** The default atelier agent is Claude
-  Code, so riffing in the studio uses your subscription, not the API budget.
-
-The studio and the `omniscient idea …` commands work with no API key at all.
-
-## Architecture
-
-Five loops, each a plain Python module driving AgentRun agents:
-
-| Loop | What it does | Code | Writes to |
-|---|---|---|---|
-| **Sense** | news from GitHub, Hacker News, Anthropic, OpenAI, Gemini, Meta AI; boosted by your interests, `avoid` topics dropped | `src/omniscient/sense/` | `vault/news/` |
-| **Think** | a visionary proposes ideas (showcase / new-build / upgrade tracks), a council debates and scores them | `src/omniscient/think/` | `vault/ideas/` |
-| **Plan** | a strategist promotes ideas into a game plan within a WIP limit and writes wayfinder maps | `src/omniscient/plan/` | `vault/gameplan.md`, `vault/maps/` |
-| **Build** | a builder agent makes the council's smallest version in a Docker box; optional web demo publishing | `src/omniscient/build/` | `pocs/<idea>/` |
-| **Learn** | agents' kept notes become a tech knowledge base | `src/omniscient/learn/` | `vault/tech/learned/` |
-
-Around them: `router.py` (task → model + effort), `registry/` (your projects),
-`slack/` (digest and buttons), `studio/` (the herdr board and ateliers), `onboarding/`
-(`omniscient init`). Agent definitions and studio skills ship inside the package
-(`src/omniscient/resources/`).
-
-### The home folder
-
-The engine is the installed package; **your data lives in a home folder**, found as:
-`$OMNISCIENT_HOME`, else the nearest parent of the current directory that holds
-`config/omniscient.toml`, else `~/.omniscient`.
-
-```
-<home>/
-  config/omniscient.toml   settings: budget, WIP limit, schedule, paths
-  config/profile.toml      language, name, interests, avoid, GitHub user
-  .env                     secrets (mode 600)
-  vault/                   notes (open it in Obsidian): news, ideas, maps, tech
-  repos/                   one markdown file per registered project
-  pocs/                    prototypes, one git repo each
-  agentrun/                optional overrides of the packaged agent definitions
-  .claude/skills/          studio skills used by Claude Code in the ateliers
-  .omniscient/             machine state: build logs, pages clone
-```
-
-### Main commands
-
-```
-omniscient init | studio | warroom | chat | schedule install|uninstall|status
-omniscient idea list|show|context|new|variant|append|debate|verdict|todo|ui
-omniscient ingest | learn-sync | think | plan | build STEM | work | grill | cycle
-omniscient slack | slack-digest | slack-refresh | agents-push
-omniscient group serve|status|token|widget|hooks install|uninstall|status
-```
-
-Optional systemd user units for a daily cycle and the Slack bot: see
-[Daily schedule](#daily-schedule-systemd).
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Tests run fully offline (`uv run pytest -q`).
-Security issues: [SECURITY.md](SECURITY.md).
 
 ## License
 
 [MIT](LICENSE).
 
+---
+
 ## En français
 
-Omniscient est une **usine à idées** : il lit l'actualité tech et IA, en tire des idées de
-choses à construire, les fait débattre et noter par un conseil d'agents, planifie les
-meilleures et construit des prototypes jetables dans un bac à sable Docker. Tu pilotes le
-tout depuis le **studio**, dans herdr : un tableau d'idées et un atelier par idée avec
-Claude Code.
+**Omniscient** est une **usine à idées** et un **widget de bureau qui voit la page que tu regardes**.
+
+- **Omnigroup (le widget Windows)** : tous tes agents IA dans une fenêtre, des approbations en un
+  clic, et un chat avec l'IA de ton choix (Claude Code, API Anthropic / OpenAI / Gemini, ou un
+  modèle local). Il lit lui-même la page web ouverte dans ton navigateur, **sans extension**, te
+  montre où est un élément (« Montrer »), et peut joindre une capture de cette seule fenêtre si tu
+  le demandes. Un bouton coupe tout le suivi des pages.
+- **L'usine à idées** : elle lit l'actualité tech et IA, en tire des idées, les fait débattre et
+  noter par un conseil d'agents, planifie les meilleures et construit des prototypes jetables. Tu la
+  pilotes depuis le **studio**, dans herdr.
 
 ```bash
 uv tool install git+https://github.com/VinceVibeCoding/omniscient-factory
-omniscient init       # dossier, profil (intérêts, langue), projets, clés
-omniscient studio     # dans herdr
+omniscient group setup --write    # le widget : démon, hooks, installateur, couplage
+omniscient init                   # l'usine : dossier, profil, projets, clés
 ```
 
-L'interface est en français pour l'instant ; les contributions pour l'anglais sont les
-bienvenues. Le studio fonctionne sans clé API ; l'usine (news, idées, conseil, prototypes)
-utilise ta clé Anthropic avec des plafonds journaliers appliqués dans le code.
+Gratuit, MIT. Tes clés et tes conversations restent sur ton ordinateur. L'interface est en français
+pour l'instant ; les contributions pour l'anglais sont les bienvenues. Guide complet du widget :
+[docs/omnigroup.md](docs/omnigroup.md).
