@@ -147,6 +147,11 @@ impl Daemon {
         self.send(self.http.put(url).json(body)).await
     }
 
+    pub async fn delete(&self, segments: &[&str]) -> Result<Value, DaemonError> {
+        let url = self.url(segments)?;
+        self.send(self.http.delete(url)).await
+    }
+
     /// GET with query parameters (encoded by the URL builder).
     pub async fn get_query(&self, segments: &[&str], query: &[(&str, &str)]) -> Result<Value, DaemonError> {
         let mut url = self.url(segments)?;
