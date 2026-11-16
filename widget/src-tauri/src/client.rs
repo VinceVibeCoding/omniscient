@@ -108,10 +108,12 @@ impl Daemon {
                 "Jeton refusé par le démon : recouplez le widget dans les réglages.".into(),
             ));
         }
-        if status == StatusCode::NOT_FOUND {
-            return Err(DaemonError::Other("Introuvable (session ou demande terminée ?).".into()));
-        }
         let detail = Self::error_detail(resp).await;
+        if status == StatusCode::NOT_FOUND {
+            // The daemon's own French reason when it gives one (e.g. an unknown extension command).
+            let message = if detail.is_empty() { "Introuvable (session ou demande terminée ?)." } else { detail.as_str() };
+            return Err(DaemonError::Other(message.to_string()));
+        }
         Err(DaemonError::Other(format!("Le démon a répondu {status}. {detail}").trim().to_string()))
     }
 
