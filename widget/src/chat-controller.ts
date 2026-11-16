@@ -16,6 +16,7 @@ export class ChatController {
     provider: "claude-code",
     browser: null,
     attachBrowser: true,
+    tracking: true,
     chats: [],
     project: "",
     activeId: null,
@@ -37,6 +38,7 @@ export class ChatController {
       setProject: (project) => this.set({ project }),
       setProvider: (provider) => this.set({ provider }),
       setAttachBrowser: (attachBrowser) => this.set({ attachBrowser }),
+      setTracking: (enabled) => void this.setTracking(enabled),
       setDraft: (draft) => {
         this.model = { ...this.model, draft }; // no re-render while typing
       },
@@ -67,16 +69,25 @@ export class ChatController {
   /** Projects + conversation list (called when the Chat tab opens). */
   async load(): Promise<void> {
     await this.guard(async () => {
-      const [projects, chats, list, browser] = await Promise.all([
+      const [projects, chats, list, browser, tracking] = await Promise.all([
         osdApi.listProjects(),
         osdApi.chatList(),
         providerApi.listProviders(),
-        osdApi.getBrowserPage().catch(() => null), // an older daemon has no browser page
+        osdApi.getBrowserPage().catch(() => null),
+        osdApi.getPageTracking().catch(() => true),
       ]);
       const project = projects.some((p) => p.name === this.model.project) ? this.model.project : (projects[0]?.name ?? "");
       const active = chats.find((c) => c.chat_id === this.model.activeId) ?? this.model.active;
       const providers = list.providers;
-      this.set({ projects, chats, project, active, providers, browser, provider: this.pickProvider(providers, list.default) });
+      this.set({ projects, chats, project, active, providers, browser: tracking ? browser : null, tracking, provider: this.pickProvider(providers, list.default) });
+    });
+  }
+
+  /** The button: stop (or resume) remembering and reading browser pages. */
+  private async setTracking(enabled: boolean): Promise<void> {
+    await this.guard(async () => {
+      const tracking = await osdApi.setPageTracking(enabled);
+      this.set(tracking ? { tracking } : { tracking, browser: null });
     });
   }
 
@@ -203,6 +214,7 @@ export class ChatController {
    * ticked again. */
   onBrowserPage(raw: unknown): void {
     const browser = osdApi.toBrowserPage(raw);
+    if (!this.model.tracking) return; // switched off: nothing is shown or attached
     const changed = pageKey(browser) !== pageKey(this.model.browser);
     // A new page is offered again: in a conversation, unless it is the page it already has.
     const offered = this.model.activeId ? pageKey(browser) !== (this.model.active?.page_key ?? "") : true;

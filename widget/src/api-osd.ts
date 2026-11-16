@@ -190,6 +190,14 @@ export function toBrowserPage(raw: unknown): BrowserPage | null {
   return { available: true, url: str(raw.url), origin: str(raw.origin), title: str(raw.title) };
 }
 
+export async function getPageTracking(): Promise<boolean> {
+  return (await invoke<unknown>("page_tracking")) !== false;
+}
+
+export async function setPageTracking(enabled: boolean): Promise<boolean> {
+  return (await invoke<unknown>("set_page_tracking", { enabled })) === true;
+}
+
 export async function getBrowserPage(): Promise<BrowserPage | null> {
   return toBrowserPage(await invoke<unknown>("browser_page"));
 }

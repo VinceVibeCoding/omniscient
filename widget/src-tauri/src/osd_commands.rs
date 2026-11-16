@@ -121,6 +121,19 @@ pub fn browser_page() -> Value {
     page_watch::current()
 }
 
+/// Is page tracking on? (The button in the Chat tab.)
+#[tauri::command]
+pub fn page_tracking() -> bool {
+    page_watch::tracking()
+}
+
+/// Switches page tracking on or off; returns the new state.
+#[tauri::command]
+pub fn set_page_tracking(app: AppHandle, state: State<'_, AppState>, enabled: bool) -> CmdResult<bool> {
+    page_watch::set_tracking(&app, &state.config_dir, enabled)?;
+    Ok(enabled)
+}
+
 /// Continues a running Claude Code session (terminal, IDE) in a widget chat: the daemon
 /// resumes a copy of it, so the original is never written to.
 #[tauri::command]

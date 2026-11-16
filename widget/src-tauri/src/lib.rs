@@ -47,6 +47,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     });
     let http = client::http_client()?;
     let placement = position::load(&config_dir);
+    page_watch::init(&config_dir);
     app.manage(AppState::new(http, config_dir, loaded.settings, token.unwrap_or_default(), placement));
     tray::build(app)?;
     page_watch::start(app.handle().clone());
@@ -125,6 +126,8 @@ pub fn run() {
             osd_commands::chat_create,
             osd_commands::chat_fork,
             osd_commands::browser_page,
+            osd_commands::page_tracking,
+            osd_commands::set_page_tracking,
             auth_commands::auth_status,
             auth_commands::auth_start,
             auth_commands::auth_password,
