@@ -121,8 +121,9 @@ def test_the_outline_tells_the_model_where_things_are() -> None:
     )
     out = pc.render(ctx)
     assert "Page outline" in out
-    assert "- [button] Payer — visible, en haut à droite" in out
-    assert "- [heading] Votre panier — visible, en haut" in out
+    assert "- #1 [button] Payer — visible, en haut à droite" in out
+    assert "- #2 [heading] Votre panier — visible, en haut" in out
+    assert "[#3]" in out  # how the model is told to point at an element
 
 
 def test_a_page_without_outline_still_works() -> None:

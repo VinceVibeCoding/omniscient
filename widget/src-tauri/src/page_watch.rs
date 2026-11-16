@@ -6,7 +6,8 @@
 //! their window title is kept, in memory. The page itself (text, links, address) is read
 //! once, when a question is sent with « Joindre la page du navigateur » ticked.
 
-use crate::page_logic::{browser_label, build_outline, clean_title, normalize_url};
+use crate::highlight;
+use crate::page_logic::{browser_label, clean_title, normalize_url, pick_outline, Picked};
 use crate::page_reader::{self, Snapshot};
 use crate::state::lock;
 use crate::stream::STREAM_EVENT;
@@ -77,6 +78,17 @@ struct Remembered {
     hwnd: isize,
     browser: &'static str,
     title: String,
+}
+
+/// The outline last sent to the model, in order: element #n is `picked[n - 1]`.
+struct Last {
+    hwnd: isize,
+    picked: Vec<Picked>,
+}
+
+fn last() -> &'static Mutex<Option<Last>> {
+    static LAST: OnceLock<Mutex<Option<Last>>> = OnceLock::new();
+    LAST.get_or_init(|| Mutex::new(None))
 }
 
 fn slot() -> &'static Mutex<Option<Remembered>> {
@@ -179,15 +191,41 @@ fn exe_name(pid: u32) -> Option<String> {
 }
 
 fn payload(remembered: &Remembered, snapshot: Snapshot) -> Value {
+    let picked = pick_outline(&snapshot.items, snapshot.view);
+    let outline: Vec<_> = picked.iter().map(Picked::outline).collect();
+    *lock(last()) = Some(Last { hwnd: remembered.hwnd, picked });
     let mut page = json!({
         "title": remembered.title,
         "text": snapshot.text.chars().take(page_reader::TEXT_MAX as usize).collect::<String>(),
-        "outline": build_outline(&snapshot.items, snapshot.view),
+        "outline": outline,
     });
     if let Some(url) = snapshot.address.as_deref().and_then(normalize_url) {
         page["url"] = json!(url);
     }
     page
+}
+
+/// « Montrer »: frames element #`n` of the outline last sent, on the screen. Only draws; the page
+/// is never clicked, typed in or navigated.
+pub async fn show(app: &AppHandle, n: usize) -> Result<(), String> {
+    if !tracking() {
+        return Err("Le suivi de la page est désactivé : réactivez-le dans l'onglet Chat.".into());
+    }
+    let (hwnd, item) = {
+        let guard = lock(last());
+        let known = guard.as_ref().ok_or("Aucune page n'a encore été envoyée à Claude.")?;
+        let item = n.checked_sub(1).and_then(|i| known.picked.get(i)).ok_or_else(|| format!("L'élément n° {n} n'existe pas."))?;
+        (known.hwnd, item.clone())
+    };
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(page_reader::locate(hwnd, item.kind, &item.text, item.rect));
+    });
+    let waited = tauri::async_runtime::spawn_blocking(move || rx.recv_timeout(READ_TIMEOUT))
+        .await
+        .map_err(|err| format!("Recherche interrompue : {err}"))?;
+    let located = waited.map_err(|_| "La recherche de l'élément a pris trop de temps.".to_string())??;
+    highlight::show(app, located.rect)
 }
 
 /// Reads the remembered browser window's page, for the daemon's `page` field.

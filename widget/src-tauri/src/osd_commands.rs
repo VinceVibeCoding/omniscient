@@ -121,6 +121,12 @@ pub fn browser_page() -> Value {
     page_watch::current()
 }
 
+/// « Montrer »: frames element #`n` of the outline Claude was given, on the screen.
+#[tauri::command]
+pub async fn show_element(app: AppHandle, n: u32) -> CmdResult<()> {
+    page_watch::show(&app, n as usize).await
+}
+
 /// Is page tracking on? (The button in the Chat tab.)
 #[tauri::command]
 pub fn page_tracking() -> bool {

@@ -190,6 +190,11 @@ export function toBrowserPage(raw: unknown): BrowserPage | null {
   return { available: true, url: str(raw.url), origin: str(raw.origin), title: str(raw.title) };
 }
 
+/** « Montrer »: frame element #n of the page outline Claude was given, on the screen. */
+export async function showElement(n: number): Promise<void> {
+  await invoke("show_element", { n });
+}
+
 export async function getPageTracking(): Promise<boolean> {
   return (await invoke<unknown>("page_tracking")) !== false;
 }

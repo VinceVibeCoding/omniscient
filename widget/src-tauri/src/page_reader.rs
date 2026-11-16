@@ -8,7 +8,7 @@
 //! back empty: it is retried a few times. Call `read` on a thread of its own, with a
 //! timeout (see page_watch.rs): a very large page can take a while.
 
-use crate::page_logic::{Kind, RawItem, Rect};
+use crate::page_logic::{tidy, Kind, RawItem, Rect};
 use std::time::Duration;
 use windows::core::Error;
 use windows::Win32::Foundation::{E_FAIL, HWND, RECT};
@@ -20,6 +20,7 @@ pub const TEXT_MAX: i32 = 20_000;
 const ATTEMPTS: u32 = 4;
 const RETRY_WAIT: Duration = Duration::from_millis(400);
 const ITEMS_MAX: i32 = 600;
+const SCROLL_WAIT: Duration = Duration::from_millis(300);
 /// UIA_HeadingLevel1..3: the values of the HeadingLevel property for h1..h3.
 const HEADING_LEVELS: [i32; 3] = [80051, 80052, 80053];
 
@@ -105,8 +106,8 @@ unsafe fn or(uia: &IUIAutomation, a: &IUIAutomationCondition, b: &IUIAutomationC
     uia.CreateOrCondition(a, b)
 }
 
-/// Links, buttons, fields and h1-h3 headings of the page, with their name and rectangle.
-unsafe fn collect_items(uia: &IUIAutomation, document: &IUIAutomationElement) -> windows::core::Result<Vec<RawItem>> {
+/// Links, buttons, fields and h1-h3 headings: what the outline is made of.
+unsafe fn items_condition(uia: &IUIAutomation) -> windows::core::Result<IUIAutomationCondition> {
     let mut condition = kind_condition(uia, UIA_HyperlinkControlTypeId)?;
     for id in [UIA_ButtonControlTypeId, UIA_EditControlTypeId] {
         condition = or(uia, &condition, &kind_condition(uia, id)?)?;
@@ -115,33 +116,94 @@ unsafe fn collect_items(uia: &IUIAutomation, document: &IUIAutomationElement) ->
         let heading = uia.CreatePropertyCondition(UIA_HeadingLevelPropertyId, &VARIANT::from(level))?;
         condition = or(uia, &condition, &heading)?;
     }
+    Ok(condition)
+}
+
+unsafe fn item_cache(uia: &IUIAutomation) -> windows::core::Result<IUIAutomationCacheRequest> {
     let cache = uia.CreateCacheRequest()?;
     for property in [UIA_NamePropertyId, UIA_ControlTypePropertyId, UIA_BoundingRectanglePropertyId, UIA_HeadingLevelPropertyId, UIA_IsPasswordPropertyId] {
         cache.AddProperty(property)?;
     }
-    let found = document.FindAllBuildCache(TreeScope_Descendants, &condition, &cache)?;
+    Ok(cache)
+}
+
+/// What an element of `items_condition` is for the outline; None for a password field.
+unsafe fn classify(element: &IUIAutomationElement) -> Option<Kind> {
+    if element.CachedIsPassword().map(|b| b.as_bool()).unwrap_or(true) {
+        return None;
+    }
+    let level = element.GetCachedPropertyValue(UIA_HeadingLevelPropertyId).ok().and_then(|v| i32::try_from(&v).ok());
+    let control = element.CachedControlType().ok()?;
+    if level.is_some_and(|l| HEADING_LEVELS.contains(&l)) {
+        Some(Kind::Heading)
+    } else if control == UIA_HyperlinkControlTypeId {
+        Some(Kind::Link)
+    } else if control == UIA_ButtonControlTypeId {
+        Some(Kind::Button)
+    } else if control == UIA_EditControlTypeId {
+        Some(Kind::Field)
+    } else {
+        None
+    }
+}
+
+unsafe fn collect_items(uia: &IUIAutomation, document: &IUIAutomationElement) -> windows::core::Result<Vec<RawItem>> {
+    let found = document.FindAllBuildCache(TreeScope_Descendants, &items_condition(uia)?, &item_cache(uia)?)?;
     let mut items = Vec::new();
     for index in 0..found.Length()?.min(ITEMS_MAX) {
         let element = found.GetElement(index)?;
-        if element.CachedIsPassword().map(|b| b.as_bool()).unwrap_or(true) {
-            continue;
-        }
-        let level = element.GetCachedPropertyValue(UIA_HeadingLevelPropertyId).ok().and_then(|v| i32::try_from(&v).ok());
-        let control = element.CachedControlType()?;
-        let kind = if level.is_some_and(|l| HEADING_LEVELS.contains(&l)) {
-            Kind::Heading
-        } else if control == UIA_HyperlinkControlTypeId {
-            Kind::Link
-        } else if control == UIA_ButtonControlTypeId {
-            Kind::Button
-        } else if control == UIA_EditControlTypeId {
-            Kind::Field
-        } else {
-            continue;
-        };
+        let Some(kind) = classify(&element) else { continue };
         items.push(RawItem { kind, name: element.CachedName()?.to_string(), rect: rect(element.CachedBoundingRectangle()?) });
     }
     Ok(items)
+}
+
+/// Where an element is on the screen right now (physical pixels).
+pub struct Located {
+    pub rect: Rect,
+}
+
+/// Finds the element again by what it is and its text (the closest one to where it was), scrolls
+/// it into view when it is below or above the visible page, and returns its screen rectangle.
+/// Blocking, like `read`.
+pub fn locate(hwnd: isize, kind: Kind, text: &str, near: Rect) -> Result<Located, String> {
+    let _com = Com::init()?;
+    // SAFETY: UI Automation calls on this thread only, with elements it just obtained.
+    unsafe { locate_in(HWND(hwnd as *mut core::ffi::c_void), kind, text, near) }
+        .map_err(|err| format!("Élément introuvable : {err}"))?
+        .ok_or_else(|| "Cet élément n'est plus sur la page.".to_string())
+}
+
+unsafe fn locate_in(hwnd: HWND, kind: Kind, text: &str, near: Rect) -> windows::core::Result<Option<Located>> {
+    let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER)?;
+    let window = uia.ElementFromHandle(hwnd)?;
+    let (document, _) = wait_for_document(&uia, &window)?;
+    let found = document.FindAllBuildCache(TreeScope_Descendants, &items_condition(&uia)?, &item_cache(&uia)?)?;
+    let wanted = tidy(text);
+    let mut best: Option<(i64, IUIAutomationElement)> = None;
+    for index in 0..found.Length()?.min(ITEMS_MAX) {
+        let element = found.GetElement(index)?;
+        if classify(&element) != Some(kind) || tidy(&element.CachedName()?.to_string()) != wanted {
+            continue;
+        }
+        let distance = i64::from((element.CachedBoundingRectangle()?.top - near.top).abs());
+        if best.as_ref().is_none_or(|(d, _)| distance < *d) {
+            best = Some((distance, element));
+        }
+    }
+    let Some((_, element)) = best else { return Ok(None) };
+    let view = rect(document.CurrentBoundingRectangle()?);
+    let mut at = rect(element.CurrentBoundingRectangle()?);
+    if at.bottom <= view.top || at.top >= view.bottom {
+        // Only brings it into view (a scroll): never clicks or types in the page.
+        if let Ok(pattern) = element.GetCurrentPatternAs::<IUIAutomationScrollItemPattern>(UIA_ScrollItemPatternId) {
+            pattern.ScrollIntoView()?;
+            std::thread::sleep(SCROLL_WAIT);
+            at = rect(element.CurrentBoundingRectangle()?);
+        }
+    }
+    let visible = at.right > at.left && at.bottom > view.top && at.top < view.bottom;
+    Ok(visible.then_some(Located { rect: at }))
 }
 
 /// The browser's address bar: the first text box that sits above the page. Skipped while it

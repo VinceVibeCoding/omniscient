@@ -44,6 +44,23 @@
         "skipTaskbar": true,
         "focus": true,
         "visible": false
+      },
+      {
+        "label": "highlight",
+        "title": "Omnigroup surlignage",
+        "url": "highlight.html",
+        "width": 100,
+        "height": 60,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "focus": false,
+        "visible": false
       }
     ],
     "security": {
