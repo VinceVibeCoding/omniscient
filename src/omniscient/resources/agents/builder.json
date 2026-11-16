@@ -3,7 +3,7 @@
     "id": "builder",
     "version": 3,
     "name": "Omniscient PoC builder",
-    "description": "Build loop: turns one idea's smallest version into a throwaway, runnable prototype inside a Docker box (Matt Pocock /prototype style). Omniscient copies the box's work/ into pocs/<idea>/ and reports in Slack.",
+    "description": "Build loop: turns one idea's smallest version into a throwaway, runnable prototype inside a Docker box (Matt Pocock /prototype style). Omniscient copies the box's work/ into pocs/<idea>/ and reports the result.",
     "harness": "claude-agent",
     "model": "anthropic/claude-sonnet-5-5",
     "thinking": "medium",

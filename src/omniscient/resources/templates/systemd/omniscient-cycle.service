@@ -1,6 +1,6 @@
 # Rendered by `omniscient schedule install` (placeholders filled with absolute paths).
 [Unit]
-Description=Omniscient factory cycle (ingest, learn-sync, think, plan, slack-digest)
+Description=Omniscient factory cycle (ingest, learn-sync, think, plan, work)
 After=agentrun.service agentrun-runner.service
 Wants=agentrun.service
 

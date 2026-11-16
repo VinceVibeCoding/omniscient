@@ -38,8 +38,8 @@ and ateliers) is in `src/omniscient/studio/`; onboarding (`omniscient init`) in
 8. **Never answer a human's side of a HITL ticket.** Grilling and prototype verdicts come
    only from the owner. The council may debate among itself, but no agent stands in for
    the owner.
-9. **No personal data** in the engine: no user names, absolute home paths, e-mails, Slack
-   or GitHub ids, tokens. Paths come from `find_home()`.
+9. **No personal data** in the engine: no user names, absolute home paths, e-mails,
+   GitHub ids, tokens. Paths come from `find_home()`.
 
 ## Idea notes
 
@@ -61,6 +61,6 @@ uv run ruff check src tests      # lint
 uv run omniscient init           # create or update a home
 uv run omniscient studio         # idea board (inside herdr)
 uv run omniscient agents-push    # sync agent definitions to AgentRun
-uv run omniscient cycle          # ingest -> learn-sync -> think -> plan -> slack-digest
+uv run omniscient cycle          # ingest -> learn-sync -> think -> plan -> work
 uv run omniscient build STEM     # build one idea's prototype
 ```

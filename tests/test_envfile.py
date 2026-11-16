@@ -6,10 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from omniscient.envfile import parse_env, parse_value, quote_value
+from omniscient.envfile import load_env_file, parse_env, parse_value, quote_value
 from omniscient.onboarding import secrets
 from omniscient.onboarding.secrets import read_env, write_env
-from omniscient.slack.core import load_env_file
 
 TRICKY = [
     "plain",

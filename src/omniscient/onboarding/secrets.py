@@ -38,12 +38,6 @@ ANTHROPIC = SecretSpec(
     "ANTHROPIC_API_KEY",
     "Clé API Anthropic (boucles de l'usine ; vide = studio seulement)",
 )
-SLACK = (
-    SecretSpec("SLACK_BOT_TOKEN", "Slack bot token (xoxb-…)"),
-    SecretSpec("SLACK_APP_TOKEN", "Slack app token (xapp-…)"),
-    SecretSpec("SLACK_CHANNEL_ID", "ID du canal Slack"),
-    SecretSpec("SLACK_OWNER_ID", "Ton ID membre Slack"),
-)
 AGENTRUN = SecretSpec(
     "AGENTRUN_API_KEY",
     "Clé API AgentRun (vide = lire ~/.agentrun/.token, créé au premier démarrage "
@@ -128,8 +122,6 @@ def configure_secrets(
     """
     existing = read_env(env_file)
     specs = [ANTHROPIC, AGENTRUN]
-    if _yes(ask("Configurer Slack (digest, notifications) ? (o/N)", "n")):
-        specs += list(SLACK)
     if ask_github:
         specs.append(GITHUB)
     updates: dict[str, str] = {}

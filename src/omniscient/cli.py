@@ -54,7 +54,6 @@ AGENTRUN_TOKEN_FILE = Path.home() / ".agentrun" / ".token"
 SCOUT_MODEL = "anthropic/claude-haiku-5-5"
 DEFAULT_SCOUT_CAP_USD = 1.0
 WORK_BUDGET_USD = 1.00  # research tickets per `work` run (inside the daily cap)
-GRILL_BUDGET_USD = 1.00  # grilling rounds per `grill` run
 BUILD_BUDGET_USD = BUILD_CAP_USD  # one prototype build (inside the daily cap)
 AGENTRUN_DATA = Path(os.environ.get("AGENTRUN_DATA", Path.home() / ".agentrun"))
 BUILD_BUSY = "Un prototype est déjà en construction, réessaie plus tard."
@@ -281,112 +280,6 @@ def plan() -> None:
         typer.echo(f"  ! {reason}")
 
 
-def _slack_env() -> dict[str, str]:
-    from omniscient.slack.core import load_env_file
-
-    env = load_env_file(_path("ENV_FILE"))
-    missing = [
-        k
-        for k in ("SLACK_BOT_TOKEN", "SLACK_APP_TOKEN", "SLACK_CHANNEL_ID")
-        if k not in env
-    ]
-    if missing:
-        typer.echo(f"missing in .env: {', '.join(missing)} (see slack/manifest.yaml)")
-        raise typer.Exit(code=2)
-    return env
-
-
-@app.command("slack-digest")
-def slack_digest() -> None:
-    """Post every new debated idea to Slack as its own thread, with verdict buttons."""
-    from slack_sdk import WebClient
-    from slack_sdk.errors import SlackApiError
-
-    from omniscient.slack import core
-
-    env = _slack_env()
-    try:
-        posted = core.post_digest(
-            WebClient(token=env["SLACK_BOT_TOKEN"]), env["SLACK_CHANNEL_ID"], _vault()
-        )
-    except SlackApiError as exc:
-        error = exc.response.get("error") if exc.response else str(exc)
-        hint = SLACK_HINTS.get(str(error), "")
-        typer.echo(f"slack-digest failed: {error}{' | ' + hint if hint else ''}")
-        raise typer.Exit(code=1) from exc
-    typer.echo(f"posted {len(posted)} idea(s) to Slack")
-
-
-@app.command("slack-refresh")
-def slack_refresh() -> None:
-    """Rewrite every posted idea's Slack message from its current note (after edits)."""
-    from slack_sdk import WebClient
-    from slack_sdk.errors import SlackApiError
-
-    from omniscient.slack import core
-
-    env = _slack_env()
-    try:
-        done = core.refresh_posts(WebClient(token=env["SLACK_BOT_TOKEN"]), _vault())
-    except SlackApiError as exc:
-        error = exc.response.get("error") if exc.response else str(exc)
-        typer.echo(f"slack-refresh failed: {error}")
-        raise typer.Exit(code=1) from exc
-    typer.echo(f"refreshed {len(done)} Slack post(s)")
-
-
-SLACK_HINTS = {
-    "channel_not_found": (
-        "check SLACK_CHANNEL_ID (channel details > bottom, starts with C) "
-        "and run /invite @omniscient in that channel"
-    ),
-    "not_in_channel": "run /invite @omniscient in the channel",
-    "invalid_auth": "SLACK_BOT_TOKEN is wrong: use the Bot User OAuth Token (xoxb-...)",
-}
-
-
-@app.command()
-def slack() -> None:
-    """Run the Slack bot (Socket Mode): buttons and thread debates. Blocks until stopped."""
-    import logging
-
-    from slack_bolt.adapter.socket_mode import SocketModeHandler
-
-    from omniscient.slack.app import build_app
-    from omniscient.slack.core import DEBATER_ID, Reply
-
-    logging.basicConfig(level=logging.INFO)
-    env = _slack_env()
-
-    def log_cost(reply: Reply) -> None:
-        append_cost(
-            _vault(),
-            CostRow(
-                at=datetime.now(UTC),
-                task="slack reply",
-                role=DEBATER_ID,
-                model="anthropic/claude-opus-5-5",
-                effort="medium",
-                usd=reply.cost_usd,
-            ),
-        )
-
-    def start_build(stem: str, channel: str, thread_ts: str) -> bool:
-        return _launch_build(bolt.client, stem, channel, thread_ts)
-
-    bolt = build_app(
-        env["SLACK_BOT_TOKEN"],
-        env["SLACK_CHANNEL_ID"],
-        _vault(),
-        make_client,
-        log_cost,
-        owner_id=env.get("SLACK_OWNER_ID", ""),
-        start_build=start_build,
-    )
-    typer.echo("Omniscient Slack bot running (Socket Mode). Ctrl-C to stop.")
-    SocketModeHandler(bolt, env["SLACK_APP_TOKEN"]).start()
-
-
 class BuildRefused(Exception):
     """A build would push today's spend over the daily budget."""
 
@@ -538,62 +431,24 @@ def work(max_tickets: int = 5) -> None:
         typer.echo(f"  ? waiting for owner: {path.name}")
 
 
-@app.command()
-def grill() -> None:
-    """Post one grilling round per frontier grilling ticket to Slack."""
-    from slack_sdk import WebClient
-
-    from omniscient.work import grilling
-
-    env = _slack_env()
-
-    def log_cost(r: grilling.GrillingRound) -> None:
-        append_cost(
-            _vault(),
-            CostRow(
-                at=datetime.now(UTC),
-                task=f"grill {r.ticket.path.stem}",
-                role=grilling.GRILLER_ID,
-                model="anthropic/claude-opus-5-5",
-                effort="high",
-                usd=r.cost_usd,
-            ),
-        )
-
-    posted = grilling.post_rounds(
-        make_client(),
-        WebClient(token=env["SLACK_BOT_TOKEN"]),
-        env["SLACK_CHANNEL_ID"],
-        _vault(),
-        GRILL_BUDGET_USD,
-        on_error=lambda p, e: typer.echo(f"grill failed {p.name}: {e}"),
-        on_cost=log_cost,
-    )
-    typer.echo(f"posted {len(posted)} grilling round(s)")
-
-
 CYCLE_STAGES = (
     "ingest",
     "learn-sync",
     "think",
     "plan",
     "work",
-    "grill",
-    "slack-digest",
 )
 
 
 @app.command()
 def cycle() -> None:
-    """One full factory cycle: ingest, learn-sync, think, plan, slack-digest."""
+    """One full factory cycle: ingest, learn-sync, think, plan, work."""
     stages = {
         "ingest": ingest,
         "learn-sync": learn_sync,
         "think": think,
         "plan": plan,
         "work": work,
-        "grill": grill,
-        "slack-digest": slack_digest,
     }
     settings = _settings()
     problem = _agentrun_problem()
@@ -669,8 +524,6 @@ def _stage_worst_case_usd(wip_limit: int) -> dict[str, float]:
         "think": VISIONARY_CAP_USD + COUNCIL_CAP_USD,
         "plan": STRATEGIST_CAP_USD * wip_limit,
         "work": WORK_BUDGET_USD,
-        "grill": GRILL_BUDGET_USD,
-        "slack-digest": 0.0,
     }
 
 

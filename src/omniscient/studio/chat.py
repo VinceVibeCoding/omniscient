@@ -92,10 +92,11 @@ def build_prompt(message: str, note: str | None) -> str:
 
 def append_discussion(path: Path, lines: tuple[str, ...]) -> None:
     """Add lines under `## Discussion` (created at the end of the note if missing)."""
-    from omniscient.slack.core import _append_discussion
-
     for line in lines:
-        _append_discussion(path, line)
+        text = path.read_text(encoding="utf-8").rstrip("\n")
+        if f"\n{i18n.H_DISCUSSION}" not in text:
+            text += f"\n\n{i18n.H_DISCUSSION}"
+        path.write_text(f"{text}\n\n{line}\n", encoding="utf-8")
 
 
 def _default_client() -> Any:

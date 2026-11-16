@@ -6,7 +6,8 @@ optional `Blocked by: NN, NN`, `Effort:`, `Intelligence:`, `Route:` lines and a
 `## Question` section. Resolving appends `## Answer`, sets `Status: resolved`, and
 adds a context pointer to the map's `## Decisions so far`.
 
-Both the AFK ticket engine and Slack grilling build on this module only.
+The AFK ticket engine builds on this module; HITL tickets stay open until the owner
+resolves them.
 """
 
 from __future__ import annotations
@@ -33,13 +34,13 @@ QUESTION_HEADING = "## Question"
 GIST_MAX_CHARS = 200
 # Lines with structural meaning in a ticket or map; untrusted text must never start one.
 _CONTROL_LINE = re.compile(
-    r"^\s*(#|>|(Type|Status|Blocked by|Effort|Intelligence|Route|Slack)\s*:)",
+    r"^\s*(#|>|(Type|Status|Blocked by|Effort|Intelligence|Route)\s*:)",
     re.IGNORECASE,
 )
 
 
 def sanitize_untrusted(text: str) -> str:
-    """Quote every line of model or Slack text that could pass for a control line."""
+    """Quote every line of model text that could pass for a control line."""
     return "\n".join(
         f"> {line}" if _CONTROL_LINE.match(line) else line
         for line in text.strip().splitlines()

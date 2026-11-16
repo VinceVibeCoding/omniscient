@@ -251,8 +251,6 @@ def test_cycle_runs_every_stage_in_order_and_reports_failures(
     monkeypatch.setattr(cli, "think", fails("think"))
     monkeypatch.setattr(cli, "plan", crashes)
     monkeypatch.setattr(cli, "work", ok("work"))
-    monkeypatch.setattr(cli, "grill", ok("grill"))
-    monkeypatch.setattr(cli, "slack_digest", ok("slack-digest"))
 
     result = CliRunner().invoke(cli.app, ["cycle"])
 
@@ -262,37 +260,9 @@ def test_cycle_runs_every_stage_in_order_and_reports_failures(
         "think",
         "plan",
         "work",
-        "grill",
-        "slack-digest",
     ]
     assert result.exit_code == 1
     assert "failed stages: think, plan" in result.output
-
-
-def test_slack_digest_explains_slack_errors(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from slack_sdk.errors import SlackApiError
-
-    def fail(*_: Any, **__: Any) -> Any:
-        raise SlackApiError("failed", {"ok": False, "error": "channel_not_found"})
-
-    monkeypatch.setattr(
-        cli,
-        "_slack_env",
-        lambda: {
-            "SLACK_BOT_TOKEN": "x",
-            "SLACK_APP_TOKEN": "y",
-            "SLACK_CHANNEL_ID": "C1",
-        },
-    )
-    monkeypatch.setattr("omniscient.slack.core.post_digest", fail)
-
-    result = CliRunner().invoke(cli.app, ["slack-digest"])
-
-    assert result.exit_code == 1
-    assert "channel_not_found" in result.output
-    assert "/invite @omniscient" in result.output
 
 
 def test_cycle_skips_stages_the_daily_budget_cannot_cover(
@@ -305,8 +275,6 @@ def test_cycle_skips_stages_the_daily_budget_cannot_cover(
         ("think", "think"),
         ("plan", "plan"),
         ("work", "work"),
-        ("grill", "grill"),
-        ("slack_digest", "slack-digest"),
     ]:
         monkeypatch.setattr(cli, attr, _recorder(calls, name))
     monkeypatch.setattr(cli, "_spent_today", lambda: 4.20)  # daily_usd is 5.00
@@ -314,7 +282,7 @@ def test_cycle_skips_stages_the_daily_budget_cannot_cover(
     result = CliRunner().invoke(cli.app, ["cycle"])
 
     # only stages whose worst case fits in the $0.80 left run; the rest are skipped
-    assert calls == ["learn-sync", "slack-digest"]
+    assert calls == ["learn-sync"]
     assert "daily budget" in result.output
     assert result.exit_code == 0
 
@@ -357,8 +325,6 @@ def test_cycle_records_itself_in_the_cycle_log(
         ("think", "think"),
         ("plan", "plan"),
         ("work", "work"),
-        ("grill", "grill"),
-        ("slack_digest", "slack-digest"),
     ]:
         monkeypatch.setattr(cli, attr, _recorder([], name))
 

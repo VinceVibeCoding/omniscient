@@ -51,7 +51,6 @@ def src(tmp_path: Path) -> Path:
         "agentrun/builder.json",
         ".claude/skills/s/SKILL.md",
         ".omniscient/state.json",
-        "slack/manifest.yaml",
         "ressources_repo.txt",
         "src/omniscient/__pycache__/x.cpython-312.pyc",
         ".venv/lib/x.py",
@@ -76,7 +75,6 @@ def test_plan_copies_only_the_allowlist(src: Path) -> None:
         "docs/agents/domain.md",
         "AGENTS.md",
         "scripts/export_public.py",
-        "slack/manifest.yaml",
     }
 
 
