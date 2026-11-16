@@ -18,6 +18,13 @@ export OMNISCIENT_HOME=/tmp/omniscient-dev
 uv run omniscient init
 ```
 
+## Branches
+
+Two long-lived branches: **`main`** is what people install (stable, every change reviewed), and
+**`dev`** is where work lands first. Open your pull request **against `dev`**; the maintainer
+merges `dev` into `main` for a release. You cannot push to either branch: contributions come
+as pull requests from a fork, and the maintainer confirms each one.
+
 ## Before you open a pull request
 
 ```bash
