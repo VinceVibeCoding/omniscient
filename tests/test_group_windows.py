@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import io
 import json
+import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -12,6 +14,7 @@ from typing import Any
 import pytest
 
 from omniscient.group import claude_locate as cl
+from omniscient.group import cli_group_setup as setup
 from omniscient.group import credentials as cred
 from omniscient.group import hook_command as hc
 from omniscient.group import pairing, procctl
@@ -290,3 +293,90 @@ def test_pairing_under_wsl_keeps_the_powershell_route(
 
     assert pairing.show_code_on_windows("123456", launcher, lambda c: False)
     assert seen[0][0] == "powershell.exe"
+
+
+def test_interrupt_kills_the_tree_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(procctl, "is_windows", lambda: True)
+    run = Recorder()
+    procctl.interrupt(SimpleNamespace(pid=9, poll=lambda: None), run)  # type: ignore[arg-type]
+    assert run.calls == [["taskkill", "/T", "/F", "/PID", "9"]]
+    assert len(procctl.stop_ladder()) == 1  # nothing gentler to try after that
+
+
+# ---- group setup, native Windows mode ---------------------------------------------
+
+
+class Say:
+    def __init__(self) -> None:
+        self.lines: list[str] = []
+        self.hook_calls: list[dict[str, Any]] = []
+
+    def hooks(self, **kw: Any) -> None:
+        self.hook_calls.append(kw)
+
+    def deps(self, claude: str | None, healthy: bool = True) -> setup.SetupDeps:
+        def forbidden(*a: Any, **k: Any) -> Any:
+            raise AssertionError("the native mode never downloads the widget")
+
+        return setup.SetupDeps(
+            say=self.lines.append,
+            health=lambda port: healthy,
+            fetch=forbidden,
+            hooks=self.hooks,
+            downloads=forbidden,
+            attest=forbidden,
+            native_windows=True,
+            find_claude=lambda: claude,
+        )
+
+
+def test_native_setup_installs_hooks_and_never_downloads_the_widget() -> None:
+    say = Say()
+    setup.run_setup(setup.SetupOptions(write=True), say.deps("C:/bin/claude.exe"))
+    text = "\n".join(say.lines)
+    assert say.hook_calls and say.hook_calls[0]["write"] is True
+    assert "Mode Windows natif" in text and "C:/bin/claude.exe" in text
+    assert "installé séparément" in text and "ouvre l'application Omnigroup" in text
+    assert "WSL" not in text.replace("sans WSL", "") and "systemd" not in text
+
+
+def test_native_setup_says_when_claude_is_missing() -> None:
+    say = Say()
+    setup.run_setup(setup.SetupOptions(), say.deps(None, healthy=False))
+    text = "\n".join(say.lines)
+    assert "claude introuvable" in text and "install.ps1" in text
+    assert "omniscient group serve" in text and "systemd" not in text
+    assert "Aperçu seulement" in text
+
+
+# ---- the real ACL (Windows only) ----------------------------------------------------
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="icacls exists on Windows only")
+def test_restrict_to_current_user_leaves_only_this_account(tmp_path: Path) -> None:
+    folder = tmp_path / "state"
+    folder.mkdir()
+    secret = folder / "group.token"
+    secret.write_text("x" * 40, encoding="utf-8")
+    assert cred.restrict_to_current_user(folder, is_dir=True)
+    assert cred.restrict_to_current_user(secret, is_dir=False)
+    for target in (folder, secret):
+        listing = subprocess.run(
+            ["icacls", str(target)], capture_output=True, text=True, check=True
+        ).stdout
+        user = cred.current_account().split("\\")[-1].lower()
+        assert user in listing.lower()
+        assert "(I)" not in listing  # nothing inherited
+        assert "BUILTIN" not in listing and "Everyone" not in listing
+    assert secret.read_text(encoding="utf-8") == "x" * 40  # still ours to read
+    (folder / "new.json").write_text("{}", encoding="utf-8")  # and to write
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="taskkill exists on Windows only")
+def test_a_real_process_tree_is_killed_by_taskkill() -> None:
+    proc = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        **procctl.spawn_kwargs(),
+    )
+    procctl.kill(proc)
+    assert proc.wait(15) != 0

@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import signal
 import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -32,6 +31,7 @@ from omniscient.group.credentials import (
 )
 from omniscient.group.gates import Presence, TicketBook
 from omniscient.group.pairing import PairingDesk, show_code_on_windows
+from omniscient.group.procctl import install_stop_signals
 from omniscient.group.store import Store
 from omniscient.home import Home
 
@@ -416,20 +416,6 @@ def create_server(
         server.port
     )  # the browser comes back to this daemon's own address
     return server
-
-
-def install_stop_signals(stopping: threading.Event) -> None:
-    """SIGTERM and, on Windows, SIGBREAK (CTRL_BREAK_EVENT) stop the daemon cleanly."""
-    if threading.current_thread() is not threading.main_thread():
-        return
-
-    def request_stop(_signum: int, _frame: Any) -> None:
-        stopping.set()
-
-    for name in ("SIGTERM", "SIGBREAK"):
-        number = getattr(signal, name, None)
-        if number is not None:
-            signal.signal(number, request_stop)
 
 
 def serve(

@@ -2,8 +2,8 @@
 
 POSIX: the child gets its own session, signals go to its process group (SIGINT first,
 SIGTERM then SIGKILL). Windows: the child gets its own process group and no console
-window; "interrupt" is CTRL_BREAK_EVENT, "terminate" and "kill" are `taskkill /T`
-(/F for kill) so the whole tree goes, since Windows has no process-group signals.
+window; every stop is `taskkill /T` (/F to force), so the whole tree goes: Windows has
+no process-group signals and CTRL_BREAK_EVENT cannot reach a hidden child.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -55,13 +56,6 @@ def _taskkill(pid: int, force: bool, run: Run) -> None:
         log.warning("omnigroup: taskkill failed for pid %s", pid, exc_info=True)
 
 
-def _interrupt_windows(proc: subprocess.Popen[Any]) -> None:
-    try:
-        proc.send_signal(signal.CTRL_BREAK_EVENT)  # type: ignore[attr-defined]
-    except (OSError, ValueError):
-        log.info("omnigroup: CTRL_BREAK_EVENT not delivered to pid %s", proc.pid)
-
-
 def _posix_signal(proc: subprocess.Popen[Any], sig: int) -> None:
     try:
         os.killpg(proc.pid, sig)  # type: ignore[attr-defined]
@@ -71,12 +65,14 @@ def _posix_signal(proc: subprocess.Popen[Any], sig: int) -> None:
         log.exception("omnigroup: signal %s failed", sig)
 
 
-def interrupt(proc: subprocess.Popen[Any] | None) -> None:
-    """Ask the process (tree) to stop its current work: SIGINT / CTRL_BREAK."""
+def interrupt(proc: subprocess.Popen[Any] | None, run: Run = subprocess.run) -> None:
+    """Ask the process (tree) to stop its current work: SIGINT. Windows has no such
+    thing for a hidden child (CTRL_BREAK_EVENT is delivered per console, so it would
+    reach the daemon itself or nobody): the tree is killed with `taskkill /T /F`."""
     if proc is None or proc.poll() is not None:
         return
     if is_windows():
-        _interrupt_windows(proc)
+        _taskkill(proc.pid, True, run)
     else:
         _posix_signal(proc, signal.SIGINT)
 
@@ -106,3 +102,17 @@ def stop_ladder() -> Sequence[Callable[[subprocess.Popen[Any] | None], None]]:
     hidden child ignores `taskkill /T` without /F (no window to close), so go straight
     to the forced kill."""
     return (kill,) if is_windows() else (terminate, kill)
+
+
+def install_stop_signals(stopping: threading.Event) -> None:
+    """SIGTERM and, on Windows, SIGBREAK (CTRL_BREAK_EVENT) stop the daemon cleanly."""
+    if threading.current_thread() is not threading.main_thread():
+        return
+
+    def request_stop(_signum: int, _frame: Any) -> None:
+        stopping.set()
+
+    for name in ("SIGTERM", "SIGBREAK"):
+        number = getattr(signal, name, None)
+        if number is not None:
+            signal.signal(number, request_stop)

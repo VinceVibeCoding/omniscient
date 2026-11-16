@@ -24,6 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from omniscient.group.credentials import replace_file
 from omniscient.group.hook_command import (
     HookInstallError,
     base_command,
@@ -232,7 +233,7 @@ def _write_atomic(real: Path, text: str) -> None:
             fh.write(text.encode("utf-8"))
         if real.exists():
             shutil.copymode(real, tmp)
-        os.replace(tmp, real)
+        replace_file(tmp, real)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise

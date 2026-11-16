@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
@@ -104,6 +105,10 @@ register_ext(app)
 @app.callback()
 def _main(ctx: typer.Context) -> None:
     """Omniscient: the agent software factory."""
+    if sys.platform == "win32":  # piped output (the widget) is cp1252 by default
+        from omniscient.group.hook_client import use_utf8_streams
+
+        use_utf8_streams(sys.stdout, sys.stderr)
     if ctx.invoked_subcommand in HOME_FREE_COMMANDS or ctx.resilient_parsing:
         return
     try:

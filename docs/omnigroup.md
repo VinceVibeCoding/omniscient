@@ -298,9 +298,9 @@ Le démon, le client de hooks et le chat tournent directement sous Windows 10/11
   `setup` disent « claude introuvable » avec la commande d'installation.
 - **Couplage.** Le code s'affiche dans une boîte de dialogue Windows (`MessageBoxW`) ; sous
   WSL, la route PowerShell reste. Le repli `--allow-terminal-pairing` marche partout.
-- **Arrêt.** Ctrl-C ou `CTRL_BREAK_EVENT` arrête le démon proprement ; un tour de chat est
-  interrompu par `CTRL_BREAK_EVENT`, puis `taskkill /T`, puis `taskkill /T /F` (pas de
-  groupes de processus POSIX).
+- **Arrêt.** Ctrl-C ou `CTRL_BREAK_EVENT` arrête le démon proprement. Un tour de chat est
+  arrêté par `taskkill /T /F` sur l'arbre du processus : `CTRL_BREAK_EVENT` ne peut pas
+  atteindre un enfant sans fenêtre (il est livré par console, donc au démon lui-même).
 - **Désactivé sous Windows** : les collecteurs herdr et AgentRun (Linux seulement), et le
   retour à une session par herdr ou par WSL.
 - **`omniscient group setup`** : mode Windows natif (aucune étape WSL, pas de téléchargement

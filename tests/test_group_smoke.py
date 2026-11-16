@@ -24,6 +24,24 @@ STOP_TIMEOUT_S = 20.0
 LAUNCH = "from omniscient.cli import app; app()"
 
 
+def user_env(home: Path) -> dict[str, str]:
+    """The environment of a real user: no UTF-8 mode (the CI job sets PYTHONUTF8 for
+    legacy fixtures, a person's machine does not), a private HOME and Omniscient home."""
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("PYTHONUTF8", "PYTHONIOENCODING")
+    }
+    userdir = str(home / "user")
+    return {
+        **env,
+        "OMNISCIENT_HOME": str(home),
+        "HOME": userdir,
+        "USERPROFILE": userdir,
+        "PYTHONUNBUFFERED": "1",
+    }
+
+
 def free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -71,7 +89,7 @@ def stop_gracefully(proc: subprocess.Popen[str]) -> None:
 @pytest.fixture
 def daemon(tmp_path: Path):
     port = free_port()
-    env = {**os.environ, "OMNISCIENT_HOME": str(tmp_path), "PYTHONUNBUFFERED": "1"}
+    env = user_env(tmp_path)
     proc = subprocess.Popen(
         [
             sys.executable,
@@ -128,3 +146,23 @@ def test_daemon_serves_pairs_and_stops_cleanly(
     except subprocess.TimeoutExpired:
         pytest.fail("the daemon did not stop after the stop request")
     assert (state / "group.db").is_file() and (state / "group.token").is_file()
+
+
+def test_setup_preview_prints_its_symbols_to_a_piped_stdout(tmp_path: Path) -> None:
+    """The widget runs `group setup` with stdout piped: on Windows that stream is
+    cp1252 unless the CLI switches it to UTF-8 (the check marks are not in cp1252)."""
+    (tmp_path / "user" / ".claude").mkdir(parents=True)
+    done = subprocess.run(
+        [sys.executable, "-c", LAUNCH, "group", "setup", "--port", str(free_port()),
+         "--skip-widget"],
+        env=user_env(tmp_path),
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        timeout=60,
+        check=False,
+    )  # fmt: skip
+    out = done.stdout.decode("utf-8", errors="replace")
+    assert done.returncode == 0, done.stderr.decode("utf-8", errors="replace")
+    assert "Démon omnigroup" in out and "Claude Code" in out
+    if sys.platform == "win32":
+        assert "Mode Windows natif" in out
