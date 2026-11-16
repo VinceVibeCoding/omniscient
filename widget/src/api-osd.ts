@@ -245,8 +245,12 @@ export async function chatGet(chatId: string): Promise<{ chat: Chat | null; mess
   return { chat: toChat(res.chat), messages: toMessages(res.messages) };
 }
 
-export async function sessionTranscript(id: string): Promise<Transcript> {
-  const res = await invoke<unknown>("session_transcript", { id });
+/** `limit`: how many recent messages to fetch (integer 1..=200; the daemon default is 50). */
+export async function sessionTranscript(id: string, limit?: number): Promise<Transcript> {
+  if (limit !== undefined && !(Number.isInteger(limit) && limit >= 1 && limit <= 200)) {
+    throw new Error("Limite de messages invalide.");
+  }
+  const res = await invoke<unknown>("session_transcript", { id, limit: limit ?? null });
   if (!isRecord(res)) return { messages: [], can_prompt: false };
   return { messages: toMessages(res.messages), can_prompt: res.can_prompt === true };
 }

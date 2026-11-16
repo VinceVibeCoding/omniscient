@@ -36,7 +36,7 @@ function withShowButtons(text: string, show: (n: number) => void): (string | HTM
   return parts;
 }
 
-function bubble(m: ChatMessage, assistant: string, show?: (n: number) => void): HTMLElement {
+export function bubble(m: ChatMessage, assistant: string, show?: (n: number) => void): HTMLElement {
   if (m.role === "note") return h("li", { class: "msg msg--note", role: "note" }, h("p", { class: "msg__text" }, clip(m.text, SHOWN_CHARS)));
   const base = m.role === "assistant" ? assistant : ROLE_LABEL[m.role];
   const who = m.role === "tool" && m.tool ? `${ROLE_LABEL.tool} · ${m.tool}` : base;
