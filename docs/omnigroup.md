@@ -332,6 +332,14 @@ l'usage (ni état, ni étape) et seulement pour une session déjà connue :
 Le format du transcript est interne à Claude Code : une ligne inconnue est ignorée, et
 une erreur garde les chiffres précédents.
 
+## Détail d'une session
+
+Dans le détail d'une session, la boîte de réponse (ou « Continuer dans le widget » pour une
+session d'IDE) et le bloc « Consommation » sont tout en haut, sous l'en-tête et les demandes.
+La conversation vient ensuite, du plus récent au plus ancien : seuls les 4 derniers
+échanges (une question et ses réponses) sont affichés. Le bouton « Afficher 5 échanges plus
+anciens » en révèle 5 de plus, en relisant au besoin plus de messages au démon (jusqu'à 200).
+
 ## Format des réponses
 
 Le widget, le démon (`POST /pending/{id}/answer`) et les hooks/collecteurs s'accordent :

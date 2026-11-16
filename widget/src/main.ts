@@ -14,6 +14,7 @@ import { wizardView } from "./views/wizard";
 import { h, replace } from "./dom";
 import { installDrag } from "./drag";
 import { installResize } from "./resize";
+import { FIRST_LIMIT, INITIAL_EXCHANGES, MORE_STEP, refetchLimit } from "./exchanges";
 import { keepUiState, restoreUiState } from "./keep";
 import { applySkin, applyTheme } from "./theme";
 import type { ConfigPatch, Skin, ConfigView, LinkStatus, Osd, Pending, Session, SessionDetail, Settings, Step, StreamEvent, Transcript, Usage, WidgetConfig } from "./types";
@@ -24,7 +25,7 @@ import { header, listView } from "./views/list";
 import { osdView } from "./views/osd";
 import { settingsView } from "./views/settings";
 import { type Tab, tabBar, withTabs } from "./views/tabs";
-import { transcriptSection } from "./views/transcript";
+import { transcriptSection, type Conversation, type HistoryState } from "./views/transcript";
 import { pendingCard } from "./views/pending";
 import { STRIP_CLASS, usageStrip, withUsageStrip } from "./views/usage-strip";
 
@@ -68,6 +69,9 @@ let state: AppState = {
 let deferredRender = false;
 let refreshTimer: number | undefined;
 let transcriptTimer: number | undefined;
+/** How much of a session's history is shown; reset whenever another session is opened. */
+let history: HistoryState = { shown: INITIAL_EXCHANGES, fetchedLimit: FIRST_LIMIT };
+let refocusMore = false;
 let toastTimer: number | undefined;
 let sessionDraft = "";
 
@@ -207,8 +211,9 @@ async function continueInWidget(detail: SessionDetail, text: string): Promise<vo
   void chat.load();
 }
 
-function conversationFor(detail: SessionDetail, transcript: Transcript | null): HTMLElement {
-  return transcriptSection(detail.id, transcript, sessionDraft, {
+function conversationFor(detail: SessionDetail, transcript: Transcript | null): Conversation {
+  return transcriptSection(detail.id, transcript, sessionDraft, history, {
+    more: () => showMoreExchanges(detail.id),
     setDraft: (text) => (sessionDraft = text),
     send: (text) => detailHandlers.prompt(detail.id, text),
     fork: (text) => void continueInWidget(detail, text),
@@ -253,15 +258,36 @@ async function refreshSessions(): Promise<void> {
   }
 }
 
+/** Reveal 5 older exchanges; when the fetched messages run out, ask the daemon for more. */
+function showMoreExchanges(id: string): void {
+  const shown = history.shown + MORE_STEP;
+  const limit = state.transcript ? refetchLimit(state.transcript.messages, shown, history.fetchedLimit) : null;
+  history = { shown, fetchedLimit: limit ?? history.fetchedLimit };
+  refocusMore = true;
+  render();
+  focusMoreButton();
+  if (limit !== null) void loadTranscript(id);
+}
+
+/** The view is rebuilt on each change: put the focus back on the « older » button. */
+function focusMoreButton(): void {
+  const button = app.querySelector<HTMLElement>(".history__more");
+  if (button) button.focus({ preventScroll: true });
+}
+
 /** Mode B: an older daemon (or a non-Claude session) has no transcript → null, no toast. */
 async function loadTranscript(id: string): Promise<void> {
   let transcript: Transcript | null;
   try {
-    transcript = await osdApi.sessionTranscript(id);
+    transcript = await osdApi.sessionTranscript(id, history.fetchedLimit);
   } catch {
     transcript = null;
   }
-  if (state.detail?.id === id) update({ transcript });
+  if (state.detail?.id !== id) return;
+  // A failed refetch keeps what is already shown instead of blanking the history.
+  update({ transcript: transcript ?? (history.fetchedLimit > FIRST_LIMIT ? state.transcript : null) });
+  if (refocusMore) focusMoreButton();
+  refocusMore = false;
 }
 
 function scheduleRefresh(): void {
@@ -290,7 +316,10 @@ async function openSession(id: string): Promise<void> {
   const detail = await guarded(() => api.getSession(id));
   if (!detail) return;
   sessionDraft = "";
+  history = { shown: INITIAL_EXCHANGES, fetchedLimit: FIRST_LIMIT };
+  refocusMore = false;
   update({ view: "detail", detail, transcript: null });
+  app.querySelector<HTMLElement>(".panel__body")?.scrollTo({ top: 0 });
   void loadTranscript(id);
   app.querySelector<HTMLElement>(".card button, .card input, .actions button")?.focus();
 }

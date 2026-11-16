@@ -27,6 +27,7 @@ export function keepUiState(root: HTMLElement): UiState {
 
 export function restoreUiState(root: HTMLElement, ui: UiState): void {
   const body = root.querySelector<HTMLElement>(".panel__body");
+  // Only the widget chat log sticks to the bottom: a session log (`.session__log`) is newest-first.
   if (body) body.scrollTop = ui.atBottom && body.querySelector(".chat__log") ? body.scrollHeight : ui.scrollTop;
   if (!ui.keep) return;
   const field = Array.from(root.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>("[data-keep]")).find(
