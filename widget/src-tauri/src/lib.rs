@@ -15,6 +15,7 @@ mod proof;
 mod provider_commands;
 mod scale;
 mod settings;
+mod single_instance;
 mod sse;
 mod state;
 mod stream;
@@ -56,11 +57,22 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // A second launch (pinned taskbar icon, Start menu) shows the running widget and quits.
+    let listener = match single_instance::claim() {
+        single_instance::Role::Secondary => return,
+        single_instance::Role::Primary(listener) => listener,
+    };
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
-        .setup(setup)
+        .setup(move |app| {
+            if let Some(listener) = listener {
+                let handle = app.handle().clone();
+                single_instance::serve(listener, move || tray::show_window(&handle));
+            }
+            setup(app)
+        })
         .on_window_event(|window, event| match event {
             // Only the OSD / panel window is dragged: the menu moves to the cursor itself.
             WindowEvent::Moved(pos) if window.label() == "main" => {

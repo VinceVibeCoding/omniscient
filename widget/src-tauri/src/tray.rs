@@ -1,4 +1,4 @@
-//! Tray icon: left click toggles the widget; menu « Afficher / masquer »,
+//! Tray icon: left click toggles the widget (a second launch of the app shows it); menu « Afficher / masquer »,
 //! « Replacer dans le coin » (forget where it was dragged) and « Quitter ».
 
 use crate::state::{lock, AppState};
@@ -44,19 +44,28 @@ pub fn build(app: &App) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Shows the widget (docked where it belongs). Also what a second launch asks for.
+pub fn show_window(app: &AppHandle) {
+    let Some(state) = app.try_state::<AppState>() else { return }; // still starting: it shows itself
+    let Some(window) = app.get_webview_window("main") else {
+        eprintln!("omnigroup: main window missing");
+        return;
+    };
+    let mode = *lock(&state.mode);
+    let shown = dock(&window, mode).and_then(|()| window.show().map_err(|err| err.to_string()));
+    if let Err(err) = shown {
+        eprintln!("omnigroup: show failed: {err}");
+    }
+}
+
 fn toggle_window(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
         eprintln!("omnigroup: main window missing");
         return;
     };
-    let visible = window.is_visible().unwrap_or(false);
-    let result = if visible {
-        window.hide().map_err(|err| err.to_string())
-    } else {
-        let mode = *lock(&app.state::<AppState>().mode);
-        dock(&window, mode).and_then(|()| window.show().map_err(|err| err.to_string()))
-    };
-    if let Err(err) = result {
+    if !window.is_visible().unwrap_or(false) {
+        show_window(app);
+    } else if let Err(err) = window.hide() {
         eprintln!("omnigroup: tray toggle failed: {err}");
     }
 }
