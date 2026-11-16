@@ -18,7 +18,7 @@ use tauri::{AppHandle, Emitter};
 use windows::core::PWSTR;
 use windows::Win32::Foundation::{CloseHandle, HWND};
 use windows::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION};
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId, IsWindow};
+use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId, IsWindow, GA_ROOTOWNER};
 
 const POLL: Duration = Duration::from_millis(400);
 const READ_TIMEOUT: Duration = Duration::from_secs(6);
@@ -70,7 +70,11 @@ pub fn start(app: AppHandle) {
     });
 }
 
-fn observe(app: &AppHandle, window: HWND) {
+fn observe(app: &AppHandle, foreground: HWND) {
+    // A bubble, a dialog or a pop-up of the browser belongs to its main window: remember that one.
+    // SAFETY: GetAncestor accepts any window handle.
+    let owner = unsafe { GetAncestor(foreground, GA_ROOTOWNER) };
+    let window = if owner.0.is_null() { foreground } else { owner };
     let mut pid = 0u32;
     // SAFETY: `window` is a handle just returned by the system; `pid` outlives the call.
     unsafe { GetWindowThreadProcessId(window, Some(&mut pid)) };
