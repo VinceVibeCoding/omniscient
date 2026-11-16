@@ -3,11 +3,16 @@
 // the conversation is re-read from the daemon when a turn ends (source of truth).
 import * as osdApi from "./api-osd";
 import * as providerApi from "./api-providers";
+import * as extApi from "./api-ext";
+import { runSlash, type SlashHost } from "./chat-slash";
+import type { ExtController } from "./ext-controller";
+import { buildEntries, nextStep, onChatState, parseSlash, startRun, type WorkflowRun } from "./ext-logic";
 import type { Chat, ChatEvent, ChatMessage, Provider } from "./types";
-import { attachingBrowser, attachingToActive, pageKey, providerReady } from "./views/chat";
+import { attachingBrowser, attachingToActive, canAttachToActive, pageKey, providerReady } from "./views/chat";
 import type { ChatHandlers, ChatModel } from "./views/chat";
 
 const RELOAD_DEBOUNCE_MS = 300;
+const NOTES_MAX = 50;
 
 export class ChatController {
   private model: ChatModel = {
@@ -25,17 +30,24 @@ export class ChatController {
     messages: [],
     draft: "",
     busy: false,
+    notes: [],
+    slash: [],
   };
+  private run: WorkflowRun | null = null;
   private reloadTimer: number | undefined;
   readonly handlers: ChatHandlers;
 
   constructor(
     private readonly changed: () => void,
     private readonly fail: (err: unknown) => void,
+    private readonly ext: ExtController,
   ) {
     this.handlers = {
       open: (id) => void this.open(id),
-      close: () => this.set({ activeId: null, active: null, messages: [], draft: "", attachBrowser: true }),
+      close: () => {
+        this.run = null;
+        this.set({ activeId: null, active: null, messages: [], notes: [], draft: "", attachBrowser: true });
+      },
       setProject: (project) => this.set({ project }),
       setProvider: (provider) => this.set({ provider }),
       setAttachBrowser: (attachBrowser) => this.set({ attachBrowser }),
@@ -45,14 +57,14 @@ export class ChatController {
       setDraft: (draft) => {
         this.model = { ...this.model, draft }; // no re-render while typing
       },
-      send: (text) => void this.send(text),
+      send: (text) => void this.submit(text),
       stop: () => void this.stop(),
       refresh: () => void this.load(),
     };
   }
 
   get view(): ChatModel {
-    return this.model;
+    return { ...this.model, slash: buildEntries(this.ext.view.view) };
   }
 
   private set(patch: Partial<ChatModel>): void {
@@ -102,7 +114,8 @@ export class ChatController {
   }
 
   private async open(chatId: string): Promise<void> {
-    this.set({ activeId: chatId, messages: [], draft: "" });
+    if (chatId !== this.model.activeId) this.run = null;
+    this.set({ activeId: chatId, messages: [], notes: [], draft: "" });
     await this.reload();
     // The page is offered again when it is not the one this conversation already has.
     this.set({ attachBrowser: pageKey(this.model.browser) !== (this.model.active?.page_key ?? "") });
@@ -134,7 +147,74 @@ export class ChatController {
     return { role: "user", text, at: new Date().toISOString() };
   }
 
-  private async send(text: string): Promise<void> {
+  /** A message from the box: a slash command is handled here, anything else is sent as typed. */
+  private async submit(text: string): Promise<void> {
+    const call = parseSlash(text);
+    if (!call) return void (await this.send(text));
+    await runSlash(call, this.slashHost());
+  }
+
+  /** Adds a local line to the log (never sent to the AI, never stored). */
+  private note(text: string): void {
+    const note: ChatMessage = { role: "note", text, at: new Date().toISOString() };
+    this.set({ notes: [...this.model.notes, note].slice(-NOTES_MAX) });
+  }
+
+  private slashHost(): SlashHost {
+    return {
+      extensions: () => this.ext.view.view,
+      reload: () => this.ext.reload(),
+      expand: extApi.expandCommand,
+      note: (text) => this.note(text),
+      hasProject: () => (this.model.activeId ? (this.model.active?.project ?? "") !== "" : this.model.project !== ""),
+      sendExpanded: (text, attachPage) => this.sendExpanded(text, attachPage),
+      startWorkflow: (workflow) => {
+        this.run = startRun(workflow.name, workflow.steps);
+        void this.advanceRun();
+      },
+    };
+  }
+
+  /** An expanded command goes out as the person's own message, page box ticked if it asks. */
+  private async sendExpanded(text: string, attachPage: boolean): Promise<void> {
+    if (attachPage && this.model.browser === null) this.note("Aucune page de navigateur à joindre.");
+    else if (attachPage && this.model.activeId && !canAttachToActive(this.model)) {
+      this.note("La page n'est pas jointe : cette conversation utilise des outils.");
+    } else if (attachPage) this.model = { ...this.model, attachBrowser: true };
+    await this.send(text);
+  }
+
+  /** Sends the next step of the running workflow (the chat's turn end triggers the next one). */
+  private async advanceRun(): Promise<void> {
+    const run = this.run;
+    if (!run) return;
+    const step = nextStep(run);
+    if (step.kind === "done") {
+      this.run = null;
+      this.note(`Workflow /${run.name} terminé.`);
+      return;
+    }
+    this.run = step.run;
+    this.note(`Étape ${step.index}/${step.total}`);
+    if (!(await this.send(step.prompt))) this.run = null;
+  }
+
+  /** The awaited turn ended: next step, or stop on error. */
+  private onRunState(state: string): void {
+    if (!this.run) return;
+    const end = onChatState(this.run, state);
+    if (end.kind === "advance") {
+      this.run = end.run;
+      void this.advanceRun();
+    } else if (end.kind === "stop") {
+      this.run = null;
+      this.note("Workflow interrompu : la conversation a rencontré une erreur.");
+    }
+  }
+
+  /** True when the message was handed to the daemon. */
+  private async send(text: string): Promise<boolean> {
+    let sent = false;
     const id = this.model.activeId;
     const shot = this.model.attachShot; // asked for this message only: off again right away
     this.set({ busy: true, draft: "", attachShot: false, messages: [...this.model.messages, this.userMessage(text)] });
@@ -166,9 +246,18 @@ export class ChatController {
           page_key: browserPage ? pageKey(this.model.browser) : "",
         };
         this.set({ activeId: chatId, active, ...(browserPage ? { attachBrowser: false } : {}) });
+        if (this.run) void this.reload().then(() => this.settleRun());
       }
       this.set({ busy: false });
+      sent = true;
     });
+    return sent;
+  }
+
+  /** A short first turn may have ended before the chat id was known: read its state. */
+  private settleRun(): void {
+    const state = this.model.active?.state;
+    if (state && state !== "running") this.onRunState(state);
   }
 
   /** « Continuer dans le widget »: a widget chat that starts from a copy of a session. */
@@ -195,6 +284,10 @@ export class ChatController {
 
   private async stop(): Promise<void> {
     const id = this.model.activeId;
+    if (this.run) {
+      this.run = null;
+      this.note("Workflow interrompu.");
+    }
     if (id) await this.guard(async () => void (await osdApi.chatStop(id)));
   }
 
@@ -228,6 +321,7 @@ export class ChatController {
   /** SSE `chat` event from the daemon. */
   onEvent(event: ChatEvent): void {
     const patch = this.withState(event);
+    if (event.chat_id === this.model.activeId && event.state) this.onRunState(event.state);
     const message = event.chat_id === this.model.activeId ? this.messageFor(event) : null;
     this.set(message ? { ...patch, messages: [...this.model.messages, message] } : patch);
     const known = this.model.chats.some((c) => c.chat_id === event.chat_id);
