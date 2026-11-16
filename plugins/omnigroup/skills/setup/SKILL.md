@@ -10,7 +10,7 @@ allowed-tools: Bash(omniscient group setup), Bash(omniscient group setup --prote
 
 1. Check the CLI exists: `command -v omniscient`. If it is missing, stop and tell the user to
    install it themselves, then rerun this skill:
-   `uv tool install git+https://github.com/VinceVibeCoding/omniscient-factory`
+   `uv tool install git+https://github.com/VinceVibeCoding/omniscient`
 2. Run the preview (it writes nothing): `omniscient group setup $ARGUMENTS`
 3. Show the user the output as is, in particular the settings.json diff. Explain each step
    in one line (daemon, hooks + statusLine, widget download with SHA256 check, pairing).

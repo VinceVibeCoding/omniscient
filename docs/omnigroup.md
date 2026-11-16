@@ -156,7 +156,7 @@ Garde-fous :
 les hôtes GitHub uniquement (redirections comprises), accepté seulement si son SHA-256
 correspond à `SHA256SUMS`. Ces deux fichiers viennent de la même release : le SHA-256
 prouve l'intégrité, pas l'origine. Si `gh` est installé, l'attestation de provenance du
-build est aussi vérifiée (`gh attestation verify --repo VinceVibeCoding/omniscient-factory`),
+build est aussi vérifiée (`gh attestation verify --repo VinceVibeCoding/omniscient`),
 et un échec rejette le fichier ; sinon, setup le signale. Le fichier est écrit via un
 nom temporaire unique et ne remplace jamais un lien symbolique.
 
