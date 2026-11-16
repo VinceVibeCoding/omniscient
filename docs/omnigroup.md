@@ -291,6 +291,8 @@ Fournisseurs IA** (ou à l'assistant du premier lancement) et discuter avec : un
 - **Routes** (jeton widget) : `GET /providers`, `PUT /providers/{id}`,
   `POST /providers/{id}/test`, `POST /providers/{id}/remove`, et `POST /chats` accepte
   `provider`.
+- **Préréglages.** Les [extensions](extensions.md) peuvent proposer des préréglages qui préremplissent
+  ce formulaire ; ils ne portent jamais de clé.
 
 Le pipeline d'Omniscient lui-même (idées, conseil, builder) passe par AgentRun et
 `config/routing.toml` : il suit une autre voie que ce chat.
