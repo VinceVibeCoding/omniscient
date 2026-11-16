@@ -9,6 +9,9 @@ mod daemon_launch;
 mod drag;
 mod osd_commands;
 mod osd_config;
+mod page_logic;
+mod page_reader;
+mod page_watch;
 mod pairing;
 mod position;
 mod proof;
@@ -46,6 +49,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let placement = position::load(&config_dir);
     app.manage(AppState::new(http, config_dir, loaded.settings, token.unwrap_or_default(), placement));
     tray::build(app)?;
+    page_watch::start(app.handle().clone());
     let window = app.get_webview_window("main").ok_or("main window missing")?;
     scale::apply_to(&window)?; // zoom + size from window.json, docked on the anchor
     window.show()?;

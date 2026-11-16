@@ -190,11 +190,12 @@ export class ChatController {
     return null;
   }
 
-  /** SSE `browser_page`: the extension reported another page (metadata only). A new page
-   * starts ticked again, like in the extension. */
+  /** `browser_page`: the widget saw another browser page (title only). A new page starts
+   * ticked again. */
   onBrowserPage(raw: unknown): void {
     const browser = osdApi.toBrowserPage(raw);
-    const changed = browser?.url !== this.model.browser?.url;
+    const key = (b: typeof browser): string => (b ? b.url || b.title : "");
+    const changed = key(browser) !== key(this.model.browser);
     this.set(changed ? { browser, attachBrowser: true } : { browser });
   }
 

@@ -92,7 +92,9 @@ def _shown(chat: Chat, message: Message) -> dict[str, Any]:
     return {
         "role": "tool",
         "tool": "Page",
-        "text": f"Page jointe : {label} — {chat.page_url or ''}",
+        "text": f"Page jointe : {label} — {chat.page_url}"
+        if chat.page_url
+        else f"Page jointe : {label}",
         "at": iso(message.at),
     }
 

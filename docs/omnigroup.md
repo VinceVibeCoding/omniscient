@@ -39,6 +39,28 @@ droit dessus › *Épingler à la barre des tâches* : un clic sur cette icône 
 le fait réapparaître s'il tourne déjà (une seule instance à la fois). L'icône près de
 l'horloge fait aussi apparaître / disparaître le widget.
 
+## Lire la page du navigateur (sans extension)
+
+Dans l'onglet **Chat**, la case « Joindre la page du navigateur : *titre* » (cochée par défaut)
+joint à votre question la page web ouverte dans Chrome, Edge, Brave, Vivaldi ou Opera. Le
+widget la lit lui-même avec l'accessibilité de Windows (UI Automation) : **aucune extension à
+installer**.
+
+- **Quand** : seulement à l'envoi de la question, case cochée. Entre-temps le widget ne
+  retient que le *titre* de la dernière fenêtre de navigateur (en mémoire, jamais sur disque).
+  Rien n'est lu dans les autres applications.
+- **Quoi** : l'adresse (sans paramètres), le titre, le texte de la page, et un plan (titres,
+  liens, boutons, champs) avec leur position à l'écran (« visible, en haut à droite », « plus
+  bas dans la page »), pour répondre à « où est le bouton X ? ».
+- **Jamais lu** : les valeurs des champs (donc les mots de passe), les cookies, les en-têtes.
+  Le démon masque les secrets, borne la taille et place le tout dans un bloc « donnée non
+  fiable » : une conversation avec une page tourne sans aucun outil.
+- **À savoir** : Chrome ne construit l'arbre d'accessibilité de la page qu'à la première
+  demande (la première lecture peut prendre une seconde) et le garde ensuite, ce qui coûte un
+  peu de processeur. Pas de console ni de requêtes en échec : ce sont des outils de
+  développement, pas de l'accessibilité. macOS n'est pas encore pris en charge (il n'existe
+  pas encore de widget Mac).
+
 ## Modèle de menace
 
 **Ce qu'on protège :** l'agent surveillé (Claude Code, Copilot) ne doit pas pouvoir

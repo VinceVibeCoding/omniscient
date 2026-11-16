@@ -5,6 +5,7 @@
 use crate::client::validate_id;
 use crate::commands::{daemon_for, get, post};
 use crate::context_menu::{self, popup, put_config};
+use crate::page_watch;
 use crate::provider_commands::validate_provider_id;
 use crate::state::{lock, AppState};
 use serde_json::{json, Value};
@@ -103,7 +104,7 @@ pub async fn chat_create(
 ) -> CmdResult<Value> {
     let mut body = json!({ "text": validate_text(&text)? });
     if browser_page == Some(true) {
-        body["browser_page"] = json!(true); // the daemon attaches the page the extension reported
+        body["page"] = page_watch::read_current().await?; // read now, only because the box is ticked
     }
     if let Some(project) = project.as_deref() {
         body["project"] = json!(validate_project(project)?);
@@ -114,10 +115,10 @@ pub async fn chat_create(
     post(&state, &["chats"], &body).await
 }
 
-/// The page open in the browser, as the extension reported it: metadata only (title, address).
+/// The browser window the person was last in (title only; the page is read at send time).
 #[tauri::command]
-pub async fn browser_page(state: State<'_, AppState>) -> CmdResult<Value> {
-    get(&state, &["browser", "page"]).await
+pub fn browser_page() -> Value {
+    page_watch::current()
 }
 
 /// Continues a running Claude Code session (terminal, IDE) in a widget chat: the daemon
