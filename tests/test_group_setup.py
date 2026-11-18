@@ -195,3 +195,21 @@ def test_marketplace_and_plugin_manifests() -> None:
     for skill in ("setup", "theme", "view", "status"):
         meta = frontmatter(plugin_dir / "skills" / skill / "SKILL.md")
         assert meta["name"] == skill and meta["description"]
+
+
+def test_native_windows_downloads_the_widget_when_not_installed(tmp_path: Path) -> None:
+    rec = Recorder()
+    native = setup.SetupDeps(
+        say=rec.say,
+        health=lambda port: True,
+        fetch=fake_fetch(),
+        hooks=rec.hooks_fn,
+        downloads=lambda: tmp_path,
+        attest=VERIFIED,
+        native_windows=True,
+        find_claude=lambda: None,
+        widget_installed=lambda: False,
+    )
+    setup.run_setup(setup.SetupOptions(write=True), native)
+    assert (tmp_path / NAME).exists()
+    assert "Widget Windows" in "\n".join(rec.lines)

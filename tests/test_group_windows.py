@@ -314,7 +314,9 @@ class Say:
     def hooks(self, **kw: Any) -> None:
         self.hook_calls.append(kw)
 
-    def deps(self, claude: str | None, healthy: bool = True) -> setup.SetupDeps:
+    def deps(
+        self, claude: str | None, healthy: bool = True
+    ) -> setup.SetupDeps:  # widget already installed
         def forbidden(*a: Any, **k: Any) -> Any:
             raise AssertionError("the native mode never downloads the widget")
 
@@ -327,16 +329,17 @@ class Say:
             attest=forbidden,
             native_windows=True,
             find_claude=lambda: claude,
+            widget_installed=lambda: True,
         )
 
 
-def test_native_setup_installs_hooks_and_never_downloads_the_widget() -> None:
+def test_native_setup_installs_hooks_and_skips_an_installed_widget() -> None:
     say = Say()
     setup.run_setup(setup.SetupOptions(write=True), say.deps("C:/bin/claude.exe"))
     text = "\n".join(say.lines)
     assert say.hook_calls and say.hook_calls[0]["write"] is True
     assert "Mode Windows natif" in text and "C:/bin/claude.exe" in text
-    assert "installé séparément" in text and "ouvre l'application Omnigroup" in text
+    assert "Omnigroup est déjà installé" in text
     assert "WSL" not in text.replace("sans WSL", "") and "systemd" not in text
 
 
