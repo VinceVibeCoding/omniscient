@@ -35,7 +35,8 @@ def run_loop(
 ) -> None:
     """Call `poll` every `interval_s` until `stop` is set; a failed poll is not fatal.
 
-    A failure is logged once with its traceback; the same error repeating (herdr not
+    A failure is logged once with its traceback (one info line when the exception says
+    `unavailable`: the integration is simply absent); the same error repeating (herdr not
     running, say) stays quiet while the delay doubles up to MAX_BACKOFF_S. A different
     error is logged again, and the first good poll logs the recovery.
     """
@@ -47,7 +48,11 @@ def run_loop(
         except Exception as exc:
             signature = f"{type(exc).__name__}: {exc}"
             if signature != failing:
-                log.exception("omnigroup collector %s: poll failed", name)
+                if getattr(exc, "unavailable", False):
+                    # An optional integration that is not installed/configured: expected.
+                    log.info("omnigroup collector %s: inactif (%s)", name, exc)
+                else:
+                    log.exception("omnigroup collector %s: poll failed", name)
                 failing = signature
             delay = min(max(delay * 2, interval_s), MAX_BACKOFF_S)
         else:

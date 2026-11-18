@@ -64,7 +64,14 @@ RUN_ID_CHARS = frozenset(string.ascii_letters + string.digits + "_-")
 
 
 class AgentRunHttpError(Exception):
-    """AgentRun refused or could not be reached (message is safe to show; no token)."""
+    """AgentRun refused or could not be reached (message is safe to show; no token).
+
+    `unavailable` marks the expected "no key configured" case (AgentRun is optional).
+    """
+
+    def __init__(self, message: str, *, unavailable: bool = False) -> None:
+        super().__init__(message)
+        self.unavailable = unavailable
 
 
 class Api(Protocol):
@@ -81,7 +88,7 @@ def default_api(env_file: Path, environ: Mapping[str, str] | None = None) -> Api
     def call(method: str, path: str, body: Mapping[str, Any] | None = None) -> Any:
         key = resolve_api_key(env_file, TOKEN_FILE, env)
         if key is None:
-            raise AgentRunHttpError("pas de clé AgentRun")
+            raise AgentRunHttpError("pas de clé AgentRun", unavailable=True)
         headers = {"Authorization": f"Bearer {key}"}
         try:
             resp = httpx.request(

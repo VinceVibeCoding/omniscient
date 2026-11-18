@@ -45,7 +45,15 @@ SKILL_TEXT_MAX = 300
 
 
 class HerdrError(Exception):
-    """herdr is missing, refused a command, or answered with an unexpected shape."""
+    """herdr is missing, refused a command, or answered with an unexpected shape.
+
+    `unavailable` marks the expected "herdr is not installed / not running" cases, which
+    are not worth a traceback (herdr is optional).
+    """
+
+    def __init__(self, message: str, *, unavailable: bool = False) -> None:
+        super().__init__(message)
+        self.unavailable = unavailable
 
 
 def _error_message(stderr: str) -> str:
@@ -69,13 +77,19 @@ def default_runner(args: Sequence[str]) -> str:
             check=False,
         )
     except FileNotFoundError as exc:
-        raise HerdrError("herdr est introuvable dans le PATH") from exc
+        raise HerdrError(
+            "herdr est introuvable dans le PATH", unavailable=True
+        ) from exc
     except subprocess.TimeoutExpired as exc:
         raise HerdrError(f"herdr {' '.join(args[:2])} : délai dépassé") from exc
     except OSError as exc:
         raise HerdrError(f"herdr n'a pas pu être lancé : {exc}") from exc
     if proc.returncode != 0:
-        raise HerdrError(f"herdr {' '.join(args[:2])} : {_error_message(proc.stderr)}")
+        message = _error_message(proc.stderr)
+        raise HerdrError(
+            f"herdr {' '.join(args[:2])} : {message}",
+            unavailable="no herdr server is running" in message,
+        )
     return proc.stdout
 
 

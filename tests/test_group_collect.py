@@ -349,3 +349,18 @@ def test_linked_claude_session_without_usage_gets_herdr_usage_and_updates(
     linked = store.get_session(f"claude:{uuid}")
     assert linked is not None and linked.usage is not None
     assert linked.usage.context_tokens == 50000
+
+
+def test_run_loop_absent_integration_logs_one_info_line_without_traceback(
+    caplog,
+) -> None:
+    stop = _CountingStop(limit=4)
+
+    def poll() -> None:
+        raise HerdrError("no herdr server is running", unavailable=True)
+
+    with caplog.at_level("INFO", logger="omniscient.group.collect_common"):
+        run_loop("herdr", poll, stop, 2.0)
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelname == "INFO"
+    assert not caplog.records[0].exc_info
