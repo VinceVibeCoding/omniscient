@@ -35,64 +35,80 @@ conversations stay on your computer.
 
 ### The widget (Windows 10/11)
 
-The widget is a Windows app; it talks to a small background **engine** (a Python program) on the
-same PC. You need nothing installed beforehand except what step 1 gives you.
+The widget is a Windows app. It talks to a small background **engine** (a Python program) over a
+local-only port. The engine can run **natively on Windows (PowerShell)** or **inside WSL2 / Linux**:
+pick one of the two paths below. Either way you install nothing beforehand except uv.
 
-**1. Install uv** (it fetches the right Python for you; no separate Python install).
-Open **PowerShell** (Start menu › type *PowerShell*) and run:
+| | A. PowerShell (native Windows) | B. WSL2 / Linux |
+|---|---|---|
+| Good for | most people: nothing but Windows | people who already live in WSL (Claude Code runs there) |
+| Engine runs in | Windows | WSL2 |
+| Start at login | `omniscient group autostart install --write` | systemd user service |
+
+#### A. PowerShell (native Windows)
+
+Open **PowerShell** (Start menu › type *PowerShell*).
 
 ```powershell
+# 1. Install uv (it fetches the right Python for you, no separate Python install)
 winget install --id astral-sh.uv -e
-```
+#    No winget? powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+#    Then CLOSE AND REOPEN PowerShell so `uv` is found.
 
-(No winget? `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`.)
-Then **close and reopen PowerShell** so `uv` is found.
-
-**2. Install the engine and set everything up:**
-
-```powershell
+# 2. Install the engine
 uv tool install git+https://github.com/VinceVibeCoding/omniscient
-omniscient group setup            # preview only: shows what will change, writes nothing
-omniscient group setup --write    # do it: hooks (your settings are backed up first) + widget download
+
+# 3. Set up: preview first (writes nothing), then apply
+omniscient group setup
+omniscient group setup --write     # hooks (settings backed up first) + widget download
+
+# 4. Start the engine (leave this window open) ...
+omniscient group serve
+#    ... or start it at every logon instead (per-user task, no admin rights, no window):
+omniscient group autostart install --write
 ```
 
-`--write` downloads the Omnigroup installer into your *Downloads* folder and checks its SHA-256.
-**Run that installer.** It adds *Omnigroup* to the Start menu (WebView2 is installed if missing).
+`--write` downloads the Omnigroup installer into your *Downloads* folder and verifies its SHA-256.
+**Run that installer** (it adds *Omnigroup* to the Start menu; WebView2 is installed if missing).
 
-**3. Start the engine and pair:**
+#### B. WSL2 / Linux
 
-```powershell
-omniscient group serve            # leave this window open, or run `omniscient group autostart install --write` to start it at every logon
+In a WSL2 terminal (Windows 10/11) or any Linux terminal. The widget itself always runs on Windows.
+
+```bash
+# 1. Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh     # then reopen the terminal
+
+# 2. Install the engine
+uv tool install git+https://github.com/VinceVibeCoding/omniscient
+
+# 3. Set up: preview first (writes nothing), then apply
+omniscient group setup
+omniscient group setup --write     # hooks (settings backed up first) + widget download
+
+# 4. Start the engine (leave this terminal open) ...
+omniscient group serve
+#    ... or run it as a service (needs systemd; in WSL2 set `systemd=true` in /etc/wsl.conf):
+omniscient schedule install --write
+systemctl --user enable --now omnigroup
 ```
 
-Open **Omnigroup**, then *Réglages › Demander un code*, type the 6-digit code shown on your desktop,
-pick your AI and choose a look. Pin it to your taskbar from the Start menu (right-click › *Pin to
+From WSL, `--write` saves the installer in your **Windows** *Downloads* folder. **Run it from
+Windows** (double-click, or `explorer.exe .` from that folder).
+
+#### Then, on both paths: pair
+
+Open **Omnigroup** from the Start menu, go to *Réglages › Demander un code*, type the 6-digit code
+shown on your desktop, pick your AI and choose a look. Pin it to your taskbar (right-click › *Pin to
 taskbar*): one click on that icon brings the widget back, even after you quit it.
 
-**Start it automatically.** `omniscient group autostart install --write` creates a per-user
-scheduled task that starts the engine at each Windows logon (no administrator rights, no console
-window). `omniscient group autostart status` and `remove` check and undo it.
+`omniscient group setup` is safe to re-run at any time; its first line says whether the engine
+answers on port 7341. Nothing else is required: Claude Code is what the hooks attach to (install it
+from [claude.com/claude-code](https://claude.com/claude-code) to see its sessions), and herdr,
+AgentRun, Docker and an API key are only for the idea factory (the engine stays quiet without them).
 
-**Check it.** Re-run `omniscient group setup` any time: its first line says whether the engine
-answers on port 7341.
-
-<details>
-<summary><b>Prefer WSL or Linux for the engine?</b></summary>
-
-The same commands work in a WSL2 terminal (the widget stays on Windows). Install uv first with
-`curl -LsSf https://astral.sh/uv/install.sh | sh`, reopen the terminal, then run steps 2 and 3. On
-Linux/WSL, `omniscient schedule install` creates a systemd user service: enable it with
-`systemctl --user enable --now omnigroup`.
-</details>
-
-**Everything else is optional.** Claude Code is what the hooks attach to (install it from
-[claude.com/claude-code](https://claude.com/claude-code) if you want its sessions in the widget).
-herdr, AgentRun, Docker and an API key are only for the idea factory; without them the widget works
-and the engine stays quiet about them. `omniscient group setup` is safe to re-run at any time.
-
-**Installing for several Windows users on one PC?** Everything is per user (the engine, the hooks in
-`~/.claude`, the widget settings and the pairing token in that user's Credential Manager). Repeat the
-steps above while signed in as each user.
+**Several Windows users on one PC?** Everything is per user (engine, hooks in `~/.claude`, widget
+settings, the pairing token in that user's Credential Manager): repeat the steps for each user.
 
 ### The idea factory
 

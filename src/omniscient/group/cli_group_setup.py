@@ -12,6 +12,7 @@ Nothing is written without --write: the default run is a preview.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.request
 from collections.abc import Callable
@@ -48,6 +49,7 @@ class SetupDeps:
     downloads: Callable[[], Path]
     attest: wr.Attest = wr.verify_attestation
     native_windows: bool = False  # the daemon runs on Windows itself (no WSL)
+    widget_installed: Callable[[], bool] = lambda: False
     find_claude: Callable[[], str | None] = lambda: None
 
 
@@ -79,6 +81,12 @@ def _run_hooks(**kw: Any) -> None:
     run_hooks_command("install", target="claude", **kw)
 
 
+def widget_installed() -> bool:
+    """The Omnigroup app installed for this Windows user (per-user NSIS install)."""
+    base = os.environ.get("LOCALAPPDATA")
+    return bool(base) and (Path(base) / "Omnigroup" / "omnigroup.exe").is_file()
+
+
 def default_deps() -> SetupDeps:
     from omniscient.group.claude_locate import find_claude
 
@@ -90,6 +98,7 @@ def default_deps() -> SetupDeps:
         default_downloads,
         native_windows=sys.platform == "win32",
         find_claude=find_claude,
+        widget_installed=widget_installed,
     )
 
 
@@ -129,8 +138,8 @@ def _step_hooks(opts: SetupOptions, deps: SetupDeps) -> None:
         deps.say(f"   ✗ {exc}")
 
 
-def _step_widget(opts: SetupOptions, deps: SetupDeps) -> None:
-    deps.say("3. Widget Windows")
+def _step_widget(opts: SetupOptions, deps: SetupDeps, number: int = 3) -> None:
+    deps.say(f"{number}. Widget Windows")
     if opts.skip_widget:
         deps.say("   — ignoré (--skip-widget).")
         return
@@ -177,12 +186,6 @@ def _step_widget(opts: SetupOptions, deps: SetupDeps) -> None:
     deps.say(f"   → lance-le (double-clic sous Windows, ou depuis WSL : '{path}').")
 
 
-WINDOWS_WIDGET_HELP = (
-    "   → ouvre l'application Omnigroup (le widget, installé séparément) : cette "
-    "commande ne télécharge rien."
-)
-
-
 def _step_claude(deps: SetupDeps) -> None:
     from omniscient.group.claude_locate import CLAUDE_NOT_FOUND
 
@@ -195,13 +198,16 @@ def _step_claude(deps: SetupDeps) -> None:
 
 
 def _run_native_windows(opts: SetupOptions, deps: SetupDeps) -> None:
-    """Native Windows: no WSL step, no widget download (the widget is what runs this)."""
+    """Native Windows: no WSL step; the widget is downloaded unless it is already installed."""
     deps.say("Mode Windows natif (sans WSL).")
     _step_daemon(opts, deps)
     _step_hooks(opts, deps)
     _step_claude(deps)
-    deps.say("4. Widget Omnigroup")
-    deps.say(WINDOWS_WIDGET_HELP)
+    if deps.widget_installed():
+        deps.say("4. Widget Windows")
+        deps.say("   ✓ Omnigroup est déjà installé (menu Démarrer).")
+    else:
+        _step_widget(opts, deps, 4)
     deps.say("5. " + PAIRING_HELP)
     if not opts.write:
         deps.say("")
