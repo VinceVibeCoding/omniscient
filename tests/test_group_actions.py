@@ -312,7 +312,10 @@ def test_default_runner_survives_non_utf8_output():
     from omniscient.group.actions import default_runner
 
     code, out = default_runner(
-        [sys.executable, "-c",
-         "import sys; sys.stderr.buffer.write(b'\\x82'); print('ok')"]
+        [
+            sys.executable,
+            "-c",
+            "import sys; sys.stderr.buffer.write(b'\\x82'); print('ok')",
+        ]
     )
     assert code == 0 and out.strip() == "ok"
