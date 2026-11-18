@@ -62,6 +62,7 @@ def default_runner(argv: Sequence[str]) -> tuple[int, str]:
             list(argv),
             capture_output=True,
             text=True,
+            errors="replace",  # cmd.exe speaks the OEM codepage (accents) on stderr
             timeout=RUN_TIMEOUT_S,
             check=False,
         )

@@ -304,3 +304,15 @@ def test_prompt_copilot_is_refused() -> None:
 def test_action_result_json() -> None:
     result = jump(session(jump_to=target("terminal", UUID)), wsl_env(Recorder()))
     assert set(result.to_json()) == {"ok", "message", "command"}
+
+
+def test_default_runner_survives_non_utf8_output():
+    import sys
+
+    from omniscient.group.actions import default_runner
+
+    code, out = default_runner(
+        [sys.executable, "-c",
+         "import sys; sys.stderr.buffer.write(b'\\x82'); print('ok')"]
+    )
+    assert code == 0 and out.strip() == "ok"
