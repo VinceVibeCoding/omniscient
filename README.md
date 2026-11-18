@@ -35,18 +35,61 @@ conversations stay on your computer.
 
 ### The widget (Windows 10/11)
 
-```bash
-# In WSL or Linux (Python 3.12+ and uv): the engine that runs next to the widget
-uv tool install git+https://github.com/VinceVibeCoding/omniscient
-omniscient group setup            # preview: daemon, hooks, widget download, pairing
-omniscient group setup --write    # do it (your settings are backed up first)
+The widget is a Windows app; it talks to a small background **engine** (a Python program) on the
+same PC. You need nothing installed beforehand except what step 1 gives you.
+
+**1. Install uv** (it fetches the right Python for you; no separate Python install).
+Open **PowerShell** (Start menu › type *PowerShell*) and run:
+
+```powershell
+winget install --id astral-sh.uv -e
 ```
 
-Then run the installer it downloads, open **Omnigroup**, and follow the first-run assistant:
-pair the widget with a 6-digit code, pick your AI, choose a look. That's it.
+(No winget? `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`.)
+Then **close and reopen PowerShell** so `uv` is found.
 
-Pin it to your taskbar from the Start menu (right-click › *Pin to taskbar*): one click on that icon
-brings the widget back, even after you quit it.
+**2. Install the engine and set everything up:**
+
+```powershell
+uv tool install git+https://github.com/VinceVibeCoding/omniscient
+omniscient group setup            # preview only: shows what will change, writes nothing
+omniscient group setup --write    # do it: hooks (your settings are backed up first) + widget download
+```
+
+`--write` downloads the Omnigroup installer into your *Downloads* folder and checks its SHA-256.
+**Run that installer.** It adds *Omnigroup* to the Start menu (WebView2 is installed if missing).
+
+**3. Start the engine and pair:**
+
+```powershell
+omniscient group serve            # leave this window open, or use the WSL/Linux option below to run it as a service
+```
+
+Open **Omnigroup**, then *Réglages › Demander un code*, type the 6-digit code shown on your desktop,
+pick your AI and choose a look. Pin it to your taskbar from the Start menu (right-click › *Pin to
+taskbar*): one click on that icon brings the widget back, even after you quit it.
+
+**Check it.** Re-run `omniscient group setup` any time: its first line says whether the engine
+answers on port 7341. On native Windows the engine runs while its terminal is open; to have it start
+by itself, use the WSL/Linux option below (systemd service).
+
+<details>
+<summary><b>Prefer WSL or Linux for the engine?</b></summary>
+
+The same commands work in a WSL2 terminal (the widget stays on Windows). Install uv first with
+`curl -LsSf https://astral.sh/uv/install.sh | sh`, reopen the terminal, then run steps 2 and 3. On
+Linux/WSL, `omniscient schedule install` creates a systemd user service: enable it with
+`systemctl --user enable --now omnigroup`.
+</details>
+
+**Everything else is optional.** Claude Code is what the hooks attach to (install it from
+[claude.com/claude-code](https://claude.com/claude-code) if you want its sessions in the widget).
+herdr, AgentRun, Docker and an API key are only for the idea factory; without them the widget works
+and the engine stays quiet about them. `omniscient group setup` is safe to re-run at any time.
+
+**Installing for several Windows users on one PC?** Everything is per user (the engine, the hooks in
+`~/.claude`, the widget settings and the pairing token in that user's Credential Manager). Repeat the
+steps above while signed in as each user.
 
 ### The idea factory
 
