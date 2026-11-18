@@ -51,6 +51,10 @@ from omniscient import cli_group_auth
 
 cli_group_auth.register(group_app)
 
+from omniscient import cli_group_autostart
+
+cli_group_autostart.register(group_app)
+
 from omniscient.group import cli_group_setup
 
 cli_group_setup.register(group_app)

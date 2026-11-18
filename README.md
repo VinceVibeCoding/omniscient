@@ -62,16 +62,19 @@ omniscient group setup --write    # do it: hooks (your settings are backed up fi
 **3. Start the engine and pair:**
 
 ```powershell
-omniscient group serve            # leave this window open, or use the WSL/Linux option below to run it as a service
+omniscient group serve            # leave this window open, or run `omniscient group autostart install --write` to start it at every logon
 ```
 
 Open **Omnigroup**, then *Réglages › Demander un code*, type the 6-digit code shown on your desktop,
 pick your AI and choose a look. Pin it to your taskbar from the Start menu (right-click › *Pin to
 taskbar*): one click on that icon brings the widget back, even after you quit it.
 
+**Start it automatically.** `omniscient group autostart install --write` creates a per-user
+scheduled task that starts the engine at each Windows logon (no administrator rights, no console
+window). `omniscient group autostart status` and `remove` check and undo it.
+
 **Check it.** Re-run `omniscient group setup` any time: its first line says whether the engine
-answers on port 7341. On native Windows the engine runs while its terminal is open; to have it start
-by itself, use the WSL/Linux option below (systemd service).
+answers on port 7341.
 
 <details>
 <summary><b>Prefer WSL or Linux for the engine?</b></summary>

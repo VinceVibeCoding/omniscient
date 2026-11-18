@@ -104,7 +104,9 @@ def _step_daemon(opts: SetupOptions, deps: SetupDeps) -> None:
     deps.say(f"   ✗ ne répond pas sur le port {opts.port}.")
     if deps.native_windows:
         deps.say(
-            "   → lance `omniscient group serve` dans un terminal (ou via le widget)."
+            "   → lance `omniscient group serve` dans un terminal, ou "
+            "`omniscient group autostart install --write` pour le démarrer à chaque "
+            "ouverture de session."
         )
         return
     deps.say(
