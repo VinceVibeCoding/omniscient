@@ -16,16 +16,20 @@
 .osd--alert { border-color: var(--accent); animation: glow 2.4s ease-in-out infinite; }
 .osd--offline { cursor: pointer; }
 
-.osd__head { display: flex; align-items: baseline; gap: 8px; font-size: 11px; white-space: nowrap; }
+.osd__head { display: flex; align-items: baseline; gap: 8px; font-size: 11px; white-space: nowrap; min-width: 0; }
+/* The window controls (− + ✕) always keep their place: everything else is fixed width except the
+ * live rate, which shortens with an ellipsis when the row is full. */
+.osd__head > * { flex: none; }
+.osd__head > .osd__live, .osd__head > .osd__idle { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .osd__title { color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .osd__agents { color: var(--secondary); font-variant-numeric: tabular-nums; }
 .osd__agents-word { display: none; }
 .osd__alert { color: var(--accent); font-weight: 700; }
 .osd__spacer { flex: 1; }
 /* In the small layout the controls stay muted until hover / focus, and are a bit smaller. */
-.osd .wc { align-self: center; margin: -4px -4px -4px 0; opacity: 0.45; transition: opacity 0.15s; }
+.osd .wc { align-self: center; gap: 0; margin: -4px -4px -4px 0; opacity: 0.45; transition: opacity 0.15s; }
 .osd:hover .wc, .osd .wc:focus-within { opacity: 1; }
-.osd .wc__btn { width: 22px; height: 22px; border-radius: 6px; cursor: pointer; }
+.osd .wc__btn { width: 20px; height: 20px; border-radius: 6px; cursor: pointer; }
 .osd .wc__svg { width: 13px; height: 13px; }
 .osd__live { color: var(--success); font-variant-numeric: tabular-nums; }
 .osd__idle { color: var(--muted); }
