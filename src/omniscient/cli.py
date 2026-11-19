@@ -102,8 +102,28 @@ register_group(app)
 register_ext(app)
 
 
+def _print_version(shown: bool) -> None:
+    if not shown:
+        return
+    from importlib.metadata import version
+
+    typer.echo(f"omniscient {version('omniscient')}")
+    raise typer.Exit()
+
+
 @app.callback()
-def _main(ctx: typer.Context) -> None:
+def _main(
+    ctx: typer.Context,
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            callback=_print_version,
+            is_eager=True,
+            help="Show the version.",
+        ),
+    ] = False,
+) -> None:
     """Omniscient: the agent software factory."""
     if sys.platform == "win32":  # piped output (the widget) is cp1252 by default
         from omniscient.group.hook_client import use_utf8_streams

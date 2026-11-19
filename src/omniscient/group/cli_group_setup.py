@@ -38,6 +38,8 @@ class SetupOptions:
     port: int = DEFAULT_PORT
     protect: bool = False
     skip_widget: bool = False
+    widget_dir: Path | None = None  # where to save the installer (default: Downloads)
+    update_widget: bool = False  # download it even when Omnigroup is already installed
 
 
 @dataclass(frozen=True)
@@ -156,7 +158,7 @@ def _step_widget(opts: SetupOptions, deps: SetupDeps, number: int = 3) -> None:
             f"     « omnigroup-windows-nsis » sur https://github.com/{wr.REPO}/actions"
         )
         return
-    dest = deps.downloads()
+    dest = opts.widget_dir or deps.downloads()
     if not opts.write:
         deps.say(
             f"   → {release.installer.name} ({release.tag}) sera téléchargé et vérifié"
@@ -203,7 +205,7 @@ def _run_native_windows(opts: SetupOptions, deps: SetupDeps) -> None:
     _step_daemon(opts, deps)
     _step_hooks(opts, deps)
     _step_claude(deps)
-    if deps.widget_installed():
+    if deps.widget_installed() and not (opts.update_widget and not opts.skip_widget):
         deps.say("4. Widget Windows")
         deps.say("   ✓ Omnigroup est déjà installé (menu Démarrer).")
     else:
@@ -251,6 +253,22 @@ def register(group_app: typer.Typer) -> None:
             bool,
             typer.Option("--skip-widget", help="Ne pas télécharger le widget Windows."),
         ] = False,
+        widget_dir: Annotated[
+            Path | None,
+            typer.Option(
+                "--widget-dir", help="Dossier où enregistrer l'installeur du widget."
+            ),
+        ] = None,
+        update_widget: Annotated[
+            bool,
+            typer.Option(
+                "--update-widget",
+                help="Télécharger l'installeur même si Omnigroup est déjà installé.",
+            ),
+        ] = False,
     ) -> None:
         """Tout installer en une commande : démon, hooks, widget, couplage."""
-        run_setup(SetupOptions(write, port, protect, skip_widget), default_deps())
+        run_setup(
+            SetupOptions(write, port, protect, skip_widget, widget_dir, update_widget),
+            default_deps(),
+        )
