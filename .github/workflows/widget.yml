@@ -55,6 +55,7 @@ jobs:
     name: Windows installer (NSIS)
     needs: web
     runs-on: windows-latest
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -129,6 +130,7 @@ jobs:
     name: install.ps1 + real installer (clean runner, ${{ matrix.shell }})
     needs: [windows, wheel]
     runs-on: windows-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
