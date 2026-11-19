@@ -88,7 +88,6 @@ function Install-Omniscient {
     }
 
     function Stop-Daemon {
-        $null = Invoke-Native 'schtasks' @('/End', '/TN', 'Omnigroup') -Quiet
         Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
             Where-Object { $_.CommandLine -and $_.CommandLine -match 'omniscient' -and $_.CommandLine -match 'group\s+serve' } |
             ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
@@ -196,11 +195,11 @@ function Install-Omniscient {
         # ---- 3. démon ---------------------------------------------------------------
         Step 3 "Démon (démarrage à l'ouverture de session)"
         if ($NoAutostart) {
-            Info '-NoAutostart : pas de tache planifiee.'
+            Info '-NoAutostart : pas de démarrage automatique.'
         } elseif ((Invoke-Native $omni @('group', 'autostart', 'install', '--write', '--port', "$Port")) -eq 0) {
-            Ok "Le démon démarrera à chaque ouverture de session (tâche planifiée 'Omnigroup', sans droits admin)."
+            Ok 'Le démon démarrera à chaque ouverture de session (sans droits administrateur).'
         } else {
-            Warn "Tâche planifiée refusée : lance 'omniscient group serve' à la main quand tu en as besoin."
+            Warn "Démarrage automatique non activé : lance 'omniscient group serve' à la main quand tu en as besoin."
         }
         # A hidden process hides its errors: test the port first (busy, or reserved by Windows).
         if ((Invoke-Native $omni @('group', 'serve', '--check-port', '--port', "$Port")) -ne 0) {

@@ -160,14 +160,16 @@ Write-Host "statusLine exit codes: cmd.exe=$cmdCode powershell.exe=$psCode"
 if (($cmdCode -ne 0) -or ($psCode -ne 0)) { Write-Host 'WARNING: the statusLine string does not run in every Windows shell (see the codes above)' -ForegroundColor Yellow }
 
 $auto = (& $omni group autostart status | Out-String)
-Assert ($auto -match 'actif') 'autostart task is registered'
+Assert ($auto -match 'actif') 'autostart (Run key) is registered'
 
-# The logon task really starts the daemon: its /TR line survives spaces, accents, parentheses.
+# The Run value really starts the daemon: its command line survives spaces, accents, parentheses.
 Stop-OmniscientDaemon
 Start-Sleep -Seconds 2
-Assert (-not ((Invoke-Captured $omni @('group', 'status')).Code -eq 0)) 'the daemon is stopped before the task test'
-schtasks /Run /TN Omnigroup | Out-Host
-Assert (Wait-Daemon $omni 7341 40) 'schtasks /Run /TN Omnigroup starts the daemon (the task command line resolves)'
+Assert (-not ((Invoke-Captured $omni @('group', 'status')).Code -eq 0)) 'the daemon is stopped before the Run test'
+$runCommand = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').Omnigroup
+Assert ([bool]$runCommand) 'the Run value exists'
+$null = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $runCommand }
+Assert (Wait-Daemon $omni 7341 40) 'the Run command line starts the daemon (it resolves like at logon)'
 
 # Port conflicts: a clear French failure, never a silent death.
 $taken = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, 7352)
@@ -216,7 +218,7 @@ Assert ($code -eq 0) 'install.ps1 -Port 7371 exits 0'
 Assert ($env:OMNIGROUP_URL -eq 'http://127.0.0.1:7371') 'OMNIGROUP_URL (what the hooks read) follows -Port'
 $moved = (Invoke-Captured $omni @('group', 'status')).Text
 Assert ($moved -match '127\.0\.0\.1:7371') 'group status (no --port) follows OMNIGROUP_URL to the daemon on 7371'
-Assert ((Invoke-Captured 'schtasks' @('/Query', '/TN', 'Omnigroup', '/XML')).Text -match '--port 7371') 'the logon task is written with the new port (XML: language independent)'
+Assert (((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').Omnigroup) -match '--port 7371') 'the Run value is written with the new port'
 [Environment]::SetEnvironmentVariable('OMNIGROUP_URL', $null, 'User')
 Remove-Item Env:\OMNIGROUP_URL -ErrorAction SilentlyContinue
 
