@@ -105,8 +105,15 @@ jobs:
         with:
           name: omniscient-wheel
           path: dist
-      - name: Run install.ps1 (engine only), then check and uninstall
-        shell: ${{ matrix.shell }}
+      - name: Run install.ps1 (engine only), then check and uninstall (powershell)
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          $wheel = (Get-ChildItem dist\*.whl).FullName
+          ./scripts/ci-install-smoke.ps1 -Wheel $wheel
+      - name: Run install.ps1 (engine only), then check and uninstall (pwsh)
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
         run: |
           $wheel = (Get-ChildItem dist\*.whl).FullName
           ./scripts/ci-install-smoke.ps1 -Wheel $wheel

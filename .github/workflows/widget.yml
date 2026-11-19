@@ -147,8 +147,16 @@ jobs:
         with:
           name: omnigroup-windows-nsis
           path: dist
-      - name: Run install.ps1 with the wheel and the installer built by this run
-        shell: ${{ matrix.shell }}
+      - name: Run install.ps1 with the wheel and the installer built by this run (powershell)
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          $wheel = (Get-ChildItem dist\*.whl).FullName
+          $setup = (Get-ChildItem dist\*-setup.exe).FullName
+          ./scripts/ci-install-smoke.ps1 -Wheel $wheel -Installer $setup
+      - name: Run install.ps1 with the wheel and the installer built by this run (pwsh)
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
         run: |
           $wheel = (Get-ChildItem dist\*.whl).FullName
           $setup = (Get-ChildItem dist\*-setup.exe).FullName
