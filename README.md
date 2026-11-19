@@ -45,7 +45,9 @@ That is the whole install. It needs Windows 10/11 and an internet connection, no
 admin rights, no git, no Python: the script fetches what is missing; Claude Code is optional, it is
 only needed for coding chats). It installs uv, the engine (SHA-256 verified, no git), starts the
 engine at every logon, writes the Claude Code hooks (settings backed up first) and installs the
-Omnigroup widget. Re-run the same command to update.
+Omnigroup widget.
+
+**Update:** `omniscient update` (engine and widget; `--check` only compares, `--dry-run` shows the plan).
 
 Then open **Omnigroup** from the Start menu, go to *Réglages › Demander un code*, type the 6-digit
 code shown on your desktop, pick your AI and choose a look. Pin it to your taskbar (right-click ›
@@ -314,7 +316,7 @@ Installation du widget sous Windows, en une commande dans PowerShell (rien d'aut
 powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1 | iex"
 ```
 
-Détails, désinstallation et dépannage : [docs/install.md](docs/install.md). L'usine, ensuite :
+Mettre à jour : `omniscient update`. Détails, désinstallation et dépannage : [docs/install.md](docs/install.md). L'usine, ensuite :
 
 ```bash
 omniscient init                   # l'usine : dossier, profil, projets, clés

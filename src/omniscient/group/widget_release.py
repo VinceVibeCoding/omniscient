@@ -130,22 +130,46 @@ def _asset(raw: Any, tag: str, installer: bool) -> Asset | None:
     return None
 
 
-def latest_widget_release(fetch: Fetch = https_fetch) -> Release | None:
-    """The newest published widget release with an installer and its sums, or None."""
+def published_releases(fetch: Fetch = https_fetch) -> list[tuple[str, Any]]:
+    """(tag, raw assets) of the published `widget-v*` releases, newest first."""
     try:
         listing = json.loads(fetch(API_RELEASES, LIST_MAX))
     except ValueError as exc:
         raise ReleaseError("réponse GitHub illisible") from exc
     if not isinstance(listing, list):
         raise ReleaseError("réponse GitHub inattendue")
+    found: list[tuple[str, Any]] = []
     for item in listing:
         if not isinstance(item, dict) or item.get("draft") or item.get("prerelease"):
             continue
         tag = item.get("tag_name")
-        if not isinstance(tag, str) or not tag.startswith(TAG_PREFIX):
+        if isinstance(tag, str) and tag.startswith(TAG_PREFIX):
+            found.append((tag, item.get("assets")))
+    return found
+
+
+def find_asset(raw: Any, tag: str, accept: Callable[[str], bool]) -> Asset | None:
+    """The first asset of `tag` whose plain name `accept`s and whose URL is this
+    repository's own download URL for that tag."""
+    if not isinstance(raw, list):
+        return None
+    for item in raw:
+        if not isinstance(item, dict):
             continue
-        installer = _asset(item.get("assets"), tag, installer=True)
-        sums = _asset(item.get("assets"), tag, installer=False)
+        name, url = item.get("name"), item.get("browser_download_url")
+        if not isinstance(name, str) or not isinstance(url, str):
+            continue
+        plain = Path(name).name == name and "\\" not in name and ".." not in name
+        if plain and accept(name) and url == f"{DOWNLOAD_PREFIX}{tag}/{name}":
+            return Asset(name, url)
+    return None
+
+
+def latest_widget_release(fetch: Fetch = https_fetch) -> Release | None:
+    """The newest published widget release with an installer and its sums, or None."""
+    for tag, assets in published_releases(fetch):
+        installer = _asset(assets, tag, installer=True)
+        sums = _asset(assets, tag, installer=False)
         if installer is not None and sums is not None:
             return Release(tag, installer, sums)
     return None

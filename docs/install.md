@@ -10,7 +10,24 @@ Prérequis : Windows 10 ou 11 et une connexion Internet. Rien d'autre : pas de d
 administrateur, pas de git, pas de Python (uv le télécharge). Claude Code est facultatif : il ne
 sert que pour les conversations de code.
 
-Relancer la même commande **met tout à jour** (le script est idempotent).
+## Mettre à jour
+
+```powershell
+omniscient update            # moteur + widget, vers la dernière version publiée
+omniscient --update          # même chose
+omniscient update --check    # compare seulement (code de sortie 1 : mise à jour disponible)
+omniscient update --dry-run  # dit ce qui serait fait, sans rien télécharger
+```
+
+La commande compare les versions installées (moteur : métadonnées Python ; widget : version de
+`omnigroup.exe`) à la dernière release publiée, dit « déjà à jour » si c'est le cas, sinon
+télécharge la roue, l'installeur et `install.ps1`, **vérifie leur SHA-256** (`SHA256SUMS`, et la
+provenance si `gh` est installé), puis, sous Windows, lance en arrière-plan (PowerShell caché)
+la copie vérifiée de `install.ps1` : elle attend la fin de la commande, arrête le widget et le
+démon (leurs fichiers sont verrouillés), met à jour, puis relance le démon et le widget. Le
+journal est dans un dossier `omniscient-update-*` de `%TEMP%` (la commande affiche son chemin).
+Sous Linux/WSL, seul le moteur est mis à jour (`uv tool install --force`) ; redémarre ensuite le
+démon. Relancer la commande d'installation met aussi tout à jour (le script est idempotent).
 
 ## Ce que fait le script, étape par étape
 
@@ -99,7 +116,7 @@ travail avec `omniscient init`, ce dossier-là.
 ## Pour les mainteneurs
 
 Une étiquette `widget-vX.Y.Z` fait construire l'installeur du widget **et** la roue du moteur ;
-tous deux, avec `SHA256SUMS` et l'attestation de provenance, sont attachés à une release en
+tous deux et `install.ps1` (utilisé par `omniscient update`), avec `SHA256SUMS` et l'attestation de provenance, sont attachés à une release en
 brouillon que le propriétaire publie. `install.ps1` lit la dernière release *publiée* : tant
 qu'elle n'est pas publiée, la commande ne la voit pas. Garde le numéro de version de
 `pyproject.toml` et celui de `widget/src-tauri/tauri.conf.json` alignés avant d'étiqueter.

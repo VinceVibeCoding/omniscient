@@ -32,6 +32,7 @@ from omniscient.build.poc import (
 from omniscient.cli_ext import register as register_ext
 from omniscient.cli_group import register_group
 from omniscient.cli_onboarding import register_onboarding
+from omniscient.cli_update import register as register_update
 from omniscient.config import ConfigError, Settings, load_settings
 from omniscient.home import Home
 from omniscient.ops import CostRow, append_cost
@@ -62,7 +63,7 @@ BUILD_BUSY = "Un prototype est déjà en construction, réessaie plus tard."
 BUILD_FAILED_REASON_LIMIT = 300
 _BUILD_LOCK = threading.Lock()  # one build at a time: each holds a Docker box and $
 HOME_FREE_COMMANDS = frozenset(
-    {"init", "group"}
+    {"init", "group", "update"}
 )  # run before a home exists (hooks: silent)
 
 # The user's data lives in a home (omniscient.home), resolved at command time, never
@@ -99,6 +100,7 @@ app.command("warroom")(_warroom)
 app.command("chat")(_chat)
 register_onboarding(app)
 register_group(app)
+register_update(app)
 register_ext(app)
 
 
@@ -111,6 +113,14 @@ def _print_version(shown: bool) -> None:
     raise typer.Exit()
 
 
+def _run_update(requested: bool) -> None:
+    if not requested:
+        return
+    from omniscient.cli_update import run_update
+
+    raise typer.Exit(code=run_update(check=False, dry_run=False))
+
+
 @app.callback()
 def _main(
     ctx: typer.Context,
@@ -121,6 +131,15 @@ def _main(
             callback=_print_version,
             is_eager=True,
             help="Show the version.",
+        ),
+    ] = False,
+    update: Annotated[
+        bool,
+        typer.Option(
+            "--update",
+            callback=_run_update,
+            is_eager=True,
+            help="Update the engine and the widget (same as `omniscient update`).",
         ),
     ] = False,
 ) -> None:
