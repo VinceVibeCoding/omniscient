@@ -65,21 +65,32 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// The running app, set once `setup` starts: what a second launch asks to show.
+static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+
 pub fn run() {
     // A second launch (pinned taskbar icon, Start menu) shows the running widget and quits.
     let listener = match single_instance::claim() {
         single_instance::Role::Secondary => return,
         single_instance::Role::Primary(listener) => listener,
     };
+    // Answer second launches from the very first moment: the port is already ours, and the
+    // interface takes a second or two to come up. A second launch that got no answer in that
+    // window used to think a stranger held the port and started anyway: two widgets at once.
+    // The window is only shown when the app is ready (`APP` is filled in `setup`).
+    if let Some(listener) = listener {
+        single_instance::serve(listener, || {
+            if let Some(app) = APP.get() {
+                tray::show_window(app);
+            }
+        });
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
-        .setup(move |app| {
-            if let Some(listener) = listener {
-                let handle = app.handle().clone();
-                single_instance::serve(listener, move || tray::show_window(&handle));
-            }
+        .setup(|app| {
+            let _ = APP.set(app.handle().clone());
             setup(app)
         })
         .on_window_event(|window, event| match event {
