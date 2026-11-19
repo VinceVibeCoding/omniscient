@@ -92,6 +92,11 @@ export function minimizeWindow(): Promise<void> {
   return invoke("minimize_window");
 }
 
+/** Quits the app completely (the widget, and the daemon it started). */
+export function closeApp(): Promise<void> {
+  return invoke("quit_app");
+}
+
 export function getScale(): Promise<number> {
   return invoke<number>("get_scale");
 }

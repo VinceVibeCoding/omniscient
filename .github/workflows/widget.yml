@@ -9,10 +9,16 @@ on:
     tags: ["widget-v*"]
     paths:
       - "widget/**"
+      - "install.ps1"
+      - "scripts/ci-install-smoke.ps1"
+      - "pyproject.toml"
       - ".github/workflows/widget.yml"
   pull_request:
     paths:
       - "widget/**"
+      - "install.ps1"
+      - "scripts/ci-install-smoke.ps1"
+      - "pyproject.toml"
       - ".github/workflows/widget.yml"
   workflow_dispatch:
 
@@ -49,6 +55,7 @@ jobs:
     name: Windows installer (NSIS)
     needs: web
     runs-on: windows-latest
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -100,9 +107,66 @@ jobs:
           path: widget/src-tauri/Cargo.lock
           if-no-files-found: warn
 
+  wheel:
+    name: Engine wheel
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Build the wheel (the engine, installed without git)
+        run: uv build --wheel --out-dir dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: omniscient-wheel
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 14
+
+  install-smoke:
+    name: install.ps1 + real installer (clean runner, ${{ matrix.shell }})
+    needs: [windows, wheel]
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: omniscient-wheel
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: omnigroup-windows-nsis
+          path: dist
+      - name: Run install.ps1 with the wheel and the installer built by this run (powershell)
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          $wheel = (Get-ChildItem dist\*.whl).FullName
+          $setup = (Get-ChildItem dist\*-setup.exe).FullName
+          ./scripts/ci-install-smoke.ps1 -Wheel $wheel -Installer $setup
+      - name: Run install.ps1 with the wheel and the installer built by this run (pwsh)
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: |
+          $wheel = (Get-ChildItem dist\*.whl).FullName
+          $setup = (Get-ChildItem dist\*-setup.exe).FullName
+          ./scripts/ci-install-smoke.ps1 -Wheel $wheel -Installer $setup
+
   release:
     name: Draft release (widget-v* tags)
-    needs: windows
+    needs: [windows, wheel, install-smoke]
     if: startsWith(github.ref, 'refs/tags/widget-v')
     runs-on: ubuntu-latest
     permissions:
@@ -110,22 +174,33 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: omnigroup-windows-nsis
           path: dist
-      - name: SHA256SUMS
-        working-directory: dist
-        run: sha256sum -- *.exe > SHA256SUMS && cat SHA256SUMS
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: omniscient-wheel
+          path: dist
+      - name: SHA256SUMS (installer, engine wheel and install.ps1 used by `omniscient update`)
+        run: |
+          cp install.ps1 dist/install.ps1
+          cd dist && sha256sum -- *.exe *.whl install.ps1 > SHA256SUMS && cat SHA256SUMS
       - name: Build provenance attestation
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: dist/*.exe
+          subject-path: |
+            dist/*.exe
+            dist/*.whl
+            dist/install.ps1
       - name: Draft the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$TAG" dist/*.exe dist/SHA256SUMS \
+          gh release create "$TAG" dist/*.exe dist/*.whl dist/install.ps1 dist/SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" --draft --title "Omnigroup $TAG" \
-            --notes "Installeur Windows du widget Omnigroup. Vérification : SHA256SUMS et attestation de provenance (gh attestation verify). Couplage : widget/README.md."
+            --notes "Installeur Windows du widget Omnigroup et moteur Omniscient (roue .whl), publiés ensemble. Installation en une commande : voir le README. Vérification : SHA256SUMS et attestation de provenance (gh attestation verify). Couplage : widget/README.md."

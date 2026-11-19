@@ -48,3 +48,74 @@ jobs:
         run: uv sync --locked
       - name: Test
         run: uv run pytest -q
+
+  wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Build the wheel (the engine, installed without git)
+        run: uv build --wheel --out-dir dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: omniscient-wheel
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  install-script:
+    # install.ps1 parses and passes PSScriptAnalyzer (errors fail the job).
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Parse and analyze
+        shell: powershell
+        run: |
+          foreach ($file in 'install.ps1', 'scripts/ci-install-smoke.ps1') {
+            $text = [IO.File]::ReadAllText("$PWD/$file", [Text.Encoding]::UTF8)
+            $errors = $null; $tokens = $null
+            [void][System.Management.Automation.Language.Parser]::ParseInput($text, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { $errors | ForEach-Object { Write-Host "$file`:$($_.Extent.StartLineNumber) $($_.Message)" }; exit 1 }
+          }
+          if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser }
+          $found = 'install.ps1', 'scripts/ci-install-smoke.ps1' | ForEach-Object {
+            Invoke-ScriptAnalyzer -Path $_ -Severity Error, Warning `
+            -ExcludeRule PSAvoidUsingWriteHost, PSUseApprovedVerbs, PSUseShouldProcessForStateChangingFunctions
+          }
+          $found | Format-Table RuleName, Severity, ScriptName, Line, Message -AutoSize -Wrap
+          if ($found | Where-Object Severity -eq 'Error') { exit 1 }
+
+  install-smoke:
+    # A clean runner is a PC that never had Omniscient: the one-liner's script installs
+    # uv, the engine (from this commit's wheel), hooks, autostart, then everything is removed.
+    # Engine path only (-SkipWidget); the widget installer is exercised in widget.yml.
+    needs: wheel
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: omniscient-wheel
+          path: dist
+      - name: Run install.ps1 (engine only), then check and uninstall (powershell)
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          $wheel = (Get-ChildItem dist\*.whl).FullName
+          ./scripts/ci-install-smoke.ps1 -Wheel $wheel
+      - name: Run install.ps1 (engine only), then check and uninstall (pwsh)
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: |
+          $wheel = (Get-ChildItem dist\*.whl).FullName
+          ./scripts/ci-install-smoke.ps1 -Wheel $wheel

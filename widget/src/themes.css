@@ -52,7 +52,7 @@ html[data-theme="dashboard"] .osd { border-radius: 6px; font-family: inherit; }
 html[data-theme="dashboard"] .osd__head,
 html[data-theme="dashboard"] .ticker { font-family: "Cascadia Code", ui-monospace, monospace; }
 html[data-theme="dashboard"] .osd__title { letter-spacing: 0.22em; }
-html[data-theme="dashboard"] .osd__agents-word { display: inline; text-transform: uppercase; letter-spacing: 0.12em; }
+/* The long « SUBAGENTS » word no longer shows in the compact view: it left no room for the window controls (the count keeps its tooltip). */
 html[data-theme="dashboard"] .osd__agents { color: var(--muted); }
 html[data-theme="dashboard"] .osd__live { text-transform: uppercase; letter-spacing: 0.06em; }
 html[data-theme="dashboard"] .osd__rows { gap: 3px; }

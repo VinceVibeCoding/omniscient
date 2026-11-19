@@ -1,7 +1,7 @@
-// Window controls at the top-right of every layout: « − » minimizes to the taskbar and
-// « + » switches between the small (OSD) and the large (panel) layout. Icons are SVG built
+// Window controls at the top-right of every layout: « − » minimizes to the taskbar,
+// « + » switches between the small (OSD) and the large (panel) layout, « ✕ » quits the app. Icons are SVG built
 // with DOM APIs (strict CSP); in the terminal skin they turn into plain characters (CSS).
-import { minimizeWindow } from "../api";
+import { closeApp, minimizeWindow } from "../api";
 import { h, svg } from "../dom";
 
 export type Layout = "small" | "large";
@@ -32,18 +32,19 @@ function icon(paths: readonly string[], glyph: string): HTMLElement {
 }
 
 const MINUS = icon(["M3.5 8h9"], "−");
+const CLOSE = icon(["M4 4l8 8", "M12 4l-8 8"], "×");
 const PLUS = icon(["M8 3.5v9", "M3.5 8h9"], "+");
 // Two arrows pointing inward: fold back to the compact view.
 const COMPACT = icon(["M13 3 9.5 6.5", "M9.5 3.5v3h3", "M3 13l3.5-3.5", "M3.5 9.5h3v3"], "+");
 
-function button(label: string, icon: HTMLElement, action: () => void): HTMLButtonElement {
+function button(label: string, icon: HTMLElement, action: () => void, extra = ""): HTMLButtonElement {
   // Stop the click and the keyboard activation here: the OSD (role=button) opens the panel
   // on click / Enter / Space and the panel header folds on click.
   const stop = (event: Event): void => event.stopPropagation();
   return h(
     "button",
     {
-      class: "icon-btn wc__btn",
+      class: `icon-btn wc__btn ${extra}`.trim(),
       type: "button",
       "aria-label": label,
       title: label,
@@ -61,11 +62,15 @@ export function windowControls(layout: Layout, on: WindowControlHandlers): HTMLE
   const minimize = (): void => {
     minimizeWindow().catch((err: unknown) => console.warn("omnigroup: minimize failed", err));
   };
+  const close = (): void => {
+    closeApp().catch((err: unknown) => console.warn("omnigroup: quit failed", err));
+  };
   const toggleLabel = layout === "small" ? "Agrandir" : "Passer en vue compacte";
   return h(
     "span",
     { class: `wc wc--${layout}`, role: "group", "aria-label": "Fenêtre" },
     button("Réduire dans la barre des tâches", MINUS.cloneNode(true) as HTMLElement, minimize),
     button(toggleLabel, (layout === "small" ? PLUS : COMPACT).cloneNode(true) as HTMLElement, on.toggle),
+    button("Fermer Omnigroup", CLOSE.cloneNode(true) as HTMLElement, close, "wc__btn--close"),
   );
 }

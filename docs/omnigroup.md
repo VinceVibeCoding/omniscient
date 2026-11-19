@@ -30,6 +30,8 @@ Au démarrage de la session : `omniscient schedule install --write` écrit aussi
 `systemctl --user enable --now omnigroup.service` (Omniscient ne lance jamais
 `systemctl`).
 
+Installation en une commande (uv, moteur, démon, hooks et widget) : [install.md](install.md).
+
 Widget : installateur NSIS dans les releases GitHub (tags `widget-v*`, avec
 `SHA256SUMS` et une attestation de provenance) ou artefact `omnigroup-windows-nsis` du
 workflow *Widget*. Couplage : voir plus bas.
@@ -40,7 +42,9 @@ le fait réapparaître s'il tourne déjà (une seule instance à la fois). L'ic�
 l'horloge fait aussi apparaître / disparaître le widget.
 
 **Boutons de la fenêtre** (en haut à droite, dans la vue compacte comme dans le panneau) :
-« − » réduit le widget dans la barre des tâches (cliquez son icône pour le rouvrir) ; « + » passe
+« − » réduit le widget dans la barre des tâches (cliquez son icône pour le rouvrir) ; « ✕ » le ferme
+complètement (l'application et le démon qu'elle a lancé ; rouvrez-la depuis le menu Démarrer ou l'icône
+épinglée) ; « + » passe
 de la vue compacte à la grande vue, et le bouton de repli de la grande vue revient à la compacte
 (un clic sur l'en-tête ou Échap fait de même).
 
@@ -308,7 +312,7 @@ Le démon, le client de hooks et le chat tournent directement sous Windows 10/11
   atteindre un enfant sans fenêtre (il est livré par console, donc au démon lui-même).
 - **Désactivé sous Windows** : les collecteurs herdr et AgentRun (Linux seulement), et le
   retour à une session par herdr ou par WSL.
-- **`omniscient group setup`** : mode Windows natif (aucune étape WSL, pas de téléchargement
+- **`omniscient group setup`** (appelé par `install.ps1`, voir [install.md](install.md)) : mode Windows natif (aucune étape WSL, pas de téléchargement
   du widget : c'est lui qui t'a installé). Il installe les hooks, vérifie `claude`, puis
   t'invite à ouvrir le widget Omnigroup.
 

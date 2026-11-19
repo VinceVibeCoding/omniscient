@@ -1,6 +1,6 @@
 [package]
 name = "omnigroup"
-version = "0.2.0"
+version = "0.2.1"
 description = "Omnigroup: a corner widget showing every running agent of an Omniscient home"
 license = "MIT"
 edition = "2021"
@@ -38,7 +38,7 @@ jpeg-encoder = "=0.7.1"
 windows = { version = "=0.62.2", features = [
   "Win32_Foundation", "Win32_System_Com", "Win32_System_Ole", "Win32_System_Variant",
   "Win32_System_Threading", "Win32_UI_Accessibility", "Win32_UI_WindowsAndMessaging",
-  "Win32_Graphics_Gdi", "Win32_Storage_Xps",
+  "Win32_Graphics_Gdi", "Win32_Storage_Xps", "Win32_Security",
 ] }
 
 [profile.release]

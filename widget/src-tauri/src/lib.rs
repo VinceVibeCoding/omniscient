@@ -65,21 +65,29 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// The running app, set once `setup` starts: what a second launch asks to show.
+static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+
 pub fn run() {
-    // A second launch (pinned taskbar icon, Start menu) shows the running widget and quits.
-    let listener = match single_instance::claim() {
+    // A second launch (pinned taskbar icon, Start menu, the installer's own launch) shows the
+    // running widget and quits. The lock is taken first thing: even a launch that comes during
+    // this one's start-up sees it. The window is only shown once the app handle exists.
+    let guard = match single_instance::claim() {
         single_instance::Role::Secondary => return,
-        single_instance::Role::Primary(listener) => listener,
+        single_instance::Role::Primary(guard) => guard,
     };
+    single_instance::serve(&guard, || {
+        if let Some(app) = APP.get() {
+            tray::show_window(app);
+        }
+    });
+    std::mem::forget(guard); // the lock lives as long as the process
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
-        .setup(move |app| {
-            if let Some(listener) = listener {
-                let handle = app.handle().clone();
-                single_instance::serve(listener, move || tray::show_window(&handle));
-            }
+        .setup(|app| {
+            let _ = APP.set(app.handle().clone());
             setup(app)
         })
         .on_window_event(|window, event| match event {
@@ -119,6 +127,7 @@ pub fn run() {
             commands::set_window_mode,
             drag::start_drag,
             osd_commands::minimize_window,
+            osd_commands::quit_app,
             osd_commands::get_osd,
             osd_commands::get_config,
             osd_commands::set_config,
