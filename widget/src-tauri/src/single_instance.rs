@@ -13,7 +13,7 @@ use std::time::Duration;
 const PORT: u16 = 47_322;
 const HELLO: &str = "omnigroup-show";
 const REPLY: &str = "omnigroup-ok";
-const TIMEOUT: Duration = Duration::from_millis(800);
+const TIMEOUT: Duration = Duration::from_millis(1500);
 /// Longest line read from a client: a local process can't make us buffer more.
 const MAX_LINE: u64 = 64;
 
@@ -97,6 +97,18 @@ mod tests {
         serve(listener, move || tx.send(()).expect("receiver alive"));
         assert!(matches!(claim_at(addr), Role::Secondary));
         rx.recv_timeout(Duration::from_secs(2)).expect("the first instance was asked to show");
+    }
+
+    #[test]
+    fn a_second_launch_gets_its_answer_even_when_the_show_callback_is_slow() {
+        // The first instance answers at once and shows the window later: a second launch must not
+        // time out while the first is still starting up.
+        let addr = free_addr();
+        let Role::Primary(Some(listener)) = claim_at(addr) else { panic!("first launch must own the port") };
+        serve(listener, || std::thread::sleep(Duration::from_secs(3)));
+        let started = std::time::Instant::now();
+        assert!(matches!(claim_at(addr), Role::Secondary));
+        assert!(started.elapsed() < Duration::from_millis(1200));
     }
 
     #[test]
