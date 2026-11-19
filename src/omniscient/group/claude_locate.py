@@ -104,8 +104,8 @@ def resolve_command(
         else (which or shutil.which)(argv[0])
     )
     if found is None:
-        log.warning("omnigroup chat: %s not found in the daemon PATH", argv[0])
+        log.warning("omniscient chat: %s not found in the daemon PATH", argv[0])
         return argv
     prefix = launch_prefix(found, windows)
-    log.info("omnigroup chat: using %s", " ".join(prefix))
+    log.info("omniscient chat: using %s", " ".join(prefix))
     return (*prefix, *argv[1:])

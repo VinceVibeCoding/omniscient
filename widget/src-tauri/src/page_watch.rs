@@ -113,7 +113,7 @@ pub fn current() -> Value {
 fn announce(app: &AppHandle, remembered: Option<&Remembered>) {
     let event = json!({ "type": "browser_page", "data": view(remembered) });
     if let Err(err) = app.emit(STREAM_EVENT, event) {
-        eprintln!("omnigroup: browser window event failed: {err}");
+        eprintln!("omniscient: browser window event failed: {err}");
     }
 }
 
@@ -263,7 +263,7 @@ mod tests {
     use super::*;
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("omnigroup-{name}-{}", std::process::id()))
+        std::env::temp_dir().join(format!("omniscient-{name}-{}", std::process::id()))
     }
 
     #[test]

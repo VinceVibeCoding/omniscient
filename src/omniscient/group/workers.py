@@ -1,4 +1,4 @@
-"""Background work of the omnigroup daemon: collectors and the janitor."""
+"""Background work of the omniscient daemon: collectors and the janitor."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def run_collector(collector: Any, app: App) -> None:
     try:
         collector.run(app.store, app.stopping)
     except Exception:
-        log.exception("omnigroup collector %s stopped", collector.name)
+        log.exception("omniscient collector %s stopped", collector.name)
 
 
 def janitor(app: App) -> None:
@@ -34,7 +34,7 @@ def janitor(app: App) -> None:
                 app.store.prune()
                 since_prune = 0.0
         except Exception:
-            log.exception("omnigroup janitor failed")
+            log.exception("omniscient janitor failed")
         app.stopping.wait(JANITOR_S)
         since_prune += JANITOR_S
 
@@ -43,7 +43,7 @@ def default_collectors(home: Home) -> tuple[Any, ...]:
     """herdr + AgentRun collectors (agent C's modules, imported lazily). None on native
     Windows: herdr is a Unix terminal multiplexer and AgentRun runs in a Linux box."""
     if sys.platform == "win32":
-        log.info("omnigroup: collectors herdr et AgentRun désactivés sous Windows")
+        log.info("omniscient: collectors herdr et AgentRun désactivés sous Windows")
         return ()
     from omniscient.group.collect_agentrun import AgentRunCollector
     from omniscient.group.collect_herdr import HerdrCollector

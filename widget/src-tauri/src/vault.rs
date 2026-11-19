@@ -2,7 +2,7 @@
 //! the Windows user) through the keyring crate. It is never written to settings.json and
 //! never returned to the webview. Off Windows, keyring uses its in-memory mock store.
 
-const SERVICE: &str = "dev.omniscient.omnigroup";
+const SERVICE: &str = "dev.omniscient.widget";
 const ACCOUNT: &str = "widget-token";
 
 fn entry() -> Result<keyring::Entry, String> {

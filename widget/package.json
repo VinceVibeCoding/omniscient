@@ -1,8 +1,8 @@
 {
-  "name": "omnigroup-widget",
+  "name": "omniscient-widget",
   "private": true,
-  "version": "0.2.1",
-  "description": "Omnigroup: a Windows corner widget showing every running agent of an Omniscient home.",
+  "version": "0.2.2",
+  "description": "Omniscient: a Windows corner widget showing every running agent of an Omniscient home.",
   "license": "MIT",
   "type": "module",
   "scripts": {

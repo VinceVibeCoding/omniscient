@@ -12,7 +12,7 @@ export interface ListHandlers {
   settings(): void;
 }
 
-export function header(link: LinkStatus, on: ListHandlers, title = "Omnigroup"): HTMLElement {
+export function header(link: LinkStatus, on: ListHandlers, title = "Omniscient"): HTMLElement {
   // A click on the bar itself (not on one of its buttons) folds the panel back to the OSD,
   // like the OSD's own click unfolds it. A drag never ends in a click (see drag.ts).
   const onBarClick = (event: MouseEvent): void => {

@@ -1,4 +1,4 @@
-"""Row <-> model conversion for the omnigroup SQLite store."""
+"""Row <-> model conversion for the omniscient SQLite store."""
 
 from __future__ import annotations
 

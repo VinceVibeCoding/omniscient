@@ -29,7 +29,7 @@ function startupSection(autostart: boolean | null, on: SettingsHandlers): HTMLEl
     "label",
     { class: "setting setting--check" },
     box,
-    h("span", { class: "setting__label" }, "Lancer Omnigroup au démarrage de Windows"),
+    h("span", { class: "setting__label" }, "Lancer Omniscient au démarrage de Windows"),
   );
 }
 

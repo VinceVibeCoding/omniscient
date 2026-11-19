@@ -143,15 +143,15 @@ def test_status_reports_missing_units(exe: Path, config_home: Path) -> None:
     assert result.output.count("absent") == len(UNITS)
 
 
-def test_omnigroup_daemon_unit_is_rendered_and_optional(
+def test_omniscient_daemon_unit_is_rendered_and_optional(
     tmp_path: Path, exe: Path, config_home: Path
 ) -> None:
     units = {u.name: u.text for u in render_units(tmp_path, omniscient_executable())}
-    group = units["omnigroup.service"]
+    group = units["omniscient.service"]
     assert f'ExecStart="{exe.resolve()}" group serve' in group
     assert "WantedBy=default.target" in group
 
     result = CliRunner().invoke(cli.app, ["schedule", "install", "--write"])
     assert result.exit_code == 0, result.output
-    assert (config_home / "omnigroup.service").is_file()
-    assert "systemctl --user enable --now omnigroup.service" in result.output
+    assert (config_home / "omniscient.service").is_file()
+    assert "systemctl --user enable --now omniscient.service" in result.output

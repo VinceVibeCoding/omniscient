@@ -3,7 +3,7 @@
 //! The daemon returns a widget token once; it goes straight to the Windows vault.
 //! No shell, no WSL command and no token command are involved any more.
 
-pub const CLIENT_NAME: &str = "Omnigroup (Windows)";
+pub const CLIENT_NAME: &str = "Omniscient (Windows)";
 const CODE_DIGITS: usize = 6;
 
 /// Six ASCII digits (spaces around are tolerated), or a French error.

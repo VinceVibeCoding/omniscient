@@ -107,7 +107,7 @@ fn dispatch(app: &AppHandle, notifier: &mut Notifier, event: SseEvent) {
     let data: Value = match serde_json::from_str(&event.data) {
         Ok(data) => data,
         Err(err) => {
-            eprintln!("omnigroup: ignored malformed '{}' event: {err}", event.event);
+            eprintln!("omniscient: ignored malformed '{}' event: {err}", event.event);
             return;
         }
     };
@@ -118,7 +118,7 @@ fn dispatch(app: &AppHandle, notifier: &mut Notifier, event: SseEvent) {
         notify_waiting(app, &title);
     }
     if let Err(err) = app.emit(STREAM_EVENT, json!({ "type": event.event, "data": data })) {
-        eprintln!("omnigroup: stream event not delivered: {err}");
+        eprintln!("omniscient: stream event not delivered: {err}");
     }
 }
 
@@ -126,11 +126,11 @@ fn notify_waiting(app: &AppHandle, title: &str) {
     let shown = app
         .notification()
         .builder()
-        .title("Omnigroup — un agent vous attend")
+        .title("Omniscient — un agent vous attend")
         .body(format!("{title} attend votre réponse."))
         .show();
     if let Err(err) = shown {
-        eprintln!("omnigroup: notification failed: {err}");
+        eprintln!("omniscient: notification failed: {err}");
     }
 }
 

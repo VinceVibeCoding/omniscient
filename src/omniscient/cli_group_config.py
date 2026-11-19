@@ -1,6 +1,6 @@
 """`omniscient group config get|set`: the widget's display settings, from a terminal.
 
-Writes `~/.config/omnigroup/config.json` directly (no daemon needed); a running daemon
+Writes `~/.config/omniscient/config.json` directly (no daemon needed); a running daemon
 notices the change within a few seconds and the widget follows live.
 """
 

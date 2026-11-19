@@ -102,7 +102,7 @@ class ExtensionStore:
             return frozenset()
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.warning(
-                "omnigroup: unreadable %s (%s): none disabled", DISABLED_FILE, exc
+                "omniscient: unreadable %s (%s): none disabled", DISABLED_FILE, exc
             )
             return frozenset()
 

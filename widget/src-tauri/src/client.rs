@@ -1,4 +1,4 @@
-//! HTTP client for the omnigroup daemon (loopback only, no proxy, no redirects, French
+//! HTTP client for the omniscient daemon (loopback only, no proxy, no redirects, French
 //! errors). Paired calls carry the widget token, but only once `verify` has checked that
 //! the daemon knows it (proof.rs); pairing calls carry no credential at all.
 

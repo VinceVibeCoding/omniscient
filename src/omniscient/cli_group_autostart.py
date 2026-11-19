@@ -9,7 +9,7 @@ import typer
 from omniscient.group.autostart import RUN_VALUE, Autostart, AutostartError
 from omniscient.group.portcheck import configured_port
 
-DEFAULT_PORT = configured_port()  # 7341, or the port of OMNIGROUP_URL
+DEFAULT_PORT = configured_port()  # 7341, or the port of OMNISCIENT_URL
 PortOpt = Annotated[int, typer.Option("--port", help="Port local du démon.")]
 
 

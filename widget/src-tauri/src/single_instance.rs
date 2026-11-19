@@ -1,4 +1,4 @@
-//! One Omnigroup at a time. A second launch (a click on the pinned taskbar icon, the Start menu
+//! One Omniscient at a time. A second launch (a click on the pinned taskbar icon, the Start menu
 //! entry, the installer's own launch...) asks the running widget to show itself, then quits.
 //!
 //! Done with a **named mutex** (who owns the app) and a **named event** (« show yourself »), both
@@ -14,8 +14,8 @@ use windows::Win32::System::Threading::{
     CreateEventW, CreateMutexW, OpenEventW, SetEvent, WaitForSingleObject, EVENT_MODIFY_STATE, INFINITE,
 };
 
-const MUTEX_NAME: &str = "Local\\Omnigroup-single-instance";
-const EVENT_NAME: &str = "Local\\Omnigroup-show-window";
+const MUTEX_NAME: &str = "Local\\Omniscient-single-instance";
+const EVENT_NAME: &str = "Local\\Omniscient-show-window";
 
 /// What this process owns for as long as it runs (the handles are never closed on purpose: the
 /// mutex must be held until the process ends). `event` is 0 when it could not be created.
@@ -26,7 +26,7 @@ pub struct Guard {
 pub enum Role {
     /// We are the widget.
     Primary(Guard),
-    /// Another Omnigroup runs: it was asked to show itself, we quit.
+    /// Another Omniscient runs: it was asked to show itself, we quit.
     Secondary,
 }
 
@@ -40,8 +40,8 @@ pub fn claim_named(mutex_name: &str, event_name: &str) -> Role {
         let mutex = match CreateMutexW(None, true, &HSTRING::from(mutex_name)) {
             Ok(handle) => handle,
             Err(err) => {
-                // Never stop Omnigroup from opening because the guard failed.
-                eprintln!("omnigroup: single-instance lock unavailable ({err}); starting anyway");
+                // Never stop Omniscient from opening because the guard failed.
+                eprintln!("omniscient: single-instance lock unavailable ({err}); starting anyway");
                 return Role::Primary(Guard { event: 0 });
             }
         };
@@ -53,7 +53,7 @@ pub fn claim_named(mutex_name: &str, event_name: &str) -> Role {
         let event = CreateEventW(None, false, false, &HSTRING::from(event_name))
             .map(|handle| handle.0 as isize)
             .unwrap_or_else(|err| {
-                eprintln!("omnigroup: single-instance event unavailable ({err})");
+                eprintln!("omniscient: single-instance event unavailable ({err})");
                 0
             });
         Role::Primary(Guard { event })
@@ -82,7 +82,7 @@ where
         // SAFETY: the handle was created by `claim_named` and stays open for the process lifetime.
         let waited = unsafe { WaitForSingleObject(HANDLE(event as *mut core::ffi::c_void), INFINITE) };
         if waited != WAIT_OBJECT_0 {
-            eprintln!("omnigroup: single-instance wait stopped ({waited:?})");
+            eprintln!("omniscient: single-instance wait stopped ({waited:?})");
             break;
         }
         on_show();
@@ -97,7 +97,7 @@ mod tests {
 
     fn names(tag: &str) -> (String, String) {
         let id = std::process::id();
-        (format!("Local\\omnigroup-test-{tag}-{id}-mutex"), format!("Local\\omnigroup-test-{tag}-{id}-event"))
+        (format!("Local\\omniscient-test-{tag}-{id}-mutex"), format!("Local\\omniscient-test-{tag}-{id}-event"))
     }
 
     #[test]

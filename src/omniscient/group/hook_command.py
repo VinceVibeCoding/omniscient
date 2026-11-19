@@ -1,7 +1,7 @@
-"""The command strings that omnigroup writes into Claude Code / Copilot settings.
+"""The command strings that omniscient writes into Claude Code / Copilot settings.
 
 POSIX: one shell string, paths quoted with shlex (unchanged since the first release).
-Windows (see docs/omnigroup.md, « Windows natif »): Claude Code runs a hook `command`
+Windows (see docs/omniscient.md, « Windows natif »): Claude Code runs a hook `command`
 string through Git Bash when Git for Windows is installed, else PowerShell, so no single
 quoting works in both. Hooks therefore use the exec form (`command` = the executable,
 `args` = its arguments: no shell, no quoting, spaces are fine); paths use forward slashes

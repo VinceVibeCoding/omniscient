@@ -27,7 +27,7 @@ question (rien n'est lu au clavier) et n'écrit que dans ton dossier personnel. 
    `omniscient-<version>-py3-none-any.whl` (HTTPS seulement), **vérifie le SHA-256** (refus en cas
    d'écart), puis `uv tool install --force`.
 3. **Démon.** Linux avec `systemd --user` : écrit les unités (`omniscient schedule install --write`)
-   et active `omnigroup.service`. Sinon (macOS, WSL sans systemd) : `omniscient group serve` lancé
+   et active `omniscient.service`. Sinon (macOS, WSL sans systemd) : `omniscient group serve` lancé
    en arrière-plan, journal dans `~/.omniscient/daemon.log` ; à relancer à la main après un
    redémarrage. Le port est testé d'abord ; le script attend que `omniscient group status` réponde.
 4. **Hooks.** `omniscient group setup --write` (sauvegarde de `~/.claude/settings.json` d'abord).
@@ -37,7 +37,7 @@ question (rien n'est lu au clavier) et n'écrit que dans ton dossier personnel. 
 5. **État** et « Et maintenant ».
 
 Options, après `sh -s --` : `--wheel CHEMIN`, `--skip-widget`, `--no-daemon`, `--port N`, `--help`
-(ou les variables `OMNIGROUP_INSTALL_WHEEL`, `_SKIPWIDGET`, `_NODAEMON`, `_PORT`). Exemple :
+(ou les variables `OMNISCIENT_INSTALL_WHEEL`, `_SKIPWIDGET`, `_NODAEMON`, `_PORT`). Exemple :
 `curl -fsSL .../install.sh | sh -s -- --port 7351`.
 
 **Mettre à jour :** relance la même commande (ou `omniscient update` pour le moteur).
@@ -45,14 +45,14 @@ Options, après `sh -s --` : `--wheel CHEMIN`, `--skip-widget`, `--no-daemon`, `
 **Désinstaller :**
 
 ```sh
-systemctl --user disable --now omnigroup.service   # si le service systemd a été activé
+systemctl --user disable --now omniscient.service   # si le service systemd a été activé
 omniscient schedule uninstall --write              # supprime les unités systemd
 omniscient group hooks uninstall --write           # nos hooks dans ~/.claude/settings.json
 uv tool uninstall omniscient                       # le moteur
 ```
 
 Puis, si tu veux, supprime `~/.omniscient` (état et jeton du démon). Sous WSL, désinstalle aussi le
-widget dans *Paramètres Windows › Applications › Omnigroup*. En cas de souci :
+widget dans *Paramètres Windows › Applications › Omniscient*. En cas de souci :
 `omniscient group doctor`.
 
 ## Mettre à jour
@@ -65,7 +65,7 @@ omniscient update --dry-run  # dit ce qui serait fait, sans rien télécharger
 ```
 
 La commande compare les versions installées (moteur : métadonnées Python ; widget : version de
-`omnigroup.exe`) à la dernière release publiée, dit « déjà à jour » si c'est le cas, sinon
+`omniscient-widget.exe`) à la dernière release publiée, dit « déjà à jour » si c'est le cas, sinon
 télécharge la roue, l'installeur et `install.ps1`, **vérifie leur SHA-256** (`SHA256SUMS`, et la
 provenance si `gh` est installé), puis, sous Windows, lance en arrière-plan (PowerShell caché)
 la copie vérifiée de `install.ps1` : elle attend la fin de la commande, arrête le widget et le
@@ -86,15 +86,15 @@ Le texte est celui de [`install.ps1`](../install.ps1) : lis-le avant de l'exécu
    `omniscient-<version>-py3-none-any.whl` et `SHA256SUMS` en HTTPS, **vérifie le SHA-256**, puis
    `uv tool install --force <roue>`. Si un démon tourne déjà, il est arrêté avant la mise à jour.
    `uv tool update-shell` ajoute le dossier des outils au `PATH` de ton utilisateur.
-3. **Démon.** `omniscient group autostart install --write` crée une tâche planifiée « Omnigroup »
+3. **Démon.** `omniscient group autostart install --write` crée une tâche planifiée « Omniscient »
    à l'ouverture de ta session (sans droits administrateur, sans fenêtre), puis le démon est lancé
    tout de suite et le script attend qu'il réponde sur `http://127.0.0.1:7341` (local seulement).
 4. **Hooks et widget.** `omniscient group setup --write` écrit les hooks et la statusLine dans
    `~/.claude/settings.json` (une sauvegarde est faite avant ; les autres réglages sont gardés),
-   télécharge l'installeur `Omnigroup_<version>_x64-setup.exe` de la même version, vérifie son
+   télécharge l'installeur `Omniscient_<version>_x64-setup.exe` de la même version, vérifie son
    SHA-256 (et sa provenance si `gh` est installé), puis le lance en mode silencieux (`/S`),
    pour ton utilisateur seulement.
-5. **État.** Affiche `omniscient group status`, puis « Et maintenant » : ouvre Omnigroup,
+5. **État.** Affiche `omniscient group status`, puis « Et maintenant » : ouvre Omniscient,
    *Réglages › Demander un code*, tape le code à 6 chiffres affiché sur ton bureau.
 
 En cas d'échec, le script s'arrête avec un message précis (étape, cause) et ne laisse rien de
@@ -108,9 +108,9 @@ dangereux : relance-le après correction.
 | Python 3.12+ (si absent) | dossier de données de uv (`uv python dir`) | `uv python uninstall 3.12` |
 | Moteur | dossier d'outils de uv (`uv tool dir`), commande `omniscient.exe` dans `%USERPROFILE%\.local\bin` | `uv tool uninstall omniscient` |
 | `PATH` utilisateur | variable d'environnement de ton utilisateur (par `uv tool update-shell`) | Paramètres Windows › Variables d'environnement |
-| Démarrage du démon | tâche planifiée « Omnigroup » (utilisateur courant) | `omniscient group autostart remove` |
+| Démarrage du démon | tâche planifiée « Omniscient » (utilisateur courant) | `omniscient group autostart remove` |
 | Hooks Claude Code | `%USERPROFILE%\.claude\settings.json` (+ copie de sauvegarde à côté) | `omniscient group hooks uninstall --write` |
-| Widget | `%LOCALAPPDATA%\Omnigroup\` et entrée du menu Démarrer | Paramètres › Applications › Omnigroup › Désinstaller |
+| Widget | `%LOCALAPPDATA%\Omniscient\` et entrée du menu Démarrer | Paramètres › Applications › Omniscient › Désinstaller |
 | État du démon (jeton des hooks, `group.db`) | `%USERPROFILE%\.omniscient\` | supprimer le dossier |
 | Jeton de couplage du widget | Gestionnaire d'identifiants Windows | `omniscient group pair --revoke` oublie les widgets couplés ; le jeton local se supprime à la main dans le Gestionnaire d'identifiants |
 | Fichiers temporaires | `%TEMP%\omniscient-install-*`, effacés à la fin | rien à faire |
@@ -130,7 +130,7 @@ omniscient group pair --revoke             # oublie les widgets couplés
 uv tool uninstall omniscient               # le moteur
 ```
 
-Puis le widget : *Paramètres Windows › Applications › Omnigroup › Désinstaller*. Enfin, si tu le
+Puis le widget : *Paramètres Windows › Applications › Omniscient › Désinstaller*. Enfin, si tu le
 veux, supprime `%USERPROFILE%\.omniscient` (état et jeton du démon) et, si tu as créé un dossier de
 travail avec `omniscient init`, ce dossier-là.
 
@@ -140,8 +140,8 @@ travail avec `omniscient init`, ce dossier-là.
   éditeur reconnu. Un fichier téléchargé par le script (PowerShell ne pose pas la « marque du
   Web ») ne déclenche normalement rien ; si l'écran apparaît quand même, *Informations
   complémentaires › Exécuter quand même*. Vérifie l'empreinte avec `SHA256SUMS` de la release.
-- **Antivirus ou « Contrôle d'application ».** Un antivirus peut bloquer `omnigroup.exe` ou la
-  tâche planifiée. Ajoute une exception pour `%LOCALAPPDATA%\Omnigroup` et pour le dossier de
+- **Antivirus ou « Contrôle d'application ».** Un antivirus peut bloquer `omniscient-widget.exe` ou la
+  tâche planifiée. Ajoute une exception pour `%LOCALAPPDATA%\Omniscient` et pour le dossier de
   `uv tool dir`, puis relance la commande.
 - **Pas de winget.** Normal sur Windows 10 ancien ou en entreprise : le script bascule tout seul
   sur l'installeur officiel de uv. Si tout est bloqué, installe uv à la main
@@ -168,14 +168,14 @@ travail avec `omniscient init`, ce dossier-là.
      le script règle les points 2 à 4 pour toi, sauf le widget ;
   2. démon : `omniscient group serve --port 7351` et, pour le démarrage à l'ouverture de
      session, `omniscient group autostart install --write --port 7351` ;
-  3. hooks de Claude Code : variable d'environnement utilisateur `OMNIGROUP_URL` =
+  3. hooks de Claude Code : variable d'environnement utilisateur `OMNISCIENT_URL` =
      `http://127.0.0.1:7351` (puis rouvre Claude Code) ; `status`, `pair` et `serve` la
      suivent d'eux-mêmes ;
   4. widget : *Réglages › Adresse du démon* = `http://127.0.0.1:7351`.
   `omniscient group serve --check-port --port 7351` teste un port sans lancer le démon.
 - **Chemin de profil avec espaces, accents ou parenthèses** (`C:\Users\Zoé Müller (perso)`) :
   géré et testé en CI. `omniscient group doctor` l'indique en INFO, ce n'est pas une erreur.
-- **Le widget ne se couple pas.** Voir [omnigroup.md](omnigroup.md) (section couplage).
+- **Le widget ne se couple pas.** Voir [omniscient.md](omniscient.md) (section couplage).
 
 ## Pour les mainteneurs
 

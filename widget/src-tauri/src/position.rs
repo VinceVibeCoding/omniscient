@@ -70,7 +70,7 @@ pub fn load(dir: &Path) -> Placement {
     match serde_json::from_str::<Stored>(&text) {
         Ok(stored) => Placement { anchor: stored.anchor.map(|[x, y]| (x, y)), scale: stored.scale },
         Err(err) => {
-            eprintln!("omnigroup: window.json ignored: {err}");
+            eprintln!("omniscient: window.json ignored: {err}");
             Placement::default()
         }
     }
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn save_load_and_forget() {
-        let dir = std::env::temp_dir().join(format!("omnigroup-pos-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("omniscient-pos-{}", std::process::id()));
         let none = Placement::default();
         assert_eq!(load(&dir), none);
         let both = Placement { anchor: Some((900, 700)), scale: Some(1.25) };

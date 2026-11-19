@@ -174,12 +174,12 @@ def check_widget(d: DoctorDeps) -> list[Line]:
         return []
     found, path = d.win.widget_version(), d.win.widget_path()
     if found or path:
-        return [Line(OK, "Widget Omnigroup", f"installé (version {found or '?'})")]
+        return [Line(OK, "Widget Omniscient", f"installé (version {found or '?'})")]
     return [
         Line(
-            INFO, "Widget Omnigroup", "non installé (omnigroup.exe introuvable)",
+            INFO, "Widget Omniscient", "non installé (omniscient-widget.exe introuvable)",
             "si l'installation vient d'avoir lieu : un antivirus ou SmartScreen l'a peut-être "
-            "bloqué ; ajoute une exception pour %LOCALAPPDATA%\\Omnigroup puis relance install.ps1",
+            "bloqué ; ajoute une exception pour %LOCALAPPDATA%\\Omniscient puis relance install.ps1",
         )
     ]  # fmt: skip
 
@@ -189,7 +189,7 @@ def check_daemon(d: DoctorDeps) -> list[Line]:
     if d.healthy(d.port):
         return [
             Line(OK, "Démon", f"répond sur {url}"),
-            Line(OK, "Port", f"{d.port} tenu par le démon omnigroup (normal)"),
+            Line(OK, "Port", f"{d.port} tenu par le démon omniscient (normal)"),
         ]
     lines = [Line(KO, "Démon", f"ne répond pas sur {url}", "omniscient group serve")]
     problem = d.bind(d.port)
@@ -223,7 +223,7 @@ def check_autostart(d: DoctorDeps) -> list[Line]:
     if not d.windows:
         return []
     if d.autostart():
-        return [Line(OK, "Démarrage automatique", "clé Run Omnigroup présente")]
+        return [Line(OK, "Démarrage automatique", "clé Run Omniscient présente")]
     return [Line(INFO, "Démarrage automatique", "absent",
                  "omniscient group autostart install --write")]  # fmt: skip
 
@@ -242,7 +242,7 @@ def check_environment(d: DoctorDeps) -> list[Line]:
         lines.append(
             Line(
                 INFO,
-                "OMNIGROUP_URL",
+                "OMNISCIENT_URL",
                 f"définie, port {portcheck.configured_port(d.environ)}",
             )
         )

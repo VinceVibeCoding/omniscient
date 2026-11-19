@@ -1,4 +1,4 @@
-"""Secret redaction (stdlib only, cheap to import: the omnigroup hook path uses it).
+"""Secret redaction (stdlib only, cheap to import: the omniscient hook path uses it).
 
 `redact_secrets(text)` masks tokens, keys, credentials in URLs and headers,
 `*_TOKEN=value` assignments, and local `/home/<user>/` paths. With `keep_paths=True`

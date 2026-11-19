@@ -36,7 +36,7 @@ REASON_MAX = 160
 ANTHROPIC_VERSION = "2023-06-01"
 TIMEOUT = httpx.Timeout(120.0, connect=10.0)
 SYSTEM_PROMPT = (
-    "You are the chat assistant of Omnigroup, a small widget on the user's desktop. "
+    "You are the chat assistant of Omniscient, a small widget on the user's desktop. "
     "You have no tools: you cannot run commands, read files or browse. Answer from the "
     "conversation, concisely, in the language the user writes in."
 )
@@ -254,7 +254,7 @@ def _send(
     except httpx.TimeoutException as exc:
         raise LlmError(f"{provider.label} met trop de temps à répondre.") from exc
     except httpx.HTTPError as exc:
-        log.warning("omnigroup llm: %s: %s", provider.id, type(exc).__name__)
+        log.warning("omniscient llm: %s: %s", provider.id, type(exc).__name__)
         raise LlmError(f"Impossible de joindre {provider.label}.") from exc
     except ValueError as exc:
         raise LlmError(f"Réponse illisible de {provider.label}.") from exc

@@ -54,7 +54,7 @@ def list_chats(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]
 
 def create_chat(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:
     """`project` (Claude Code) or `provider` (a saved provider, project optional) starts a
-    fresh chat; `session` (an omnigroup session id) continues that running Claude session
+    fresh chat; `session` (an omniscient session id) continues that running Claude session
     in a copy. `session` excludes `project`."""
     manager = _manager(app)
     if "session" in body:

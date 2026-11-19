@@ -1,4 +1,4 @@
-"""omnigroup state: a thread-safe SQLite store with change notifications.
+"""omniscient state: a thread-safe SQLite store with change notifications.
 
 One connection (check_same_thread=False) guarded by a lock; a Condition on the same lock
 wakes threads waiting for a pending decision. Every change is published to subscribers as
@@ -127,7 +127,7 @@ class Store:
                     q.put_nowait(event)
                 except queue.Full:
                     # A stalled reader: drop it; its stream notices and closes.
-                    log.warning("omnigroup: dropping a stalled subscriber")
+                    log.warning("omniscient: dropping a stalled subscriber")
                     self._subscribers.remove(q)
             self._changed.notify_all()
 

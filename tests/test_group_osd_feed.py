@@ -170,7 +170,7 @@ def test_live_rate() -> None:
 
 def state(tmp_path: Path) -> osd.OsdState:
     paths = ConfigPaths(
-        tmp_path / "cfg/omnigroup/config.json", tmp_path / "claude/settings.json"
+        tmp_path / "cfg/omniscient/config.json", tmp_path / "claude/settings.json"
     )
     return osd.OsdState(
         state_dir=tmp_path / "state", claude_root=tmp_path / "claude", paths=paths
@@ -298,7 +298,7 @@ def test_api_put_config_publishes_and_maps_errors(tmp_path: Path) -> None:
     assert bad.value.status == 400
     app.osd.paths.settings.parent.mkdir(parents=True)
     app.osd.paths.settings.write_text(
-        json.dumps({"env": {"OMNIGROUP_THEME": "dashboard"}})
+        json.dumps({"env": {"OMNISCIENT_THEME": "dashboard"}})
     )
     with pytest.raises(ApiError) as locked:
         api_osd.put_config(app, {}, {}, {"theme": "terminal"})

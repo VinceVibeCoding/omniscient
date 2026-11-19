@@ -129,7 +129,7 @@ def test_send_resumes_the_claude_session(home: Home) -> None:
     assert argv[argv.index("--resume") + 1] == "sess-1"
 
 
-def test_chat_names_its_omnigroup_session(home: Home) -> None:
+def test_chat_names_its_omniscient_session(home: Home) -> None:
     """The widget finds the chat's approvals by this id (the /sessions id, not --resume)."""
     events: list = []
     mgr = manager(home, FakeRunner(), events)

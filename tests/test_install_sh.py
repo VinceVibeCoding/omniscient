@@ -68,7 +68,7 @@ def test_installs_engine_into_a_temporary_home(tmp_path: Path) -> None:
     wheel = next(dist.glob("*.whl"))
     home = tmp_path / "home"
     home.mkdir()
-    env = {k: v for k, v in os.environ.items() if not k.startswith("OMNIGROUP_")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("OMNISCIENT_")}
     env.update(HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"))
     env.pop("OMNISCIENT_HOME", None)
     result = subprocess.run(

@@ -60,10 +60,10 @@ function button(label: string, icon: HTMLElement, action: () => void, extra = ""
 
 export function windowControls(layout: Layout, on: WindowControlHandlers): HTMLElement {
   const minimize = (): void => {
-    minimizeWindow().catch((err: unknown) => console.warn("omnigroup: minimize failed", err));
+    minimizeWindow().catch((err: unknown) => console.warn("omniscient: minimize failed", err));
   };
   const close = (): void => {
-    closeApp().catch((err: unknown) => console.warn("omnigroup: quit failed", err));
+    closeApp().catch((err: unknown) => console.warn("omniscient: quit failed", err));
   };
   const toggleLabel = layout === "small" ? "Agrandir" : "Passer en vue compacte";
   return h(
@@ -71,6 +71,6 @@ export function windowControls(layout: Layout, on: WindowControlHandlers): HTMLE
     { class: `wc wc--${layout}`, role: "group", "aria-label": "Fenêtre" },
     button("Réduire dans la barre des tâches", MINUS.cloneNode(true) as HTMLElement, minimize),
     button(toggleLabel, (layout === "small" ? PLUS : COMPACT).cloneNode(true) as HTMLElement, on.toggle),
-    button("Fermer Omnigroup", CLOSE.cloneNode(true) as HTMLElement, close, "wc__btn--close"),
+    button("Fermer Omniscient", CLOSE.cloneNode(true) as HTMLElement, close, "wc__btn--close"),
   );
 }

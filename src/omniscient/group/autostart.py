@@ -1,4 +1,4 @@
-"""Start the omnigroup daemon at Windows logon: a per-user `Run` registry value.
+"""Start the omniscient daemon at Windows logon: a per-user `Run` registry value.
 
 `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run` is writable by any user, never
 asks for administrator rights and works on every Windows edition (a scheduled task
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Protocol
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-RUN_VALUE = "Omnigroup"
+RUN_VALUE = "Omniscient"
 MAX_COMMAND_CHARS = 260  # Windows reads at most MAX_PATH characters of a Run command
 
 
@@ -86,7 +86,7 @@ class Autostart:
             raise AutostartError(
                 "le démarrage automatique par la clé Run ne marche que sous "
                 "Windows ; sous WSL/Linux : `omniscient schedule install`, puis "
-                "`systemctl --user enable --now omnigroup`."
+                "`systemctl --user enable --now omniscient`."
             )
 
     def command(self, port: int) -> str:

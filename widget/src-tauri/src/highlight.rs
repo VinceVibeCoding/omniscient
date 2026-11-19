@@ -21,10 +21,10 @@ static SEQ: AtomicU64 = AtomicU64::new(0);
 pub fn prepare(app: &AppHandle) {
     let Some(window) = app.get_webview_window(LABEL) else { return };
     if let Err(err) = window.set_ignore_cursor_events(true) {
-        eprintln!("omnigroup: highlight window not click-through: {err}");
+        eprintln!("omniscient: highlight window not click-through: {err}");
     }
     if let Err(err) = window.set_focusable(false) {
-        eprintln!("omnigroup: highlight window still focusable: {err}");
+        eprintln!("omniscient: highlight window still focusable: {err}");
     }
 }
 

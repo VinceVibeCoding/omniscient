@@ -20,14 +20,14 @@ from omniscient.home import packaged
 UNITS = (
     "omniscient-cycle.service",
     "omniscient-cycle.timer",
-    "omnigroup.service",
+    "omniscient.service",
 )
 TIMER = "omniscient-cycle.timer"
 # Units shipped by older versions: `uninstall` still removes them from a user's machine.
 LEGACY_UNITS = ("omniscient-slack.service",)
 FORBIDDEN_IN_PATHS = ('"', "\\", "\n", "\r")
 ENABLE_CMD = f"systemctl --user daemon-reload && systemctl --user enable --now {TIMER}"
-GROUP = "omnigroup.service"
+GROUP = "omniscient.service"
 GROUP_CMD = f"systemctl --user enable --now {GROUP}"
 DISABLE_CMD = f"systemctl --user disable --now {TIMER} {GROUP}"
 RELOAD_CMD = "systemctl --user daemon-reload"

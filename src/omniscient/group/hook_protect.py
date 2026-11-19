@@ -1,9 +1,9 @@
-"""`--protect`: Claude Code `permissions.deny` rules around the omnigroup state folder.
+"""`--protect`: Claude Code `permissions.deny` rules around the omniscient state folder.
 
 Defense in depth only. They stop the obvious ways a supervised Claude session could read
 or change the hook credential and group.db (Read/Edit/Write of the folder, `cat` and
 friends, `omniscient group pair`), not an agent that runs arbitrary Bash as the same
-user: see docs/omnigroup.md, « Modèle de menace ». Our rules are added once, in order,
+user: see docs/omniscient.md, « Modèle de menace ». Our rules are added once, in order,
 and uninstall removes exactly them; the owner's own rules are never touched.
 """
 

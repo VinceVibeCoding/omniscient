@@ -18,7 +18,7 @@ from pathlib import Path
 from omniscient.group.update import widget_exe
 
 WEBVIEW2_GUID = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"  # Evergreen WebView2 Runtime
-WIDGET_NAME = "Omnigroup"
+WIDGET_NAME = "Omniscient"
 WINDOWS_11_BUILD = 22000
 MACHINES = {0x8664: "x64", 0xAA64: "ARM64", 0x14C: "x86"}
 LOCALE_NAME_CHARS = 85
@@ -139,7 +139,7 @@ def webview2_version() -> str | None:
 
 
 def widget_version() -> str | None:
-    """DisplayVersion of the Omnigroup uninstall entry (per-user or machine-wide)."""
+    """DisplayVersion of the Omniscient uninstall entry (per-user or machine-wide)."""
     if sys.platform != "win32":
         return None
     import winreg

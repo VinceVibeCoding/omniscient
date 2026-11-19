@@ -163,6 +163,6 @@ def test_setup_preview_prints_its_symbols_to_a_piped_stdout(tmp_path: Path) -> N
     )  # fmt: skip
     out = done.stdout.decode("utf-8", errors="replace")
     assert done.returncode == 0, done.stderr.decode("utf-8", errors="replace")
-    assert "Démon omnigroup" in out and "Claude Code" in out
+    assert "Démon omniscient" in out and "Claude Code" in out
     if sys.platform == "win32":
         assert "Mode Windows natif" in out

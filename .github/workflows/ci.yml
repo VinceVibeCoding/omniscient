@@ -33,7 +33,7 @@ jobs:
         run: uv run pytest -q
 
   windows:
-    # The Omnigroup daemon and its hook client run natively on Windows (no WSL).
+    # The Omniscient daemon and its hook client run natively on Windows (no WSL).
     runs-on: windows-latest
     env:
       # Test fixtures are written with the default encoding; the engine itself always
