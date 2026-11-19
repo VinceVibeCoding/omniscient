@@ -14,7 +14,7 @@ CODE = "\n".join(
 
 def test_documented_parameters_exist() -> None:
     head = SCRIPT.split("function ", 1)[0]
-    for name in ("$Wheel", "$Installer", "$SkipWidget", "$NoAutostart"):
+    for name in ("$Wheel", "$Installer", "$SkipWidget", "$NoAutostart", "$Port"):
         assert name in head
 
 
@@ -36,3 +36,16 @@ def test_checks_the_wheel_hash_before_installing() -> None:
 
 def test_no_personal_data() -> None:
     assert not re.search(r"(?i)/home/|C:\\Users\\|@[a-z0-9-]+\.(com|fr)", SCRIPT)
+
+
+def test_checks_the_port_before_starting_the_hidden_daemon() -> None:
+    assert CODE.index("'--check-port'") < CODE.index("Start-Process -FilePath $omni")
+
+
+def test_failure_points_to_doctor() -> None:
+    assert "omniscient group doctor" in CODE
+
+
+def test_children_speak_utf8_and_the_environment_is_restored() -> None:
+    assert "PYTHONIOENCODING = 'utf-8'" in CODE
+    assert "$env:PYTHONUTF8 = $savedEnv.PYTHONUTF8" in CODE
