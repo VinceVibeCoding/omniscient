@@ -15,24 +15,30 @@
 #   -Installer <chemin>  installeur du widget local (Omnigroup_*_x64-setup.exe)
 #   -SkipWidget          ne pas installer le widget
 #   -NoAutostart         ne pas créer la tâche de démarrage à l'ouverture de session
+#   -Port <n>            port du démon si 7341 est pris (défaut : 7341, ou celui de la variable OMNIGROUP_URL)
 param(
     [string]$Wheel = '',
     [string]$Installer = '',
     [switch]$SkipWidget,
-    [switch]$NoAutostart
+    [switch]$NoAutostart,
+    [int]$Port = 0
 )
 
 function Install-Omniscient {
-    param([string]$Wheel, [string]$Installer, [bool]$SkipWidget, [bool]$NoAutostart)
+    param([string]$Wheel, [string]$Installer, [bool]$SkipWidget, [bool]$NoAutostart, [int]$RequestedPort)
 
     $ErrorActionPreference = 'Stop'
     $ProgressPreference = 'SilentlyContinue'
     $Repo = 'VinceVibeCoding/omniscient'
     $Total = 5
-    $Port = 7341
+    $omni = $null
+    $savedEnv = @{ PYTHONUTF8 = $env:PYTHONUTF8; PYTHONIOENCODING = $env:PYTHONIOENCODING }
     $Headers = @{ 'User-Agent' = 'omniscient-install'; 'Accept' = 'application/vnd.github+json' }
 
     try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+    # Python encodes a pipe with the ANSI code page (cp1252...): make it speak the UTF-8 we read.
+    $env:PYTHONUTF8 = '1'
+    $env:PYTHONIOENCODING = 'utf-8'
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     } catch { }
@@ -52,6 +58,16 @@ function Install-Omniscient {
             return $LASTEXITCODE
         } finally { $ErrorActionPreference = $old }
     }
+
+    # The daemon port: -Port, else the one of OMNIGROUP_URL (what the hooks use), else 7341.
+    function Resolve-Port([int]$requested) {
+        if ($requested -gt 0) { return $requested }
+        $url = [Environment]::GetEnvironmentVariable('OMNIGROUP_URL', 'User')
+        if (-not $url) { $url = $env:OMNIGROUP_URL }
+        if ($url -match '^http://(127\.0\.0\.1|localhost):(\d{1,5})/?$') { return [int]$Matches[2] }
+        return 7341
+    }
+    $Port = Resolve-Port $RequestedPort
 
     function Update-SessionPath {
         $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
@@ -181,12 +197,21 @@ function Install-Omniscient {
         Step 3 "Démon (démarrage à l'ouverture de session)"
         if ($NoAutostart) {
             Info '-NoAutostart : pas de tache planifiee.'
-        } elseif ((Invoke-Native $omni @('group', 'autostart', 'install', '--write')) -eq 0) {
+        } elseif ((Invoke-Native $omni @('group', 'autostart', 'install', '--write', '--port', "$Port")) -eq 0) {
             Ok "Le démon démarrera à chaque ouverture de session (tâche planifiée 'Omnigroup', sans droits admin)."
         } else {
             Warn "Tâche planifiée refusée : lance 'omniscient group serve' à la main quand tu en as besoin."
         }
-        Start-Process -FilePath $omni -ArgumentList @('group', 'serve') -WindowStyle Hidden
+        # A hidden process hides its errors: test the port first (busy, or reserved by Windows).
+        if ((Invoke-Native $omni @('group', 'serve', '--check-port', '--port', "$Port")) -ne 0) {
+            throw "Le port $Port est inutilisable pour le démon (voir ci-dessus) : relance avec un autre port, par exemple -Port $($Port + 10)."
+        }
+        if ($Port -ne 7341) {
+            [Environment]::SetEnvironmentVariable('OMNIGROUP_URL', "http://127.0.0.1:$Port", 'User')
+            $env:OMNIGROUP_URL = "http://127.0.0.1:$Port"
+            Warn "Port $Port : dans le widget, Réglages > Adresse du démon doit être http://127.0.0.1:$Port. Les hooks suivent la variable OMNIGROUP_URL (rouvre Claude Code)."
+        }
+        Start-Process -FilePath $omni -ArgumentList @('group', 'serve', '--port', "$Port") -WindowStyle Hidden
         $up = $false
         for ($i = 0; $i -lt 30 -and -not $up; $i++) {
             Start-Sleep -Seconds 2
@@ -240,13 +265,20 @@ function Install-Omniscient {
         Write-Host ''
         Write-Host "ERREUR : $($_.Exception.Message)" -ForegroundColor Red
         Write-Host "Rien de grave : tu peux relancer la commande après avoir corrigé. Aide : https://github.com/$Repo/blob/main/docs/install.md" -ForegroundColor Yellow
+        if ($omni -and (Test-Path -LiteralPath $omni)) {
+            Write-Host "Pour demander de l'aide : lance `"omniscient group doctor`" et colle le résultat (rien de secret n'y figure)." -ForegroundColor Yellow
+        } else {
+            Write-Host "Une fois le moteur installé, `"omniscient group doctor`" donne un diagnostic à coller dans un rapport." -ForegroundColor Yellow
+        }
         return $false
     } finally {
+        $env:PYTHONUTF8 = $savedEnv.PYTHONUTF8
+        $env:PYTHONIOENCODING = $savedEnv.PYTHONIOENCODING
         Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
-$installed = Install-Omniscient -Wheel $Wheel -Installer $Installer -SkipWidget ([bool]$SkipWidget) -NoAutostart ([bool]$NoAutostart)
+$installed = Install-Omniscient -Wheel $Wheel -Installer $Installer -SkipWidget ([bool]$SkipWidget) -NoAutostart ([bool]$NoAutostart) -RequestedPort $Port
 if ($installed) {
     $global:LASTEXITCODE = 0
 } else {

@@ -20,9 +20,10 @@ from typing import Annotated, Any
 
 import typer
 
+from omniscient.group.portcheck import configured_port
 from omniscient.home import Home, find_home
 
-DEFAULT_PORT = 7341
+DEFAULT_PORT = configured_port()  # 7341, or the port of OMNIGROUP_URL
 STATUS_TIMEOUT_S = 3.0
 REPO_URL = "https://github.com/VinceVibeCoding/omniscient"
 STATE_LABELS = {
@@ -92,10 +93,24 @@ def serve(
             help="Autoriser `group pair --show-code` (plus faible, voir la doc).",
         ),
     ] = False,
+    check_port: Annotated[
+        bool,
+        typer.Option("--check-port", help="Seulement tester le port, sans lancer."),
+    ] = False,
     home_dir: HomeOpt = None,
 ) -> None:
     """Lancer le démon omnigroup (127.0.0.1 seulement ; Ctrl-C pour arrêter)."""
+    from omniscient.group.cli_group_setup import daemon_healthy
+    from omniscient.group.portcheck import preflight
     from omniscient.group.server import serve as run_server
+
+    verdict = preflight(port, daemon_healthy)
+    if verdict.blocked or verdict.already_running or check_port:
+        typer.echo(verdict.message, err=verdict.blocked)
+    if verdict.blocked:
+        raise typer.Exit(code=1)
+    if verdict.already_running or check_port:
+        return
 
     try:
         run_server(
@@ -106,6 +121,18 @@ def serve(
         )
     except (OSError, RuntimeError) as exc:
         raise _fail(f"le démon n'a pas pu démarrer ({exc})") from exc
+
+
+@group_app.command("doctor")
+def doctor(port: PortOpt = DEFAULT_PORT) -> None:
+    """Diagnostic en lecture seule, à coller dans un rapport (rien de secret)."""
+    from omniscient.group import doctor as dr
+
+    deps = dr.real_deps(port)
+    lines = dr.run_checks(deps)
+    for text in dr.render(lines, deps):
+        typer.echo(text)
+    raise typer.Exit(code=dr.exit_code(lines))
 
 
 def _call(url: str, token: str | None = None, body: Any = None) -> Any:

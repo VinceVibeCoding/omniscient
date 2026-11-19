@@ -186,7 +186,12 @@ def expected_sha(sums_text: str, name: str) -> str:
 def _run(argv: list[str]) -> tuple[int, str]:
     try:
         done = subprocess.run(  # argv list, no shell
-            argv, capture_output=True, text=True, timeout=ATTEST_TIMEOUT_S, check=False
+            argv,
+            capture_output=True,
+            text=True,
+            errors="replace",  # tool output in the OEM/ANSI page must not crash us
+            timeout=ATTEST_TIMEOUT_S,
+            check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return 1, str(exc)
