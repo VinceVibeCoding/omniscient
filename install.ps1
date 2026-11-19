@@ -78,6 +78,18 @@ function Install-Omniscient {
             ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     }
 
+    # Per-user NSIS install: %LOCALAPPDATA%\Omnigroup or %LOCALAPPDATA%\Programs\Omnigroup
+    # depending on the installer; fall back to a shallow search so a layout change is found.
+    function Find-WidgetExe {
+        foreach ($rel in 'Omnigroup\omnigroup.exe', 'Programs\Omnigroup\omnigroup.exe') {
+            $candidate = Join-Path $env:LOCALAPPDATA $rel
+            if (Test-Path -LiteralPath $candidate) { return $candidate }
+        }
+        $hit = Get-ChildItem -LiteralPath $env:LOCALAPPDATA -Filter 'omnigroup.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($hit) { return $hit.FullName }
+        return $null
+    }
+
     function Get-LatestWheel([string]$workDir) {
         $apiUrl = "https://api.github.com/repos/$Repo/releases/latest"
         try {

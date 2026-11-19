@@ -46,8 +46,8 @@ $auto = (& $omni group autostart status | Out-String)
 Assert ($auto -match 'actif') 'autostart task is registered'
 
 if ($Installer) {
-    $app = Join-Path $env:LOCALAPPDATA 'Omnigroup\omnigroup.exe'
-    Assert (Test-Path $app) "widget installed at $app"
+    $app = (Get-ChildItem -LiteralPath $env:LOCALAPPDATA -Filter omnigroup.exe -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+    Assert ([bool]$app) "widget installed at $app"
     Get-Process -Name omnigroup -ErrorAction SilentlyContinue | Stop-Process -Force
     $proc = Start-Process -FilePath $app -PassThru
     Start-Sleep -Seconds 8
