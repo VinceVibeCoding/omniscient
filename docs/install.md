@@ -143,7 +143,7 @@ La CI (`install-smoke`) exécute le script sur un Windows vierge, avec PowerShel
 profil simple **et** un profil hostile (dossier utilisateur et `TEMP` avec espaces, accents,
 apostrophe et parenthèses, culture fr-FR, sans `PYTHONUTF8`, donc une page de code ANSI non
 UTF-8). Elle vérifie démon, hooks (forme exec, commande exécutée depuis son chemin), tâche
-planifiée (`schtasks /Run`), conflits de port (port occupé, plage réservée par Windows),
+au démarrage de session (valeur `Run`), conflits de port (port occupé, plage réservée par Windows),
 `omniscient update --check/--dry-run`, `group doctor` puis la désinstallation. Ce qu'un
 runner anglais ne peut pas reproduire : une langue d'affichage Windows localisée (il faut un
 pack de langue), ARM64, Windows 10 sans WebView2, proxy d'entreprise, AppLocker.

@@ -14,24 +14,45 @@
 #   -Wheel <chemin>      roue locale à installer au lieu de la dernière version publiée
 #   -Installer <chemin>  installeur du widget local (Omnigroup_*_x64-setup.exe)
 #   -SkipWidget          ne pas installer le widget
-#   -NoAutostart         ne pas créer la tâche de démarrage à l'ouverture de session
+#   -NoAutostart         ne pas activer le démarrage automatique du démon à l'ouverture de session
+#   -NoLaunch            ne pas ouvrir le widget à la fin
 #   -Port <n>            port du démon si 7341 est pris (défaut : 7341, ou celui de la variable OMNIGROUP_URL)
+#
+# `irm ... | iex` ne peut pas recevoir de paramètres : chacun a donc une variable d'environnement
+# équivalente, lue quand le paramètre n'est pas donné :
+#   OMNIGROUP_INSTALL_WHEEL, OMNIGROUP_INSTALL_INSTALLER, OMNIGROUP_INSTALL_PORT (valeurs),
+#   OMNIGROUP_INSTALL_SKIPWIDGET, OMNIGROUP_INSTALL_NOAUTOSTART, OMNIGROUP_INSTALL_NOLAUNCH (1 ou true).
 param(
     [string]$Wheel = '',
     [string]$Installer = '',
     [switch]$SkipWidget,
     [switch]$NoAutostart,
+    [switch]$NoLaunch,
     [int]$Port = 0
 )
 
+# Parameters not given fall back to OMNIGROUP_INSTALL_* (the iex path cannot pass any).
+function Get-InstallEnv([string]$name) { return [string][Environment]::GetEnvironmentVariable("OMNIGROUP_INSTALL_$name") }
+function Test-InstallFlag([string]$name) { return ((Get-InstallEnv $name).Trim().ToLowerInvariant() -in @('1', 'true', 'yes')) }
+if (-not $Wheel) { $Wheel = Get-InstallEnv 'WHEEL' }
+if (-not $Installer) { $Installer = Get-InstallEnv 'INSTALLER' }
+$wantSkipWidget = ([bool]$SkipWidget) -or (Test-InstallFlag 'SKIPWIDGET')
+$wantNoAutostart = ([bool]$NoAutostart) -or (Test-InstallFlag 'NOAUTOSTART')
+$wantNoLaunch = ([bool]$NoLaunch) -or (Test-InstallFlag 'NOLAUNCH')
+if ($Port -le 0) {
+    $envPort = 0
+    if ([int]::TryParse((Get-InstallEnv 'PORT'), [ref]$envPort) -and $envPort -gt 0) { $Port = $envPort }
+}
+
 function Install-Omniscient {
-    param([string]$Wheel, [string]$Installer, [bool]$SkipWidget, [bool]$NoAutostart, [int]$RequestedPort)
+    param([string]$Wheel, [string]$Installer, [bool]$SkipWidget, [bool]$NoAutostart, [bool]$NoLaunch, [int]$RequestedPort)
 
     $ErrorActionPreference = 'Stop'
     $ProgressPreference = 'SilentlyContinue'
     $Repo = 'VinceVibeCoding/omniscient'
     $Total = 5
     $omni = $null
+    $app = $null
     $savedEnv = @{ PYTHONUTF8 = $env:PYTHONUTF8; PYTHONIOENCODING = $env:PYTHONIOENCODING }
     $Headers = @{ 'User-Agent' = 'omniscient-install'; 'Accept' = 'application/vnd.github+json' }
 
@@ -88,7 +109,6 @@ function Install-Omniscient {
     }
 
     function Stop-Daemon {
-        $null = Invoke-Native 'schtasks' @('/End', '/TN', 'Omnigroup') -Quiet
         Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
             Where-Object { $_.CommandLine -and $_.CommandLine -match 'omniscient' -and $_.CommandLine -match 'group\s+serve' } |
             ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
@@ -196,11 +216,11 @@ function Install-Omniscient {
         # ---- 3. démon ---------------------------------------------------------------
         Step 3 "Démon (démarrage à l'ouverture de session)"
         if ($NoAutostart) {
-            Info '-NoAutostart : pas de tache planifiee.'
+            Info '-NoAutostart : pas de démarrage automatique.'
         } elseif ((Invoke-Native $omni @('group', 'autostart', 'install', '--write', '--port', "$Port")) -eq 0) {
-            Ok "Le démon démarrera à chaque ouverture de session (tâche planifiée 'Omnigroup', sans droits admin)."
+            Ok 'Le démon démarrera à chaque ouverture de session (sans droits administrateur).'
         } else {
-            Warn "Tâche planifiée refusée : lance 'omniscient group serve' à la main quand tu en as besoin."
+            Warn "Démarrage automatique non activé : lance 'omniscient group serve' à la main quand tu en as besoin."
         }
         # A hidden process hides its errors: test the port first (busy, or reserved by Windows).
         if ((Invoke-Native $omni @('group', 'serve', '--check-port', '--port', "$Port")) -ne 0) {
@@ -255,9 +275,13 @@ function Install-Omniscient {
 
         Write-Host ''
         Write-Host 'Et maintenant' -ForegroundColor Green
-        Write-Host '  1. Ouvre Omnigroup (menu Démarrer).'
-        Write-Host '  2. Va dans Réglages > Demander un code.'
-        Write-Host '  3. Tape le code à 6 chiffres affiché sur ton bureau.'
+        if ($app -and -not $NoLaunch) {
+            Start-Process -FilePath $app
+            Write-Host '  Le widget Omnigroup vient de s''ouvrir en bas à droite de l''écran.'
+        } elseif ($app) {
+            Write-Host '  Ouvre Omnigroup depuis le menu Démarrer : le widget s''ouvre en bas à droite de l''écran.'
+        }
+        Write-Host '  Si le widget affiche un code à taper, saisis les 6 chiffres affichés sur ton bureau.'
         Write-Host ''
         Write-Host "  Pour mettre à jour : relance la même commande. Désinstallation : docs/install.md."
         return $true
@@ -278,7 +302,7 @@ function Install-Omniscient {
     }
 }
 
-$installed = Install-Omniscient -Wheel $Wheel -Installer $Installer -SkipWidget ([bool]$SkipWidget) -NoAutostart ([bool]$NoAutostart) -RequestedPort $Port
+$installed = Install-Omniscient -Wheel $Wheel -Installer $Installer -SkipWidget $wantSkipWidget -NoAutostart $wantNoAutostart -NoLaunch $wantNoLaunch -RequestedPort $Port
 if ($installed) {
     $global:LASTEXITCODE = 0
 } else {

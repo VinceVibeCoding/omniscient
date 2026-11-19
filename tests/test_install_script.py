@@ -14,7 +14,14 @@ CODE = "\n".join(
 
 def test_documented_parameters_exist() -> None:
     head = SCRIPT.split("function ", 1)[0]
-    for name in ("$Wheel", "$Installer", "$SkipWidget", "$NoAutostart", "$Port"):
+    for name in (
+        "$Wheel",
+        "$Installer",
+        "$SkipWidget",
+        "$NoAutostart",
+        "$NoLaunch",
+        "$Port",
+    ):
         assert name in head
 
 
@@ -49,3 +56,20 @@ def test_failure_points_to_doctor() -> None:
 def test_children_speak_utf8_and_the_environment_is_restored() -> None:
     assert "PYTHONIOENCODING = 'utf-8'" in CODE
     assert "$env:PYTHONUTF8 = $savedEnv.PYTHONUTF8" in CODE
+
+
+def test_every_parameter_has_an_environment_variable_for_the_iex_path() -> None:
+    head = SCRIPT.split("param(", 1)[0]
+    for name in ("WHEEL", "INSTALLER", "SKIPWIDGET", "NOAUTOSTART", "NOLAUNCH", "PORT"):
+        assert f"OMNIGROUP_INSTALL_{name}" in head
+        assert f"'{name}'" in CODE
+
+
+def test_launches_the_installed_widget_unless_no_launch() -> None:
+    assert "Start-Process -FilePath $app" in CODE
+    assert "-not $NoLaunch" in CODE
+
+
+def test_final_text_is_short_and_has_no_manual_pairing_steps() -> None:
+    assert "saisis les 6 chiffres affichés sur ton bureau" in CODE
+    assert "Demander un code" not in CODE

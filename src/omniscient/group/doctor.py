@@ -223,7 +223,7 @@ def check_autostart(d: DoctorDeps) -> list[Line]:
     if not d.windows:
         return []
     if d.autostart():
-        return [Line(OK, "Démarrage automatique", "tâche planifiée Omnigroup présente")]
+        return [Line(OK, "Démarrage automatique", "clé Run Omnigroup présente")]
     return [Line(INFO, "Démarrage automatique", "absent",
                  "omniscient group autostart install --write")]  # fmt: skip
 

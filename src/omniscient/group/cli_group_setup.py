@@ -141,7 +141,9 @@ def _step_hooks(opts: SetupOptions, deps: SetupDeps) -> None:
         deps.say(f"   ✗ {exc}")
 
 
-def _step_widget(opts: SetupOptions, deps: SetupDeps, number: int = 3) -> None:
+def _step_widget(
+    opts: SetupOptions, deps: SetupDeps, number: int = 3, *, native: bool = False
+) -> None:
     deps.say(f"{number}. Widget Windows")
     if opts.skip_widget:
         deps.say("   — ignoré (--skip-widget).")
@@ -182,7 +184,9 @@ def _step_widget(opts: SetupOptions, deps: SetupDeps, number: int = 3) -> None:
         deps.say(
             "   ✓ attestation de provenance GitHub vérifiée (gh attestation verify)."
         )
-    else:
+    if native:
+        return  # the installer runs it and the widget asks for its own pairing code
+    if not (status and status[-1] == "verified"):
         deps.say(
             "   ⚠ gh absent : seul le SHA256 a été vérifié (pas la provenance du build)."
         )
@@ -210,8 +214,7 @@ def _run_native_windows(opts: SetupOptions, deps: SetupDeps) -> None:
         deps.say("4. Widget Windows")
         deps.say("   ✓ Omnigroup est déjà installé (menu Démarrer).")
     else:
-        _step_widget(opts, deps, 4)
-    deps.say("5. " + PAIRING_HELP)
+        _step_widget(opts, deps, 4, native=True)
     if not opts.write:
         deps.say("")
         deps.say("Aperçu seulement : relance avec --write pour appliquer.")
