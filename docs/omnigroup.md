@@ -40,7 +40,9 @@ le fait réapparaître s'il tourne déjà (une seule instance à la fois). L'ic�
 l'horloge fait aussi apparaître / disparaître le widget.
 
 **Boutons de la fenêtre** (en haut à droite, dans la vue compacte comme dans le panneau) :
-« − » réduit le widget dans la barre des tâches (cliquez son icône pour le rouvrir) ; « + » passe
+« − » réduit le widget dans la barre des tâches (cliquez son icône pour le rouvrir) ; « ✕ » le ferme
+complètement (l'application et le démon qu'elle a lancé ; rouvrez-la depuis le menu Démarrer ou l'icône
+épinglée) ; « + » passe
 de la vue compacte à la grande vue, et le bouton de repli de la grande vue revient à la compacte
 (un clic sur l'en-tête ou Échap fait de même).
 

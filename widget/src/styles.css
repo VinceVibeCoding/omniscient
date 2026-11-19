@@ -106,6 +106,7 @@ code, pre { font-family: "Cascadia Code", "JetBrains Mono", ui-monospace, monosp
 .wc__icon { display: grid; place-items: center; }
 .wc__glyph { display: none; }
 .wc__btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.wc__btn--close:hover, .wc__btn--close:focus-visible { background: color-mix(in srgb, var(--error) 22%, transparent); color: var(--error); }
 html[data-theme="terminal"] .wc__svg { display: none; }
 html[data-theme="terminal"] .wc__glyph { display: inline; font-family: inherit; font-size: 15px; line-height: 1; }
 html[data-theme="terminal"] .wc__btn { border-radius: 4px; }
