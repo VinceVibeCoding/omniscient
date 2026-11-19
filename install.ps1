@@ -78,15 +78,25 @@ function Install-Omniscient {
             ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     }
 
-    # Per-user NSIS install: %LOCALAPPDATA%\Omnigroup or %LOCALAPPDATA%\Programs\Omnigroup
-    # depending on the installer; fall back to a shallow search so a layout change is found.
+    # Where the NSIS installer put the app: the uninstall entry says (InstallLocation or the
+    # folder of the uninstaller), else the usual per-user folders, else a shallow search.
     function Find-WidgetExe {
+        $keys = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*')
+        foreach ($entry in (Get-ItemProperty -Path $keys -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Omnigroup' })) {
+            $folders = @($entry.InstallLocation, (Split-Path -Parent ([string]$entry.UninstallString).Trim('"'))) | Where-Object { $_ }
+            foreach ($folder in $folders) {
+                $hit = Get-ChildItem -LiteralPath $folder -Filter 'omnigroup.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($hit) { return $hit.FullName }
+            }
+        }
         foreach ($rel in 'Omnigroup\omnigroup.exe', 'Programs\Omnigroup\omnigroup.exe') {
             $candidate = Join-Path $env:LOCALAPPDATA $rel
             if (Test-Path -LiteralPath $candidate) { return $candidate }
         }
-        $hit = Get-ChildItem -LiteralPath $env:LOCALAPPDATA -Filter 'omnigroup.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($hit) { return $hit.FullName }
+        foreach ($root in @($env:LOCALAPPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ }) {
+            $hit = Get-ChildItem -LiteralPath $root -Filter 'omnigroup.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($hit) { return $hit.FullName }
+        }
         return $null
     }
 
@@ -208,8 +218,8 @@ function Install-Omniscient {
             if ($proc.ExitCode -ne 0) { throw "L'installeur du widget a échoué (code $($proc.ExitCode))." }
             $app = Find-WidgetExe
             if (-not $app) {
-                $dirs = (Get-ChildItem -LiteralPath $env:LOCALAPPDATA -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) -join ', '
-                throw "Le widget n'est pas installé : omnigroup.exe est introuvable sous $env:LOCALAPPDATA (dossiers : $dirs)."
+                $seen = (Get-ChildItem -Path "$env:LOCALAPPDATA\*mnigroup*", "$env:ProgramFiles\*mnigroup*", "$env:LOCALAPPDATA\Programs\*" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }) -join '; '
+                throw "Le widget n'est pas installé : omnigroup.exe est introuvable (installeur : code $($proc.ExitCode)). Vu : $seen"
             }
             Ok "Widget installé : $app (menu Démarrer > Omnigroup)."
         }
