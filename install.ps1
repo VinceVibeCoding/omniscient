@@ -206,8 +206,11 @@ function Install-Omniscient {
             Info "Installation silencieuse de $(Split-Path -Leaf $exe) (pour ton utilisateur uniquement)..."
             $proc = Start-Process -FilePath $exe -ArgumentList '/S' -Wait -PassThru
             if ($proc.ExitCode -ne 0) { throw "L'installeur du widget a échoué (code $($proc.ExitCode))." }
-            $app = Join-Path $env:LOCALAPPDATA 'Omnigroup\omnigroup.exe'
-            if (-not (Test-Path -LiteralPath $app)) { throw "Le widget n'est pas installe : $app est introuvable." }
+            $app = Find-WidgetExe
+            if (-not $app) {
+                $dirs = (Get-ChildItem -LiteralPath $env:LOCALAPPDATA -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) -join ', '
+                throw "Le widget n'est pas installé : omnigroup.exe est introuvable sous $env:LOCALAPPDATA (dossiers : $dirs)."
+            }
             Ok "Widget installé : $app (menu Démarrer > Omnigroup)."
         }
 
