@@ -146,7 +146,9 @@ def _merge(current: dict[str, Any], ours: dict[str, list[Any]]) -> dict[str, Any
 
 def _load(path: Path) -> tuple[str | None, dict[str, Any]]:
     try:
-        text = path.read_bytes().decode("utf-8") if path.exists() else None
+        text = (
+            path.read_bytes().decode("utf-8-sig") if path.exists() else None
+        )  # sig: a BOM from PowerShell 5.1 / Notepad
         data = json.loads(text) if text and text.strip() else {}
     except (OSError, UnicodeDecodeError, ValueError) as exc:
         raise HookInstallError(f"{path} illisible ou JSON invalide : {exc}") from exc

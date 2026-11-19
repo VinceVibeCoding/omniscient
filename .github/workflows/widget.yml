@@ -127,7 +127,7 @@ jobs:
           retention-days: 14
 
   install-smoke:
-    name: install.ps1 + real installer (clean runner, ${{ matrix.shell }})
+    name: install.ps1 + real installer (${{ matrix.profile }} profile, ${{ matrix.shell }})
     needs: [windows, wheel]
     runs-on: windows-latest
     timeout-minutes: 20
@@ -135,6 +135,8 @@ jobs:
       fail-fast: false
       matrix:
         shell: [powershell, pwsh]
+        # hostile: profile and TEMP with spaces/accents/parentheses, fr-FR, no PYTHONUTF8
+        profile: [clean, hostile]
     permissions:
       contents: read
     steps:
@@ -152,17 +154,21 @@ jobs:
       - name: Run install.ps1 with the wheel and the installer built by this run (powershell)
         if: matrix.shell == 'powershell'
         shell: powershell
+        env:
+          SMOKE_PROFILE: ${{ matrix.profile }}
         run: |
           $wheel = (Get-ChildItem dist\*.whl).FullName
           $setup = (Get-ChildItem dist\*-setup.exe).FullName
-          ./scripts/ci-install-smoke.ps1 -Wheel $wheel -Installer $setup
+          ./scripts/ci-install-smoke.ps1 -Wheel $wheel -Installer $setup -Profile $env:SMOKE_PROFILE
       - name: Run install.ps1 with the wheel and the installer built by this run (pwsh)
         if: matrix.shell == 'pwsh'
         shell: pwsh
+        env:
+          SMOKE_PROFILE: ${{ matrix.profile }}
         run: |
           $wheel = (Get-ChildItem dist\*.whl).FullName
           $setup = (Get-ChildItem dist\*-setup.exe).FullName
-          ./scripts/ci-install-smoke.ps1 -Wheel $wheel -Installer $setup
+          ./scripts/ci-install-smoke.ps1 -Wheel $wheel -Installer $setup -Profile $env:SMOKE_PROFILE
 
   release:
     name: Draft release (widget-v* tags)

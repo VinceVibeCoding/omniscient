@@ -23,8 +23,9 @@ from typing import Annotated, Any
 import typer
 
 from omniscient.group import widget_release as wr
+from omniscient.group.portcheck import configured_port
 
-DEFAULT_PORT = 7341
+DEFAULT_PORT = configured_port()  # 7341, or the port of OMNIGROUP_URL
 HEALTH_TIMEOUT_S = 3.0
 PAIRING_HELP = (
     "Couplage : ouvre Omnigroup sur Windows, clique le widget → Réglages → « Demander un "

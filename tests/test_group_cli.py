@@ -11,6 +11,7 @@ import pytest
 from typer.testing import CliRunner
 
 from omniscient import cli, cli_group
+from omniscient.group import portcheck as pc
 from omniscient.group import server as srv
 from omniscient.group.credentials import load_or_create_hook_token
 from omniscient.group.models import Pending, Session, utcnow
@@ -88,6 +89,8 @@ def test_serve_without_collectors(
 ) -> None:
     calls: list[tuple[Any, ...]] = []
     monkeypatch.setattr(srv, "serve", lambda *a, **k: calls.append(a))
+    # the machine running the tests may already have a daemon on 7341
+    monkeypatch.setattr(pc, "preflight", lambda *a, **k: pc.Preflight("Port libre."))
     result = runner.invoke(
         cli.app, ["group", "serve", "--no-collectors", "--port", "7399"]
     )

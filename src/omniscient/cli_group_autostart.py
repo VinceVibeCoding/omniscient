@@ -7,8 +7,9 @@ from typing import Annotated
 import typer
 
 from omniscient.group.autostart import TASK_NAME, Autostart, AutostartError
+from omniscient.group.portcheck import configured_port
 
-DEFAULT_PORT = 7341
+DEFAULT_PORT = configured_port()  # 7341, or the port of OMNIGROUP_URL
 PortOpt = Annotated[int, typer.Option("--port", help="Port local du démon.")]
 
 

@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import socket
+import sys
 import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -101,13 +103,21 @@ class App:
 
 class GroupServer(ThreadingHTTPServer):
     daemon_threads = True
-    allow_reuse_address = True
+    # SO_REUSEADDR on Windows lets a second process share a busy port (a silent hijack):
+    # there the port is taken exclusively instead (see server_bind).
+    allow_reuse_address = sys.platform != "win32"
 
     def __init__(self, app: App, port: int) -> None:
         self.app = app
         self._workers: list[threading.Thread] = []
         self._slots = threading.BoundedSemaphore(MAX_CONNECTIONS)
         super().__init__((BIND_HOST, port), Handler)
+
+    def server_bind(self) -> None:
+        exclusive = getattr(socket, "SO_EXCLUSIVEADDRUSE", None)
+        if exclusive is not None:  # Windows only
+            self.socket.setsockopt(socket.SOL_SOCKET, exclusive, 1)
+        super().server_bind()
 
     def process_request(self, request: Any, client_address: Any) -> None:
         """At most MAX_CONNECTIONS requests at once; the next ones are closed (M10)."""

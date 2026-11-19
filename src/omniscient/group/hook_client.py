@@ -255,12 +255,12 @@ def default_context(home_root: Path | None = None) -> HookContext:
     return HookContext(state_dir=home.state, environ=os.environ)
 
 
-def use_utf8_streams(*streams: Any) -> None:
+def use_utf8_streams(*streams: Any, encoding: str = "utf-8") -> None:
     """Claude Code speaks UTF-8 JSON: never the Windows locale code page (cp1252)."""
     for stream in streams:
         reconfigure = getattr(stream, "reconfigure", None)
         if callable(reconfigure):
-            reconfigure(encoding="utf-8", errors="replace")
+            reconfigure(encoding=encoding, errors="replace")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -272,7 +272,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--event")
     parser.add_argument("--home", type=Path)
     args = parser.parse_args(argv)
-    use_utf8_streams(sys.stdin, sys.stdout)
+    # stdin: utf-8-sig, since PowerShell 5.1 prepends a BOM when it pipes text to a program
+    use_utf8_streams(sys.stdout, sys.stderr)
+    use_utf8_streams(sys.stdin, encoding="utf-8-sig")
     ctx = default_context(args.home)
     if args.statusline:
         return run_statusline(sys.stdin, sys.stdout, ctx)
