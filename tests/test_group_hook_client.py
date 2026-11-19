@@ -253,3 +253,16 @@ def test_daemon_url_accepts_local_forms() -> None:
     assert _base_url({"OMNIGROUP_URL": "http://localhost:8000/"}) == (
         "http://localhost:8000"
     )
+
+
+def test_stdin_with_a_bom_is_read_like_plain_utf8() -> None:
+    """PowerShell 5.1 prepends a BOM when it pipes text to a program."""
+    import io
+
+    from omniscient.group.hook_client import use_utf8_streams
+
+    raw = io.TextIOWrapper(
+        io.BytesIO(b'\xef\xbb\xbf{"a": "\xc3\xa9"}'), encoding="cp1252"
+    )
+    use_utf8_streams(raw, encoding="utf-8-sig")
+    assert raw.read() == '{"a": "é"}'
