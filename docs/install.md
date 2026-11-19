@@ -10,6 +10,51 @@ Prérequis : Windows 10 ou 11 et une connexion Internet. Rien d'autre : pas de d
 administrateur, pas de git, pas de Python (uv le télécharge). Claude Code est facultatif : il ne
 sert que pour les conversations de code.
 
+## Linux, macOS et WSL (`install.sh`)
+
+Une seule commande, dans n'importe quel terminal (sans root ni `sudo`) :
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.sh | sh
+```
+
+Prérequis : `curl` (ou `wget`) et Internet. Le script est du `sh` POSIX, ne pose jamais de
+question (rien n'est lu au clavier) et n'écrit que dans ton dossier personnel. Lis-le avant :
+[`install.sh`](../install.sh).
+
+1. **uv.** Utilisé s'il est là, sinon installeur officiel `https://astral.sh/uv/install.sh`.
+2. **Moteur.** Lit `SHA256SUMS` de la dernière release, télécharge la roue
+   `omniscient-<version>-py3-none-any.whl` (HTTPS seulement), **vérifie le SHA-256** (refus en cas
+   d'écart), puis `uv tool install --force`.
+3. **Démon.** Linux avec `systemd --user` : écrit les unités (`omniscient schedule install --write`)
+   et active `omnigroup.service`. Sinon (macOS, WSL sans systemd) : `omniscient group serve` lancé
+   en arrière-plan, journal dans `~/.omniscient/daemon.log` ; à relancer à la main après un
+   redémarrage. Le port est testé d'abord ; le script attend que `omniscient group status` réponde.
+4. **Hooks.** `omniscient group setup --write` (sauvegarde de `~/.claude/settings.json` d'abord).
+   Sous **WSL**, le widget Windows est aussi téléchargé (SHA-256 vérifié), installé en silence
+   (`/S`, pour ton utilisateur) et lancé. Sous Linux/macOS natifs, pas de widget (Mac : V2) :
+   utilise `omniscient` dans le terminal.
+5. **État** et « Et maintenant ».
+
+Options, après `sh -s --` : `--wheel CHEMIN`, `--skip-widget`, `--no-daemon`, `--port N`, `--help`
+(ou les variables `OMNIGROUP_INSTALL_WHEEL`, `_SKIPWIDGET`, `_NODAEMON`, `_PORT`). Exemple :
+`curl -fsSL .../install.sh | sh -s -- --port 7351`.
+
+**Mettre à jour :** relance la même commande (ou `omniscient update` pour le moteur).
+
+**Désinstaller :**
+
+```sh
+systemctl --user disable --now omnigroup.service   # si le service systemd a été activé
+omniscient schedule uninstall --write              # supprime les unités systemd
+omniscient group hooks uninstall --write           # nos hooks dans ~/.claude/settings.json
+uv tool uninstall omniscient                       # le moteur
+```
+
+Puis, si tu veux, supprime `~/.omniscient` (état et jeton du démon). Sous WSL, désinstalle aussi le
+widget dans *Paramètres Windows › Applications › Omnigroup*. En cas de souci :
+`omniscient group doctor`.
+
 ## Mettre à jour
 
 ```powershell

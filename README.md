@@ -33,7 +33,19 @@ conversations stay on your computer.
 
 ## Quick start
 
-### One command (Windows 10/11)
+### One command
+
+| Windows 10/11 (PowerShell) | Linux, macOS, WSL (any shell) |
+|---|---|
+| `powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1 \| iex"` | `curl -fsSL https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.sh \| sh` |
+
+**Linux, macOS, WSL:** no root, no git, no Python needed (uv fetches it). The script installs uv, the
+engine (SHA-256 verified), starts the daemon (systemd user service when available), writes the Claude
+Code hooks (settings backed up first) and, on WSL, installs the Windows widget. On native Linux and
+macOS there is no widget yet (Mac: V2): use `omniscient` in the terminal. Details, update and
+uninstall: [docs/install.md](docs/install.md#linux-macos-et-wsl-installsh).
+
+#### Windows 10/11
 
 Open **PowerShell** (Start menu › type *PowerShell*), paste, press Enter:
 
