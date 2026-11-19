@@ -56,6 +56,13 @@ pub fn minimize_window(app: AppHandle) {
     crate::tray::hide_window(&app);
 }
 
+/// The « ✕ » button: quits the app for good (the daemon the widget started stops with it, see
+/// `RunEvent::Exit`). Reopen it from the Start menu or the pinned icon.
+#[tauri::command]
+pub fn quit_app(app: AppHandle) {
+    app.exit(0);
+}
+
 #[tauri::command]
 pub async fn get_osd(state: State<'_, AppState>) -> CmdResult<Value> {
     get(&state, &["osd"]).await
