@@ -268,3 +268,39 @@ def test_the_engine_wheel_is_never_taken_for_the_widget_installer() -> None:
     ]
     release = wr.latest_widget_release(fake_fetch(listing=[releases(assets=assets)[3]]))
     assert release is not None and release.installer.name == NAME
+
+
+def test_native_windows_prints_no_wsl_hint_pairing_help_or_gh_warning(
+    tmp_path: Path,
+) -> None:
+    rec = Recorder()
+    deps = setup.SetupDeps(
+        say=rec.say,
+        health=lambda port: True,
+        fetch=fake_fetch(),
+        hooks=rec.hooks_fn,
+        downloads=lambda: tmp_path,
+        attest=lambda file: "gh-missing",
+        native_windows=True,
+        widget_installed=lambda: False,
+    )
+    setup.run_setup(setup.SetupOptions(write=True), deps)
+    text = "\n".join(rec.lines)
+    assert "SHA256 vérifié" in text
+    for banned in ("lance-le", "double-clic", "gh absent", "Couplage", "Demander un"):
+        assert banned not in text
+
+
+def test_wsl_route_keeps_the_launch_hint_and_the_gh_warning(tmp_path: Path) -> None:
+    rec = Recorder()
+    deps = setup.SetupDeps(
+        say=rec.say,
+        health=lambda port: True,
+        fetch=fake_fetch(),
+        hooks=rec.hooks_fn,
+        downloads=lambda: tmp_path,
+        attest=lambda file: "gh-missing",
+    )
+    setup.run_setup(setup.SetupOptions(write=True), deps)
+    text = "\n".join(rec.lines)
+    assert "lance-le" in text and "gh absent" in text and "Couplage" in text

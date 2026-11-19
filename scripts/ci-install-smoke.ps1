@@ -1,5 +1,6 @@
 # CI only: run install.ps1 on a Windows runner and check what it installed.
 #   -Wheel <path>       the wheel built from this commit
+#   (the script also runs the real irm | iex one-liner against a local HTTP server)
 #   -Installer <path>   the NSIS installer built by the widget workflow (omit: engine only)
 #   -Profile clean      a simple English profile (the CI runner as it is)
 #   -Profile hostile    a user profile and TEMP with spaces, accents, an apostrophe and
@@ -94,7 +95,7 @@ Assert (-not (Get-Command omniscient -ErrorAction SilentlyContinue)) 'omniscient
 
 $script = [IO.File]::ReadAllText((Join-Path $PWD 'install.ps1'), [Text.Encoding]::UTF8)
 $install = [scriptblock]::Create($script)  # the same text path as `irm ... | iex`
-$params = @{ Wheel = (Resolve-Path $Wheel).Path }
+$params = @{ Wheel = (Resolve-Path $Wheel).Path; NoLaunch = $true }
 if ($Installer) { $params.Installer = (Resolve-Path $Installer).Path } else { $params.SkipWidget = $true }
 
 foreach ($run in 1, 2) {  # the second run proves idempotence (update in place, daemon restarted)
@@ -221,6 +222,48 @@ Assert ($moved -match '127\.0\.0\.1:7371') 'group status (no --port) follows OMN
 Assert (((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').Omnigroup) -match '--port 7371') 'the Run value is written with the new port'
 [Environment]::SetEnvironmentVariable('OMNIGROUP_URL', $null, 'User')
 Remove-Item Env:\OMNIGROUP_URL -ErrorAction SilentlyContinue
+
+# The REAL one-liner path: install.ps1 served over HTTP and run as `irm <url> | iex` in a fresh
+# shell (iex takes no parameters: the OMNIGROUP_INSTALL_* variables carry them). The shell is the
+# one of the matrix leg (powershell 5.1 or pwsh 7). Success is judged on the effects, not only on
+# the exit code of `-c`.
+$probe = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, 0)
+$probe.Start()
+$httpPort = $probe.LocalEndpoint.Port
+$probe.Stop()
+$listener = New-Object Net.HttpListener
+$listener.Prefixes.Add("http://127.0.0.1:$httpPort/")
+$listener.Start()
+$serverBody = [Text.Encoding]::UTF8.GetBytes($script)
+$serverShell = [powershell]::Create()
+$null = $serverShell.AddScript({
+    param($l, $bytes)
+    while ($l.IsListening) {
+        try { $ctx = $l.GetContext() } catch { break }
+        $ctx.Response.ContentType = 'text/plain; charset=utf-8'
+        $ctx.Response.ContentLength64 = $bytes.Length
+        $ctx.Response.OutputStream.Write($bytes, 0, $bytes.Length)
+        $ctx.Response.Close()
+    }
+}).AddArgument($listener).AddArgument($serverBody)
+$serverHandle = $serverShell.BeginInvoke()
+$oneLinerShell = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh' } else { 'powershell' }
+$env:OMNIGROUP_INSTALL_WHEEL = $params.Wheel
+if ($Installer) { $env:OMNIGROUP_INSTALL_INSTALLER = $params.Installer } else { $env:OMNIGROUP_INSTALL_SKIPWIDGET = '1' }
+$env:OMNIGROUP_INSTALL_NOLAUNCH = '1'
+Write-Host "::group::irm http://127.0.0.1:$httpPort/install.ps1 | iex ($oneLinerShell)"
+$oneLiner = Invoke-Captured $oneLinerShell @('-NoProfile', '-ExecutionPolicy', 'ByPass', '-c', "irm http://127.0.0.1:$httpPort/install.ps1 | iex")
+Write-Host $oneLiner.Text
+Write-Host '::endgroup::'
+$listener.Stop()
+$serverShell.Dispose()
+foreach ($name in 'WHEEL', 'INSTALLER', 'SKIPWIDGET', 'NOLAUNCH') { Remove-Item "Env:\OMNIGROUP_INSTALL_$name" -ErrorAction SilentlyContinue }
+Assert ($oneLiner.Text -notmatch 'ERREUR :') 'the irm | iex one-liner reports no error'
+Assert ($oneLiner.Text -match 'Et maintenant') 'the irm | iex one-liner reaches its final message'
+Assert ($oneLiner.Text -notmatch 'lance-le|double-clic|gh absent|Demander un code') 'the install output has no confusing WSL, pairing or gh text'
+Assert ($oneLiner.Code -eq 0) "the irm | iex one-liner exits 0 (got $($oneLiner.Code))"
+Assert ((Invoke-Captured $omni @('group', 'status')).Code -eq 0) 'the daemon answers after the irm | iex one-liner'
+Assert (((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').Omnigroup) -match '--port 7341') 'the Run value is back on port 7341 after the one-liner'
 
 if ($Installer) {
     $app = (Get-ChildItem -LiteralPath $fake, $env:LOCALAPPDATA, $env:ProgramFiles -Filter omnigroup.exe -Recurse -Depth 4 -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
