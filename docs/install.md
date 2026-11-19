@@ -109,8 +109,27 @@ travail avec `omniscient init`, ce dossier-là.
   une commande : utilise l'installation manuelle du README.
 - **`omniscient` introuvable après l'installation.** Ferme et rouvre PowerShell (le `PATH` de
   l'utilisateur vient d'être mis à jour).
+- **Un problème que tu ne comprends pas ?** Lance `omniscient group doctor` et colle le
+  résultat dans ton rapport. C'est un diagnostic en lecture seule : système, langue, WebView2,
+  uv, moteur, widget, démon, port, hooks, tâche de démarrage, proxy (seulement « défini » ou
+  non), espace disque. Aucun jeton ni contenu de fichier n'y figure et ton nom d'utilisateur
+  est remplacé par `%USERPROFILE%`. Chaque ligne `KO` dit comment la corriger.
 - **Le démon ne répond pas.** Lance `omniscient group serve` dans un terminal pour voir
   l'erreur ; le port par défaut est 7341.
+- **« Le port 7341 est déjà occupé » ou « indisponible ».** Un autre programme l'utilise, ou
+  Windows l'a réservé (Hyper-V, WSL, Docker : `netsh interface ipv4 show excludedportrange
+  protocol=tcp`). Choisis un autre port, par exemple 7351, et change-le **partout** :
+  1. installation : `-Port 7351` (ex. `& ([scriptblock]::Create((irm .../install.ps1))) -Port 7351`) ;
+     le script règle les points 2 à 4 pour toi, sauf le widget ;
+  2. démon : `omniscient group serve --port 7351` et, pour le démarrage à l'ouverture de
+     session, `omniscient group autostart install --write --port 7351` ;
+  3. hooks de Claude Code : variable d'environnement utilisateur `OMNIGROUP_URL` =
+     `http://127.0.0.1:7351` (puis rouvre Claude Code) ; `status`, `pair` et `serve` la
+     suivent d'eux-mêmes ;
+  4. widget : *Réglages › Adresse du démon* = `http://127.0.0.1:7351`.
+  `omniscient group serve --check-port --port 7351` teste un port sans lancer le démon.
+- **Chemin de profil avec espaces, accents ou parenthèses** (`C:\Users\Zoé Müller (perso)`) :
+  géré et testé en CI. `omniscient group doctor` l'indique en INFO, ce n'est pas une erreur.
 - **Le widget ne se couple pas.** Voir [omnigroup.md](omnigroup.md) (section couplage).
 
 ## Pour les mainteneurs
@@ -120,4 +139,11 @@ tous deux et `install.ps1` (utilisé par `omniscient update`), avec `SHA256SUMS`
 brouillon que le propriétaire publie. `install.ps1` lit la dernière release *publiée* : tant
 qu'elle n'est pas publiée, la commande ne la voit pas. Garde le numéro de version de
 `pyproject.toml` et celui de `widget/src-tauri/tauri.conf.json` alignés avant d'étiqueter.
-La CI (`install-smoke`) exécute le script sur un Windows vierge, avec PowerShell 5.1 et 7.
+La CI (`install-smoke`) exécute le script sur un Windows vierge, avec PowerShell 5.1 et 7, avec un
+profil simple **et** un profil hostile (dossier utilisateur et `TEMP` avec espaces, accents,
+apostrophe et parenthèses, culture fr-FR, sans `PYTHONUTF8`, donc une page de code ANSI non
+UTF-8). Elle vérifie démon, hooks (forme exec, commande exécutée depuis son chemin), tâche
+planifiée (`schtasks /Run`), conflits de port (port occupé, plage réservée par Windows),
+`omniscient update --check/--dry-run`, `group doctor` puis la désinstallation. Ce qu'un
+runner anglais ne peut pas reproduire : une langue d'affichage Windows localisée (il faut un
+pack de langue), ARM64, Windows 10 sans WebView2, proxy d'entreprise, AppLocker.

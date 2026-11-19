@@ -114,7 +114,8 @@ def explain(problem: PortProblem, other: int | None) -> str:
         BUSY: f"Le port {port} est déjà occupé par un autre programme (ou une autre "
         "session Windows). Ferme ce programme, ou utilise un autre port.",
         RESERVED: f"Le port {port} est indisponible : Windows l'a réservé (plage exclue "
-        "par Hyper-V, WSL, Docker ou une mise à jour). Pour voir les plages réservées : "
+        "par Hyper-V, WSL, Docker ou une mise à jour) ou un programme le tient en "
+        "exclusivité. Pour voir les plages réservées : "
         "netsh interface ipv4 show excludedportrange protocol=tcp",
     }.get(problem.kind, f"Le port {port} est inutilisable ({problem.detail}).")
     if other is None:

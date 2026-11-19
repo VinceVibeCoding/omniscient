@@ -95,6 +95,7 @@ jobs:
     # Engine path only (-SkipWidget); the widget installer is exercised in widget.yml.
     needs: wheel
     runs-on: windows-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

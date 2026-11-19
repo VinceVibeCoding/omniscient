@@ -93,7 +93,7 @@ def test_busy_message_names_the_port_and_every_place_to_change() -> None:
 
 def test_reserved_message_gives_the_netsh_hint() -> None:
     text = pc.explain(pc.PortProblem(7341, pc.RESERVED), None)
-    assert "réservé" in text and "excludedportrange" in text and "--port" in text
+    assert "indisponible" in text and "excludedportrange" in text and "--port" in text
 
 
 def test_suggest_port_skips_unusable_ports() -> None:

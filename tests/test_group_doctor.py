@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -189,6 +190,9 @@ def test_report_has_summary_and_fix_arrows() -> None:
     assert any(line.startswith("     -> omniscient group serve") for line in out)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="the real readers answer on Windows"
+)
 def test_real_facts_return_none_off_windows() -> None:
     facts = real_facts(lambda argv: (1, ""))
     assert facts.architecture() is None and facts.webview2_version() is None

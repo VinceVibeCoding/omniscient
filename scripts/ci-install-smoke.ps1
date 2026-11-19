@@ -80,8 +80,11 @@ if ($hostile) {
     [Globalization.CultureInfo]::DefaultThreadCurrentCulture = $fr
     [Globalization.CultureInfo]::DefaultThreadCurrentUICulture = $fr
     $acp = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage').ACP
-    Write-Host "culture=$((Get-Culture).Name) ansi-code-page=$acp (a real localized UI language needs a language pack: not reproducible here)"
-    Assert ((Get-Culture).Name -eq 'fr-FR') 'the session culture is fr-FR'
+    $threadCulture = [Globalization.CultureInfo]::CurrentCulture.Name  # Get-Culture is the host's, fixed at startup
+    $userLocale = (Get-ItemProperty 'HKCU:\Control Panel\International').LocaleName
+    Write-Host "culture=$threadCulture user-locale=$userLocale ansi-code-page=$acp (a real localized UI language needs a language pack: not reproducible here)"
+    Assert ($threadCulture -eq 'fr-FR') 'the session culture is fr-FR'
+    Assert ($userLocale -eq 'fr-FR') 'the user locale inherited by new processes is fr-FR'
     Assert ($acp -ne '65001') "the ANSI code page is not UTF-8 ($acp): Python pipes are not UTF-8"
     Assert (("{0}" -f 1.5) -eq '1,5') 'fr-FR formatting is active (decimal comma)'
 } else {
@@ -161,7 +164,8 @@ $ours = Invoke-Captured $omni @('group', 'serve', '--check-port', '--port', '734
 Assert (($ours.Code -eq 0) -and ($ours.Text -match 'tourne')) 'our own daemon on the port is reported as already running, not as a conflict'
 $reserved = Invoke-Captured 'netsh' @('int', 'ipv4', 'add', 'excludedportrange', 'protocol=tcp', 'startport=7360', 'numberofports=1')
 if ($reserved.Code -eq 0) {
-    $res = Invoke-Captured $omni @('group', 'serve', '--port', '7360')
+    $res = Invoke-Captured $omni @('group', 'serve', '--check-port', '--port', '7360')  # never a real serve: it would block forever if the bind succeeded
+    Write-Host "reserved-port check: exit $($res.Code): $($res.Text.Trim())"
     $null = Invoke-Captured 'netsh' @('int', 'ipv4', 'delete', 'excludedportrange', 'protocol=tcp', 'startport=7360', 'numberofports=1')
     Assert (($res.Code -ne 0) -and ($res.Text -match '7360') -and ($res.Text -match 'excludedportrange')) 'serve on a Windows-reserved port (WSAEACCES) exits non-zero with the netsh hint'
 } else {
