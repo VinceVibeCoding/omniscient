@@ -206,6 +206,20 @@ Assert ($doc.Text -notmatch 'Traceback') 'group doctor never prints a traceback'
 Assert ((-not $doc.Text.Contains($fake)) -and (-not $doc.Text.Contains($segment))) 'group doctor redacts the profile path'
 Assert ($doc.Text -match '(?m)^OK ') 'group doctor prints OK lines'
 
+# A different port (the 7341 case on a PC where it is taken): -Port moves daemon, task, hooks
+# variable and status together.
+Write-Host '::group::install.ps1 run 3 (-Port 7371)'
+& $install @params -Port 7371
+$code = $LASTEXITCODE
+Write-Host '::endgroup::'
+Assert ($code -eq 0) 'install.ps1 -Port 7371 exits 0'
+Assert ($env:OMNIGROUP_URL -eq 'http://127.0.0.1:7371') 'OMNIGROUP_URL (what the hooks read) follows -Port'
+$moved = (Invoke-Captured $omni @('group', 'status')).Text
+Assert ($moved -match '127\.0\.0\.1:7371') 'group status (no --port) follows OMNIGROUP_URL to the daemon on 7371'
+Assert ((Invoke-Captured 'schtasks' @('/Query', '/TN', 'Omnigroup', '/XML')).Text -match '--port 7371') 'the logon task is written with the new port (XML: language independent)'
+[Environment]::SetEnvironmentVariable('OMNIGROUP_URL', $null, 'User')
+Remove-Item Env:\OMNIGROUP_URL -ErrorAction SilentlyContinue
+
 if ($Installer) {
     $app = (Get-ChildItem -LiteralPath $fake, $env:LOCALAPPDATA, $env:ProgramFiles -Filter omnigroup.exe -Recurse -Depth 4 -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
     Assert ([bool]$app) "widget installed at $app"
