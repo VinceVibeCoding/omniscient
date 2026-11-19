@@ -82,8 +82,10 @@ jobs:
             if ($errors.Count) { $errors | ForEach-Object { Write-Host "$file`:$($_.Extent.StartLineNumber) $($_.Message)" }; exit 1 }
           }
           if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser }
-          $found = Invoke-ScriptAnalyzer -Path install.ps1, scripts/ci-install-smoke.ps1 -Severity Error, Warning `
+          $found = 'install.ps1', 'scripts/ci-install-smoke.ps1' | ForEach-Object {
+            Invoke-ScriptAnalyzer -Path $_ -Severity Error, Warning `
             -ExcludeRule PSAvoidUsingWriteHost, PSUseApprovedVerbs, PSUseShouldProcessForStateChangingFunctions
+          }
           $found | Format-Table RuleName, Severity, ScriptName, Line, Message -AutoSize -Wrap
           if ($found | Where-Object Severity -eq 'Error') { exit 1 }
 
