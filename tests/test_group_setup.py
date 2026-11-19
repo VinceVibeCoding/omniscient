@@ -213,3 +213,58 @@ def test_native_windows_downloads_the_widget_when_not_installed(tmp_path: Path) 
     setup.run_setup(setup.SetupOptions(write=True), native)
     assert (tmp_path / NAME).exists()
     assert "Widget Windows" in "\n".join(rec.lines)
+
+
+def native_deps(rec: Recorder, tmp_path: Path, installed: bool) -> setup.SetupDeps:
+    return setup.SetupDeps(
+        say=rec.say,
+        health=lambda port: True,
+        fetch=fake_fetch(),
+        hooks=rec.hooks_fn,
+        downloads=lambda: tmp_path / "unused",
+        attest=VERIFIED,
+        native_windows=True,
+        widget_installed=lambda: installed,
+    )
+
+
+def test_widget_dir_chooses_where_the_installer_is_saved(tmp_path: Path) -> None:
+    rec = Recorder()
+    target = tmp_path / "chosen"
+    opts = setup.SetupOptions(write=True, widget_dir=target)
+    setup.run_setup(opts, native_deps(rec, tmp_path, installed=False))
+    assert (target / NAME).read_bytes() == EXE
+    assert not (tmp_path / "unused").exists()
+
+
+def test_update_widget_downloads_even_when_installed(tmp_path: Path) -> None:
+    rec = Recorder()
+    kept = setup.SetupOptions(write=True, widget_dir=tmp_path)
+    setup.run_setup(kept, native_deps(rec, tmp_path, installed=True))
+    assert not (tmp_path / NAME).exists()
+    rec = Recorder()
+    update = setup.SetupOptions(write=True, widget_dir=tmp_path, update_widget=True)
+    setup.run_setup(update, native_deps(rec, tmp_path, installed=True))
+    assert (tmp_path / NAME).read_bytes() == EXE
+
+
+def test_skip_widget_wins_over_update_widget(tmp_path: Path) -> None:
+    rec = Recorder()
+    opts = setup.SetupOptions(
+        write=True, widget_dir=tmp_path, update_widget=True, skip_widget=True
+    )
+    setup.run_setup(opts, native_deps(rec, tmp_path, installed=True))
+    assert not (tmp_path / NAME).exists()
+
+
+def test_the_engine_wheel_is_never_taken_for_the_widget_installer() -> None:
+    wheel = "omniscient-0.2.0-py3-none-any.whl"
+    assert not wr.safe_asset_name(wheel, installer=True)
+    assert not wr.safe_asset_name(wheel, installer=False)
+    tag = "widget-v0.2.0"
+    assets = [
+        {"name": wheel, "browser_download_url": f"{BASE}/{tag}/{wheel}"},
+        *releases()[3]["assets"],
+    ]
+    release = wr.latest_widget_release(fake_fetch(listing=[releases(assets=assets)[3]]))
+    assert release is not None and release.installer.name == NAME

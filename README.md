@@ -33,7 +33,33 @@ conversations stay on your computer.
 
 ## Quick start
 
-### The widget (Windows 10/11)
+### One command (Windows 10/11)
+
+Open **PowerShell** (Start menu › type *PowerShell*), paste, press Enter:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1 | iex"
+```
+
+That is the whole install. It needs Windows 10/11 and an internet connection, nothing else (no
+admin rights, no git, no Python: the script fetches what is missing; Claude Code is optional, it is
+only needed for coding chats). It installs uv, the engine (SHA-256 verified, no git), starts the
+engine at every logon, writes the Claude Code hooks (settings backed up first) and installs the
+Omnigroup widget.
+
+**Update:** `omniscient update` (engine and widget; `--check` only compares, `--dry-run` shows the plan).
+
+Then open **Omnigroup** from the Start menu, go to *Réglages › Demander un code*, type the 6-digit
+code shown on your desktop, pick your AI and choose a look. Pin it to your taskbar (right-click ›
+*Pin to taskbar*).
+
+**Uninstall:** Windows *Settings › Apps › Omnigroup › Uninstall*, then
+`omniscient group autostart remove`, `omniscient group hooks uninstall --write` and
+`uv tool uninstall omniscient`. What the script does, what it writes where, full uninstall and
+troubleshooting (SmartScreen, antivirus, no winget, proxy): [docs/install.md](docs/install.md)
+(in French).
+
+### Manual installation (Installation manuelle)
 
 The widget is a Windows app. It talks to a small background **engine** (a Python program) over a
 local-only port. The engine can run **natively on Windows (PowerShell)** or **inside WSL2 / Linux**:
@@ -41,7 +67,7 @@ pick one of the two paths below. Either way you install nothing beforehand excep
 
 | | A. PowerShell (native Windows) | B. WSL2 / Linux |
 |---|---|---|
-| Good for | most people: nothing but Windows | people who already live in WSL (Claude Code runs there) |
+| Good for | people who prefer to run each step themselves | people who already live in WSL (Claude Code runs there) |
 | Engine runs in | Windows | WSL2 |
 | Start at login | `omniscient group autostart install --write` | systemd user service |
 
@@ -56,7 +82,7 @@ winget install --id astral-sh.uv -e
 #    Then CLOSE AND REOPEN PowerShell so `uv` is found.
 
 # 2. Install the engine
-uv tool install git+https://github.com/VinceVibeCoding/omniscient
+uv tool install git+https://github.com/VinceVibeCoding/omniscient   # needs git; the one-liner above does not
 
 # 3. Set up: preview first (writes nothing), then apply
 omniscient group setup
@@ -284,9 +310,15 @@ uv run pytest -q
   noter par un conseil d'agents, planifie les meilleures et construit des prototypes jetables. Tu la
   pilotes depuis le **studio**, dans herdr.
 
+Installation du widget sous Windows, en une commande dans PowerShell (rien d'autre à installer) :
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1 | iex"
+```
+
+Mettre à jour : `omniscient update`. Détails, désinstallation et dépannage : [docs/install.md](docs/install.md). L'usine, ensuite :
+
 ```bash
-uv tool install git+https://github.com/VinceVibeCoding/omniscient
-omniscient group setup --write    # le widget : démon, hooks, installateur, couplage
 omniscient init                   # l'usine : dossier, profil, projets, clés
 ```
 
