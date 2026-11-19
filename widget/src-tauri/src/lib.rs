@@ -69,22 +69,19 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
 
 pub fn run() {
-    // A second launch (pinned taskbar icon, Start menu) shows the running widget and quits.
-    let listener = match single_instance::claim() {
+    // A second launch (pinned taskbar icon, Start menu, the installer's own launch) shows the
+    // running widget and quits. The lock is taken first thing: even a launch that comes during
+    // this one's start-up sees it. The window is only shown once the app handle exists.
+    let guard = match single_instance::claim() {
         single_instance::Role::Secondary => return,
-        single_instance::Role::Primary(listener) => listener,
+        single_instance::Role::Primary(guard) => guard,
     };
-    // Answer second launches from the very first moment: the port is already ours, and the
-    // interface takes a second or two to come up. A second launch that got no answer in that
-    // window used to think a stranger held the port and started anyway: two widgets at once.
-    // The window is only shown when the app is ready (`APP` is filled in `setup`).
-    if let Some(listener) = listener {
-        single_instance::serve(listener, || {
-            if let Some(app) = APP.get() {
-                tray::show_window(app);
-            }
-        });
-    }
+    single_instance::serve(&guard, || {
+        if let Some(app) = APP.get() {
+            tray::show_window(app);
+        }
+    });
+    std::mem::forget(guard); // the lock lives as long as the process
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_positioner::init())

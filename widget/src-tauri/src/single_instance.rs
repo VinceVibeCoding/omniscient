@@ -1,131 +1,130 @@
-//! One Omnigroup at a time. A second launch (a click on the pinned taskbar icon, or on the
-//! Start menu entry) asks the running widget to show itself, then quits.
+//! One Omnigroup at a time. A second launch (a click on the pinned taskbar icon, the Start menu
+//! entry, the installer's own launch...) asks the running widget to show itself, then quits.
 //!
-//! The first instance owns a loopback port. A second one finds it taken, says hello and, if
-//! the owner answers, exits. If something else holds the port (no answer), we start anyway:
-//! a stranger on that port must never stop Omnigroup from opening. Standard library only.
+//! Done with a **named mutex** (who owns the app) and a **named event** (« show yourself »), both
+//! in the user's session (`Local\`). Unlike a TCP port, nothing else can occupy it, no firewall or
+//! reserved port range matters, and Windows releases it by itself when the app dies, however it
+//! died. (The first version used a loopback port: on some PCs that port could not be bound at all,
+//! so every launch believed it was the only one and several widgets ran at once.)
 
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::thread;
-use std::time::Duration;
+use windows::core::HSTRING;
+use windows::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS, HANDLE, WAIT_OBJECT_0};
+use windows::Win32::System::Threading::{
+    CreateEventW, CreateMutexW, OpenEventW, SetEvent, WaitForSingleObject, EVENT_MODIFY_STATE, INFINITE,
+};
 
-const PORT: u16 = 47_322;
-const HELLO: &str = "omnigroup-show";
-const REPLY: &str = "omnigroup-ok";
-const TIMEOUT: Duration = Duration::from_millis(1500);
-/// Longest line read from a client: a local process can't make us buffer more.
-const MAX_LINE: u64 = 64;
+const MUTEX_NAME: &str = "Local\\Omnigroup-single-instance";
+const EVENT_NAME: &str = "Local\\Omnigroup-show-window";
+
+/// What this process owns for as long as it runs (the handles are never closed on purpose: the
+/// mutex must be held until the process ends). `event` is 0 when it could not be created.
+pub struct Guard {
+    event: isize,
+}
 
 pub enum Role {
-    /// We are the widget. The listener is `None` when the port is held by something else.
-    Primary(Option<TcpListener>),
-    /// Another Omnigroup answered: it was asked to show itself, we quit.
+    /// We are the widget.
+    Primary(Guard),
+    /// Another Omnigroup runs: it was asked to show itself, we quit.
     Secondary,
 }
 
 pub fn claim() -> Role {
-    claim_at(SocketAddr::from((Ipv4Addr::LOCALHOST, PORT)))
+    claim_named(MUTEX_NAME, EVENT_NAME)
 }
 
-pub fn claim_at(addr: SocketAddr) -> Role {
-    match TcpListener::bind(addr) {
-        Ok(listener) => Role::Primary(Some(listener)),
-        Err(_) if ask_running(addr) => Role::Secondary,
-        Err(err) => {
-            eprintln!("omnigroup: single-instance port unavailable ({err}); starting anyway");
-            Role::Primary(None)
+pub fn claim_named(mutex_name: &str, event_name: &str) -> Role {
+    // SAFETY: plain Win32 calls with strings that outlive them; every handle we do not keep is closed.
+    unsafe {
+        let mutex = match CreateMutexW(None, true, &HSTRING::from(mutex_name)) {
+            Ok(handle) => handle,
+            Err(err) => {
+                // Never stop Omnigroup from opening because the guard failed.
+                eprintln!("omnigroup: single-instance lock unavailable ({err}); starting anyway");
+                return Role::Primary(Guard { event: 0 });
+            }
+        };
+        if GetLastError() == ERROR_ALREADY_EXISTS {
+            signal_show(event_name);
+            let _ = CloseHandle(mutex);
+            return Role::Secondary;
         }
+        let event = CreateEventW(None, false, false, &HSTRING::from(event_name))
+            .map(|handle| handle.0 as isize)
+            .unwrap_or_else(|err| {
+                eprintln!("omnigroup: single-instance event unavailable ({err})");
+                0
+            });
+        Role::Primary(Guard { event })
     }
 }
 
-fn ask_running(addr: SocketAddr) -> bool {
-    let Ok(mut stream) = TcpStream::connect_timeout(&addr, TIMEOUT) else { return false };
-    if stream.set_read_timeout(Some(TIMEOUT)).is_err()
-        || writeln!(stream, "{HELLO}").is_err()
-    {
-        return false;
+/// Wakes the running instance (best effort: it also shows itself at start-up).
+unsafe fn signal_show(event_name: &str) {
+    if let Ok(event) = OpenEventW(EVENT_MODIFY_STATE, false, &HSTRING::from(event_name)) {
+        let _ = SetEvent(event);
+        let _ = CloseHandle(event);
     }
-    let mut line = String::new();
-    BufReader::new(stream.take(MAX_LINE)).read_line(&mut line).is_ok() && line.trim() == REPLY
 }
 
-/// Answers second launches on a thread of its own; `on_show` runs for each valid hello.
-pub fn serve<F>(listener: TcpListener, on_show: F)
+/// Runs `on_show` on a thread of its own each time a second launch asks for it. Start it right
+/// away (before the interface is up): the event is signalled and remembered even then.
+pub fn serve<F>(guard: &Guard, on_show: F)
 where
     F: Fn() + Send + 'static,
 {
-    thread::spawn(move || {
-        for connection in listener.incoming() {
-            match connection {
-                Ok(stream) => answer(stream, &on_show),
-                Err(err) => eprintln!("omnigroup: single-instance accept failed: {err}"),
-            }
+    if guard.event == 0 {
+        return;
+    }
+    let event = guard.event;
+    thread::spawn(move || loop {
+        // SAFETY: the handle was created by `claim_named` and stays open for the process lifetime.
+        let waited = unsafe { WaitForSingleObject(HANDLE(event as *mut core::ffi::c_void), INFINITE) };
+        if waited != WAIT_OBJECT_0 {
+            eprintln!("omnigroup: single-instance wait stopped ({waited:?})");
+            break;
         }
-    });
-}
-
-fn answer<F: Fn()>(mut stream: TcpStream, on_show: &F) {
-    if stream.set_read_timeout(Some(TIMEOUT)).is_err() {
-        return;
-    }
-    let mut line = String::new();
-    let read = BufReader::new((&stream).take(MAX_LINE)).read_line(&mut line);
-    if read.is_err() || line.trim() != HELLO {
-        return;
-    }
-    if writeln!(stream, "{REPLY}").is_ok() {
         on_show();
-    }
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::mpsc;
+    use std::time::Duration;
 
-    fn free_addr() -> SocketAddr {
-        let probe = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("probe port");
-        probe.local_addr().expect("probe address")
+    fn names(tag: &str) -> (String, String) {
+        let id = std::process::id();
+        (format!("Local\\omnigroup-test-{tag}-{id}-mutex"), format!("Local\\omnigroup-test-{tag}-{id}-event"))
     }
 
     #[test]
-    fn a_second_launch_asks_the_first_to_show_and_quits() {
-        let addr = free_addr();
-        let Role::Primary(Some(listener)) = claim_at(addr) else { panic!("first launch must own the port") };
+    fn a_second_launch_signals_the_first_and_quits() {
+        let (mutex, event) = names("signal");
+        let Role::Primary(guard) = claim_named(&mutex, &event) else { panic!("first launch must own the lock") };
         let (tx, rx) = mpsc::channel();
-        serve(listener, move || tx.send(()).expect("receiver alive"));
-        assert!(matches!(claim_at(addr), Role::Secondary));
+        serve(&guard, move || tx.send(()).expect("receiver alive"));
+        assert!(matches!(claim_named(&mutex, &event), Role::Secondary));
         rx.recv_timeout(Duration::from_secs(2)).expect("the first instance was asked to show");
     }
 
     #[test]
-    fn a_second_launch_gets_its_answer_even_when_the_show_callback_is_slow() {
-        // The first instance answers at once and shows the window later: a second launch must not
-        // time out while the first is still starting up.
-        let addr = free_addr();
-        let Role::Primary(Some(listener)) = claim_at(addr) else { panic!("first launch must own the port") };
-        serve(listener, || std::thread::sleep(Duration::from_secs(3)));
-        let started = std::time::Instant::now();
-        assert!(matches!(claim_at(addr), Role::Secondary));
-        assert!(started.elapsed() < Duration::from_millis(1200));
+    fn a_launch_during_the_first_ones_startup_is_still_recognised() {
+        // The lock is taken before anything else, so even a second launch that comes before
+        // `serve` is running sees the first one (the old port-based guard missed exactly this).
+        let (mutex, event) = names("early");
+        let Role::Primary(_guard) = claim_named(&mutex, &event) else { panic!("first launch must own the lock") };
+        assert!(matches!(claim_named(&mutex, &event), Role::Secondary));
+        assert!(matches!(claim_named(&mutex, &event), Role::Secondary));
     }
 
     #[test]
-    fn a_stranger_holding_the_port_does_not_stop_us() {
-        let addr = free_addr();
-        let _stranger = TcpListener::bind(addr).expect("stranger binds"); // never answers
-        assert!(matches!(claim_at(addr), Role::Primary(None)));
-    }
-
-    #[test]
-    fn a_wrong_greeting_shows_nothing() {
-        let addr = free_addr();
-        let Role::Primary(Some(listener)) = claim_at(addr) else { panic!("first launch must own the port") };
-        let (tx, rx) = mpsc::channel();
-        serve(listener, move || tx.send(()).expect("receiver alive"));
-        let mut stream = TcpStream::connect(addr).expect("connect");
-        writeln!(stream, "hello there").expect("write");
-        assert!(rx.recv_timeout(Duration::from_millis(400)).is_err());
+    fn different_names_do_not_collide() {
+        let (m1, e1) = names("one");
+        let (m2, e2) = names("two");
+        assert!(matches!(claim_named(&m1, &e1), Role::Primary(_)));
+        assert!(matches!(claim_named(&m2, &e2), Role::Primary(_)));
     }
 }
