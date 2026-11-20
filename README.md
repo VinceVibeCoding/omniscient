@@ -260,8 +260,9 @@ Screenshots need a model that can see images.
 
 ## Accounts (optional, free)
 
-An account only identifies your install. Sign in with an **e-mail code** (the main path), **Google**
-or **GitHub**, through [Supabase Auth](https://supabase.com/docs/guides/auth)'s free plan. The
+An account only identifies your install. Sign in with an **e-mail code** (the main path) through
+[Supabase Auth](https://supabase.com/docs/guides/auth)'s free plan. Google and GitHub sign-in are built
+in too, but each only works once the project owner enables that provider in Supabase. The
 accounts project ships preconfigured in the app, so you configure nothing; people who self-host can
 override it. Your AI keys and conversations never leave your computer, and the widget works fully
 without an account. Details and self-hosting: [docs/accounts.md](docs/accounts.md).

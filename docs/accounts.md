@@ -8,7 +8,8 @@ clés des fournisseurs IA et les conversations restent sur l'ordinateur de la pe
 
 Le projet de comptes (adresse et clé publique) est **intégré à l'application**. La connexion par
 **code e-mail** marche d'emblée : tapez votre e-mail, puis le code à 6 chiffres reçu, une seule
-fois ; le widget reste connecté d'une session à l'autre. Google et GitHub sont aussi proposés.
+fois ; le widget reste connecté d'une session à l'autre. Google et GitHub sont pris en charge par
+le code, mais chacun ne marche que si le propriétaire du projet l'active dans Supabase (voir plus bas).
 
 Le service de connexion est [Supabase Auth](https://supabase.com/docs/guides/auth). Toute la
 connexion passe par le démon, jamais par le widget : le widget ne voit aucun jeton.
