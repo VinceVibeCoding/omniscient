@@ -262,6 +262,7 @@ Setup for the project owner: [docs/accounts.md](docs/accounts.md).
 - No analytics, no telemetry.
 
 Threat model and reporting: [docs/omniscient.md](docs/omniscient.md) and [SECURITY.md](SECURITY.md).
+How the Windows installer is built and signed: [docs/code-signing-policy.md](docs/code-signing-policy.md).
 
 ## Requirements
 

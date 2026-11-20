@@ -281,7 +281,7 @@ function Install-Omniscient {
         } elseif ($app) {
             Write-Host '  Ouvre Omniscient depuis le menu Démarrer : le widget s''ouvre en bas à droite de l''écran.'
         }
-        Write-Host '  Si le widget affiche un code à taper, saisis les 6 chiffres affichés sur ton bureau.'
+        Write-Host '  Dans le widget, tape ton courriel puis le code reçu par courriel : une seule fois, tu restes connecté.'
         Write-Host ''
         Write-Host "  Pour mettre à jour : relance la même commande. Désinstallation : docs/install.md."
         return $true
