@@ -8,7 +8,7 @@ import type { ProviderHandlers, ProviderModel } from "../provider-controller";
 import type { LinkStatus, Skin } from "../types";
 import { accountSection } from "./account";
 import { providersSection } from "./providers";
-import { pairingForm, type SettingsHandlers } from "./settings";
+import { emailForm, pairingForm, type SettingsHandlers } from "./settings";
 
 export const WIZARD_STEPS = ["Connexion", "Compte", "Fournisseur IA", "Apparence"] as const;
 
@@ -23,7 +23,7 @@ export interface WizardModel {
 export interface WizardHandlers {
   go(step: number): void;
   finish(): void;
-  pair: Pick<SettingsHandlers, "pairStart" | "pairFinish" | "unpair">;
+  pair: Pick<SettingsHandlers, "pairStart" | "pairFinish" | "emailStart" | "emailVerify" | "unpair">;
   providers: ProviderHandlers;
   account: AccountHandlers;
   setSkin(skin: Skin): void;
@@ -43,6 +43,7 @@ function stepConnect(m: WizardModel, on: WizardHandlers): HTMLElement {
     "div",
     {},
     h("p", { class: `notice notice--${m.link.state}`, role: "status" }, m.link.message),
+    emailForm(on.pair),
     pairingForm({ ...on.pair, back: () => undefined, collapse: () => undefined, save: () => undefined, autostart: () => undefined, wizard: () => undefined }),
   );
 }

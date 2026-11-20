@@ -193,6 +193,34 @@ pub async fn pair_finish(app: AppHandle, code: String) -> CmdResult<String> {
     Ok("Widget couplé.".into())
 }
 
+/// Asks the account service to e-mail a one-time sign-in code (no widget token needed yet).
+#[tauri::command]
+pub async fn email_start(app: AppHandle, email: String) -> CmdResult<String> {
+    let email = pairing::validate_email(&email)?;
+    let daemon = anonymous(&app)?;
+    let reply = daemon.post_public(&["auth", "email", "start"], &json!({ "email": email })).await.map_err(|err| err.message())?;
+    let message = reply.get("message").and_then(Value::as_str).unwrap_or("Code envoyé par courriel.");
+    Ok(message.to_string())
+}
+
+/// Sends the e-mailed code; the widget token that comes back goes to the Windows vault only,
+/// so the code is typed once and the sign-in survives restarts.
+#[tauri::command]
+pub async fn email_verify(app: AppHandle, email: String, code: String) -> CmdResult<String> {
+    let email = pairing::validate_email(&email)?;
+    let code = pairing::validate_email_code(&code)?;
+    let daemon = anonymous(&app)?;
+    let body = json!({ "email": email, "code": code, "client_name": pairing::CLIENT_NAME });
+    let reply = daemon.post_public(&["auth", "email", "verify"], &body).await.map_err(|err| err.message())?;
+    let raw = reply.get("token").and_then(Value::as_str).unwrap_or_default();
+    let token = settings::validate_token(raw)?;
+    vault::save(&token)?;
+    let state = app.state::<AppState>();
+    *lock(&state.token) = token;
+    stream::restart(&app);
+    Ok("Connecté.".into())
+}
+
 /// Forgets the widget token (here; `omniscient group pair --revoke` forgets it daemon-side).
 #[tauri::command]
 pub fn unpair(app: AppHandle) -> CmdResult<String> {

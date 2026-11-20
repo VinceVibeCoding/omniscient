@@ -79,6 +79,16 @@ export function pairFinish(code: string): Promise<string> {
   return invoke<string>("pair_finish", { code });
 }
 
+/** Asks for a one-time code by e-mail; returns the daemon's message. */
+export function emailStart(email: string): Promise<string> {
+  return invoke<string>("email_start", { email });
+}
+
+/** Sends the e-mailed code; the token is stored by Rust in the Windows vault, never returned. */
+export function emailVerify(email: string, code: string): Promise<string> {
+  return invoke<string>("email_verify", { email, code });
+}
+
 export function unpair(): Promise<string> {
   return invoke<string>("unpair");
 }

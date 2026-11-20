@@ -123,6 +123,8 @@ pub fn run() {
             commands::finish_wizard,
             commands::pair_start,
             commands::pair_finish,
+            commands::email_start,
+            commands::email_verify,
             commands::unpair,
             commands::set_window_mode,
             drag::start_drag,
