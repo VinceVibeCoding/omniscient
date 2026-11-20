@@ -139,7 +139,7 @@ def theme_export(
 
 
 schedule_app = typer.Typer(
-    help="Minuteur systemd (utilisateur) du cycle quotidien et du widget Omnigroup.",
+    help="Minuteur systemd (utilisateur) du cycle quotidien et du widget Omniscient.",
     no_args_is_help=True,
 )
 WriteFlag = Annotated[
@@ -176,7 +176,7 @@ def schedule_install(write: WriteFlag = False) -> None:
         raise typer.Exit(code=1) from exc
     typer.echo(f"{len(written)} unités écrites dans {target}. Active-les toi-même :")
     typer.echo(f"  {sch.ENABLE_CMD}")
-    typer.echo(f"  {sch.GROUP_CMD}   # optionnel : le démon omnigroup")
+    typer.echo(f"  {sch.GROUP_CMD}   # optionnel : le démon omniscient")
 
 
 @schedule_app.command("uninstall")

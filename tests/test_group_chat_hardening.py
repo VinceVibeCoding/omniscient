@@ -265,12 +265,12 @@ def test_unsafe_asset_names_are_refused(name: str) -> None:
 
 
 def test_safe_asset_names() -> None:
-    assert wr.safe_asset_name("Omnigroup_0.2.0_x64-setup.exe", installer=True)
+    assert wr.safe_asset_name("Omniscient_0.2.0_x64-setup.exe", installer=True)
     assert wr.safe_asset_name("SHA256SUMS", installer=False)
 
 
 EXE = b"MZ fake installer"
-NAME = "Omnigroup_0.2.0_x64-setup.exe"
+NAME = "Omniscient_0.2.0_x64-setup.exe"
 
 
 def _release() -> wr.Release:

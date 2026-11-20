@@ -1,4 +1,4 @@
-"""herdr collector: every herdr agent pane becomes an omnigroup session.
+"""herdr collector: every herdr agent pane becomes an omniscient session.
 
 Polls `herdr agent list` (herdr 0.9.5, JSON envelope `{"result": {"type": "agent_list",
 "agents": [AgentInfo...]}}`) every two seconds. A pane whose agent is `blocked` (waiting at

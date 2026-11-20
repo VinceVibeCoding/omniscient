@@ -1,13 +1,13 @@
 [package]
-name = "omnigroup"
-version = "0.2.1"
-description = "Omnigroup: a corner widget showing every running agent of an Omniscient home"
+name = "omniscient-widget"
+version = "0.2.2"
+description = "Omniscient: a corner widget showing every running agent of an Omniscient home"
 license = "MIT"
 edition = "2021"
 rust-version = "1.90"
 
 [lib]
-name = "omnigroup_lib"
+name = "omniscient_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

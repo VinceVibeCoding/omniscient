@@ -1,15 +1,15 @@
-# omnigroup — les hooks des agents
+# omniscient — les hooks des agents
 
-omnigroup montre dans un widget Windows tous les agents en cours (Claude Code, GitHub
+omniscient montre dans un widget Windows tous les agents en cours (Claude Code, GitHub
 Copilot, herdr, AgentRun). Claude Code et Copilot y arrivent par leurs **hooks** : à
-chaque événement, l'agent lance le hook omnigroup (`omniscient-hook`, la même chose que
+chaque événement, l'agent lance le hook omniscient (`omniscient-hook`, la même chose que
 `omniscient group hook` en plus rapide), qui transmet l'événement au
 démon local (`omniscient group serve`, `127.0.0.1:7341`) et, pour une autorisation ou
 une question, attend la réponse donnée dans le widget.
 
 **Le widget d'abord, avec repli :** si le démon est arrêté, si le jeton manque, si aucun
 widget n'a été connecté depuis 30 s ou si personne ne répond à temps, le hook se termine
-sans rien écrire (code 0) et l'agent affiche son invite habituelle. Un hook omnigroup ne
+sans rien écrire (code 0) et l'agent affiche son invite habituelle. Un hook omniscient ne
 bloque jamais un agent.
 
 ## Démarrer
@@ -26,17 +26,17 @@ omniscient group widget           # où télécharger l'installateur Windows, co
 ```
 
 Au démarrage de la session : `omniscient schedule install --write` écrit aussi
-`omnigroup.service` (optionnel), à activer soi-même avec
-`systemctl --user enable --now omnigroup.service` (Omniscient ne lance jamais
+`omniscient.service` (optionnel), à activer soi-même avec
+`systemctl --user enable --now omniscient.service` (Omniscient ne lance jamais
 `systemctl`).
 
 Installation en une commande (uv, moteur, démon, hooks et widget) : [install.md](install.md).
 
 Widget : installateur NSIS dans les releases GitHub (tags `widget-v*`, avec
-`SHA256SUMS` et une attestation de provenance) ou artefact `omnigroup-windows-nsis` du
+`SHA256SUMS` et une attestation de provenance) ou artefact `omniscient-windows-nsis` du
 workflow *Widget*. Couplage : voir plus bas.
 
-**Rouvrir le widget** : l'installateur crée une entrée « Omnigroup » dans le menu Démarrer. Clic
+**Rouvrir le widget** : l'installateur crée une entrée « Omniscient » dans le menu Démarrer. Clic
 droit dessus › *Épingler à la barre des tâches* : un clic sur cette icône ouvre le widget, ou
 le fait réapparaître s'il tourne déjà (une seule instance à la fois). L'icône près de
 l'horloge fait aussi apparaître / disparaître le widget.
@@ -140,7 +140,7 @@ y ajouter l'empreinte d'un jeton à lui), arrêter et relancer le démon, ou app
 `powershell.exe` pour lire l'écran ou le coffre Windows de votre session. Les règles
 `--protect` (ci-dessous) ne bloquent que les accès évidents (`Read`/`Edit`/`Write` du
 dossier, `cat`, `sqlite3`… sur ses fichiers) : elles se contournent. La vraie barrière
-reste de ne pas donner à un agent non surveillé un Bash sans restriction ; omnigroup
+reste de ne pas donner à un agent non surveillé un Bash sans restriction ; omniscient
 réduit la surface, il ne remplace pas un bac à sable.
 
 **Chat du widget : le jeton du widget lance Claude.** `POST /chats` fait tourner
@@ -244,7 +244,7 @@ Réponses écrites par le hook :
   Le hook recalcule la règle à partir de son propre événement : il ne la prend pas au
   démon. Syntaxe `//chemin` et correspondance exacte d'une commande **à vérifier** sur une
   vraie session.
-- Refus : `{"behavior": "deny", "message": "Refusé depuis omnigroup", "interrupt": false}`.
+- Refus : `{"behavior": "deny", "message": "Refusé depuis omniscient", "interrupt": false}`.
 - Question (`AskUserQuestion`) : `{"hookSpecificOutput": {"hookEventName": "PreToolUse",
   "permissionDecision": "allow", "updatedInput": {"questions": [...], "answers":
   {"question": "libellé"}}}}` ; à choix multiples, les libellés sont joints par `", "`
@@ -254,7 +254,7 @@ Réponses écrites par le hook :
 
 `--statusline` règle la `statusLine` de Claude Code sur `omniscient-hook --statusline`
 (équivalent de `omniscient group statusline`).
-Elle affiche `omnigroup · modèle · contexte N % · 5 h N % · 7 j N %` et transmet au
+Elle affiche `omniscient · modèle · contexte N % · 5 h N % · 7 j N %` et transmet au
 démon le JSON de la ligne d'état, qui est la seule source **documentée** du coût
 (`cost.total_cost_usd`), de la taille de la fenêtre de contexte
 (`context_window.context_window_size`) et de l'usage de l'abonnement
@@ -262,7 +262,7 @@ démon le JSON de la ligne d'état, qui est la seule source **documentée** du c
 `statusLine` existante n'est remplacée qu'avec `--force` (après sauvegarde) ;
 `uninstall` ne retire que la nôtre.
 
-### GitHub Copilot — `~/.copilot/hooks/omnigroup.json`
+### GitHub Copilot — `~/.copilot/hooks/omniscient.json`
 
 Un fichier à nous (`{"version": 1, "hooks": {...}}`), entrées
 `{"type": "command", "bash": "... --source copilot --event <nom>", "timeoutSec": 30}`
@@ -276,7 +276,7 @@ fichier s'il ne contient plus que nos entrées. Format des événements et répo
 
 **Copilot lit aussi `.claude/settings.json`.** Quand le hook Claude reçoit une charge
 utile Copilot (`sessionId` en camelCase, pas de `session_id`) :
-- si le fichier Copilot d'omnigroup est installé, il ne fait rien (le hook Copilot
+- si le fichier Copilot d'omniscient est installé, il ne fait rien (le hook Copilot
   rapporte l'événement : une seule fois) ;
 - sinon il le rapporte comme session Copilot, en suivi seulement (pas de décision).
 
@@ -314,7 +314,7 @@ Le démon, le client de hooks et le chat tournent directement sous Windows 10/11
   retour à une session par herdr ou par WSL.
 - **`omniscient group setup`** (appelé par `install.ps1`, voir [install.md](install.md)) : mode Windows natif (aucune étape WSL, pas de téléchargement
   du widget : c'est lui qui t'a installé). Il installe les hooks, vérifie `claude`, puis
-  t'invite à ouvrir le widget Omnigroup.
+  t'invite à ouvrir le widget Omniscient.
 
 ## Fournisseurs IA (chat du widget)
 

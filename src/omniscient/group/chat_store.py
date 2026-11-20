@@ -65,7 +65,7 @@ class Chat:
 
     def summary(self) -> dict[str, Any]:
         """The API view: no messages and no raw Claude session id (the --resume key);
-        `session_id` is the omnigroup session id the widget already gets from /sessions,
+        `session_id` is the omniscient session id the widget already gets from /sessions,
         so it can show that session's approvals inside the chat."""
         return {
             "chat_id": self.chat_id,
@@ -107,7 +107,7 @@ def list_projects(home: Home) -> tuple[ProjectRef, ...]:
     try:
         projects = load_registry(home.repos)
     except RegistryError as exc:
-        log.warning("omnigroup chat: registry unreadable: %s", exc)
+        log.warning("omniscient chat: registry unreadable: %s", exc)
         projects = ()
     refs = [
         ProjectRef(p.name, p.path, path_label(p.path))

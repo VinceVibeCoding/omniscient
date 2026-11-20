@@ -1,4 +1,4 @@
-"""omnigroup daemon: a local HTTP + SSE API over the store (stdlib only).
+"""omniscient daemon: a local HTTP + SSE API over the store (stdlib only).
 
 Security: binds 127.0.0.1 only; each route names the credential it takes (api.Route.auth):
 the hook credential only reaches POST /hook and, with its wait ticket, the wait on the
@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import socket
+import sys
 import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -39,7 +41,7 @@ log = logging.getLogger(__name__)
 
 BIND_HOST = "127.0.0.1"
 DEFAULT_PORT = 7341
-TICKET_HEADER = "X-Omnigroup-Ticket"
+TICKET_HEADER = "X-Omniscient-Ticket"
 MAX_CONNECTIONS = 64
 ALLOWED_ORIGINS = frozenset(
     {"http://tauri.localhost", "https://tauri.localhost", "tauri://localhost"}
@@ -101,7 +103,9 @@ class App:
 
 class GroupServer(ThreadingHTTPServer):
     daemon_threads = True
-    allow_reuse_address = True
+    # SO_REUSEADDR on Windows lets a second process share a busy port (a silent hijack):
+    # there the port is taken exclusively instead (see server_bind).
+    allow_reuse_address = sys.platform != "win32"
 
     def __init__(self, app: App, port: int) -> None:
         self.app = app
@@ -109,10 +113,16 @@ class GroupServer(ThreadingHTTPServer):
         self._slots = threading.BoundedSemaphore(MAX_CONNECTIONS)
         super().__init__((BIND_HOST, port), Handler)
 
+    def server_bind(self) -> None:
+        exclusive = getattr(socket, "SO_EXCLUSIVEADDRUSE", None)
+        if exclusive is not None:  # Windows only
+            self.socket.setsockopt(socket.SOL_SOCKET, exclusive, 1)
+        super().server_bind()
+
     def process_request(self, request: Any, client_address: Any) -> None:
         """At most MAX_CONNECTIONS requests at once; the next ones are closed (M10)."""
         if not self._slots.acquire(blocking=False):
-            log.warning("omnigroup: too many connections, one refused")
+            log.warning("omniscient: too many connections, one refused")
             self.shutdown_request(request)
             return
         try:
@@ -150,7 +160,7 @@ class GroupServer(ThreadingHTTPServer):
 
     def _spawn(self, name: str, target: Callable[..., None], *args: Any) -> None:
         thread = threading.Thread(
-            target=target, args=args, name=f"omnigroup-{name}", daemon=True
+            target=target, args=args, name=f"omniscient-{name}", daemon=True
         )
         thread.start()
         self._workers.append(thread)
@@ -172,11 +182,11 @@ class GroupServer(ThreadingHTTPServer):
 class Handler(BaseHTTPRequestHandler):
     server: GroupServer
     timeout = SOCKET_TIMEOUT_S
-    server_version = "omnigroup"
+    server_version = "omniscient"
     sys_version = ""
 
     def log_message(self, format: str, *args: Any) -> None:
-        log.debug("omnigroup %s - %s", self.address_string(), format % args)
+        log.debug("omniscient %s - %s", self.address_string(), format % args)
 
     def do_GET(self) -> None:
         self._dispatch("GET")
@@ -231,9 +241,9 @@ class Handler(BaseHTTPRequestHandler):
         except ApiError as exc:
             self._send_json(exc.status, {"error": exc.message})
         except (BrokenPipeError, ConnectionResetError):
-            log.debug("omnigroup: client went away")
+            log.debug("omniscient: client went away")
         except Exception:
-            log.exception("omnigroup: %s %s failed", method, self.path.split("?")[0])
+            log.exception("omniscient: %s %s failed", method, self.path.split("?")[0])
             self._send_json(500, {"error": "erreur interne"})
 
     def _guard(self) -> None:
@@ -324,7 +334,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
         except (BrokenPipeError, ConnectionResetError):
-            log.debug("omnigroup: client went away before the page")
+            log.debug("omniscient: client went away before the page")
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -335,7 +345,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
         except (BrokenPipeError, ConnectionResetError):
-            log.debug("omnigroup: client went away before the response")
+            log.debug("omniscient: client went away before the response")
 
     def _stream(self) -> None:
         """Server-sent events until the client leaves or the daemon stops."""
@@ -352,7 +362,7 @@ class Handler(BaseHTTPRequestHandler):
             self._write(": connecté\n\n")
             api_stream.pump_events(app, q, self._write)
         except (BrokenPipeError, ConnectionResetError, TimeoutError):
-            log.debug("omnigroup: stream client went away")
+            log.debug("omniscient: stream client went away")
         finally:
             app.store.unsubscribe(q)
             app.presence.leave()
@@ -433,7 +443,7 @@ def serve(
     )
     server.start_background()
     print(
-        f"omnigroup écoute sur http://{BIND_HOST}:{server.port} (Ctrl-C pour arrêter)",
+        f"omniscient écoute sur http://{BIND_HOST}:{server.port} (Ctrl-C pour arrêter)",
         flush=True,
     )
     try:
@@ -442,6 +452,6 @@ def serve(
         while not server.app.stopping.wait(SERVE_POLL_S):
             pass
     except KeyboardInterrupt:
-        print("\nArrêt d'omnigroup.")
+        print("\nArrêt d'omniscient.")
     finally:
         server.close_all()

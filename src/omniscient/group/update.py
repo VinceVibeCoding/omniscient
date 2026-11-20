@@ -23,11 +23,11 @@ from pathlib import Path
 from omniscient.group import widget_release as wr
 
 WHEEL = re.compile(r"^omniscient-([0-9][0-9A-Za-z.+!_]*)-py3-none-any\.whl$")
-SETUP = re.compile(r"^Omnigroup_([0-9][0-9A-Za-z.+_-]*)_x64-setup\.exe$")
+SETUP = re.compile(r"^Omniscient_([0-9][0-9A-Za-z.+_-]*)_x64-setup\.exe$")
 SCRIPT_NAME = "install.ps1"
 WHEEL_MAX = 32 * 1024 * 1024
 SCRIPT_MAX = 256 * 1024
-WIDGET_EXE_PARTS = (("Omnigroup",), ("Programs", "Omnigroup"))
+WIDGET_EXE_PARTS = (("Omniscient",), ("Programs", "Omniscient"))
 DETACHED = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED_PROCESS|NEW_GROUP|NO_WINDOW
 
 
@@ -74,12 +74,12 @@ def installed_engine_version() -> str:
 
 
 def widget_exe(environ: dict[str, str] | None = None) -> Path | None:
-    """The per-user Omnigroup install (Windows), in either NSIS folder layout."""
+    """The per-user Omniscient install (Windows), in either NSIS folder layout."""
     base = (environ or os.environ).get("LOCALAPPDATA")
     if not base:
         return None
     for parts in WIDGET_EXE_PARTS:
-        candidate = Path(base, *parts, "omnigroup.exe")
+        candidate = Path(base, *parts, "omniscient-widget.exe")
         if candidate.is_file():
             return candidate
     return None

@@ -1,4 +1,4 @@
-"""omnigroup HTTP daemon: hook -> pending -> answer, session actions, SSE, usage."""
+"""omniscient HTTP daemon: hook -> pending -> answer, session actions, SSE, usage."""
 
 from __future__ import annotations
 

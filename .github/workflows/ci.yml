@@ -33,7 +33,7 @@ jobs:
         run: uv run pytest -q
 
   windows:
-    # The Omnigroup daemon and its hook client run natively on Windows (no WSL).
+    # The Omniscient daemon and its hook client run natively on Windows (no WSL).
     runs-on: windows-latest
     env:
       # Test fixtures are written with the default encoding; the engine itself always
@@ -95,10 +95,13 @@ jobs:
     # Engine path only (-SkipWidget); the widget installer is exercised in widget.yml.
     needs: wheel
     runs-on: windows-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         shell: [powershell, pwsh]
+        # hostile: profile and TEMP with spaces/accents/parentheses, fr-FR, no PYTHONUTF8
+        profile: [clean, hostile]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -110,12 +113,71 @@ jobs:
       - name: Run install.ps1 (engine only), then check and uninstall (powershell)
         if: matrix.shell == 'powershell'
         shell: powershell
+        env:
+          SMOKE_PROFILE: ${{ matrix.profile }}
         run: |
           $wheel = (Get-ChildItem dist\*.whl).FullName
-          ./scripts/ci-install-smoke.ps1 -Wheel $wheel
+          ./scripts/ci-install-smoke.ps1 -Wheel $wheel -Profile $env:SMOKE_PROFILE
       - name: Run install.ps1 (engine only), then check and uninstall (pwsh)
         if: matrix.shell == 'pwsh'
         shell: pwsh
+        env:
+          SMOKE_PROFILE: ${{ matrix.profile }}
         run: |
           $wheel = (Get-ChildItem dist\*.whl).FullName
-          ./scripts/ci-install-smoke.ps1 -Wheel $wheel
+          ./scripts/ci-install-smoke.ps1 -Wheel $wheel -Profile $env:SMOKE_PROFILE
+
+  install-sh:
+    # install.sh (Linux, macOS, WSL one-liner): syntax, shellcheck, then a real install of this
+    # commit's wheel into a throw-away HOME (no widget, no daemon).
+    needs: wheel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: omniscient-wheel
+          path: dist
+      - name: Syntax (sh -n) and shellcheck
+        run: |
+          sh -n install.sh
+          if command -v shellcheck >/dev/null 2>&1; then shellcheck -s sh install.sh; else echo "shellcheck absent: skipped"; fi
+      - name: Run install.sh with the local wheel, then check
+        run: |
+          export HOME="$(mktemp -d)"
+          sh install.sh --wheel "$(ls "$PWD"/dist/*.whl)" --skip-widget --no-daemon
+          export PATH="$HOME/.local/bin:$PATH"
+          omniscient --version
+          test -f "$HOME/.claude/settings.json"
+          uv tool uninstall omniscient
+
+  install-sh-curl:
+    # The real one-liner form: install.sh served over HTTP and piped into sh.
+    needs: wheel
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: omniscient-wheel
+          path: dist
+      - name: curl | sh from a local server
+        run: |
+          WHEEL="$(ls "$PWD"/dist/*.whl)"
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory "$PWD" >/dev/null 2>&1 &
+          SERVER=$!
+          trap 'kill $SERVER' EXIT
+          sleep 2
+          export HOME="$(mktemp -d)"
+          curl -fsSL http://127.0.0.1:8765/install.sh | sh -s -- --wheel "$WHEEL" --skip-widget --no-daemon
+          "$HOME/.local/bin/omniscient" --version

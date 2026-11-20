@@ -53,7 +53,7 @@ def _taskkill(pid: int, force: bool, run: Run) -> None:
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
-        log.warning("omnigroup: taskkill failed for pid %s", pid, exc_info=True)
+        log.warning("omniscient: taskkill failed for pid %s", pid, exc_info=True)
 
 
 def _posix_signal(proc: subprocess.Popen[Any], sig: int) -> None:
@@ -62,7 +62,7 @@ def _posix_signal(proc: subprocess.Popen[Any], sig: int) -> None:
     except (ProcessLookupError, PermissionError):
         return
     except OSError:
-        log.exception("omnigroup: signal %s failed", sig)
+        log.exception("omniscient: signal %s failed", sig)
 
 
 def interrupt(proc: subprocess.Popen[Any] | None, run: Run = subprocess.run) -> None:

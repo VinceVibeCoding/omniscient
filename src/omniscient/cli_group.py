@@ -1,4 +1,4 @@
-"""`omniscient group …`: the omnigroup daemon, its hooks and the Windows widget.
+"""`omniscient group …`: the omniscient daemon, its hooks and the Windows widget.
 
 The agents' hooks do NOT go through this module: the installer writes the lightweight
 `omniscient-hook` script (omniscient.group.hook_client), which starts without importing
@@ -20,9 +20,10 @@ from typing import Annotated, Any
 
 import typer
 
+from omniscient.group.portcheck import configured_port
 from omniscient.home import Home, find_home
 
-DEFAULT_PORT = 7341
+DEFAULT_PORT = configured_port()  # 7341, or the port of OMNISCIENT_URL
 STATUS_TIMEOUT_S = 3.0
 REPO_URL = "https://github.com/VinceVibeCoding/omniscient"
 STATE_LABELS = {
@@ -34,11 +35,11 @@ STATE_LABELS = {
 }
 
 group_app = typer.Typer(
-    help="omnigroup : tous tes agents (Claude, Copilot, herdr, AgentRun) dans un widget.",
+    help="omniscient : tous tes agents (Claude, Copilot, herdr, AgentRun) dans un widget.",
     no_args_is_help=True,
 )
 hooks_app = typer.Typer(
-    help="Hooks omnigroup de Claude Code et de Copilot (aperçu, puis --write).",
+    help="Hooks omniscient de Claude Code et de Copilot (aperçu, puis --write).",
     no_args_is_help=True,
 )
 group_app.add_typer(hooks_app, name="hooks")
@@ -92,10 +93,24 @@ def serve(
             help="Autoriser `group pair --show-code` (plus faible, voir la doc).",
         ),
     ] = False,
+    check_port: Annotated[
+        bool,
+        typer.Option("--check-port", help="Seulement tester le port, sans lancer."),
+    ] = False,
     home_dir: HomeOpt = None,
 ) -> None:
-    """Lancer le démon omnigroup (127.0.0.1 seulement ; Ctrl-C pour arrêter)."""
+    """Lancer le démon omniscient (127.0.0.1 seulement ; Ctrl-C pour arrêter)."""
+    from omniscient.group.cli_group_setup import daemon_healthy
+    from omniscient.group.portcheck import preflight
     from omniscient.group.server import serve as run_server
+
+    verdict = preflight(port, daemon_healthy)
+    if verdict.blocked or verdict.already_running or check_port:
+        typer.echo(verdict.message, err=verdict.blocked)
+    if verdict.blocked:
+        raise typer.Exit(code=1)
+    if verdict.already_running or check_port:
+        return
 
     try:
         run_server(
@@ -106,6 +121,18 @@ def serve(
         )
     except (OSError, RuntimeError) as exc:
         raise _fail(f"le démon n'a pas pu démarrer ({exc})") from exc
+
+
+@group_app.command("doctor")
+def doctor(port: PortOpt = DEFAULT_PORT) -> None:
+    """Diagnostic en lecture seule, à coller dans un rapport (rien de secret)."""
+    from omniscient.group import doctor as dr
+
+    deps = dr.real_deps(port)
+    lines = dr.run_checks(deps)
+    for text in dr.render(lines, deps):
+        typer.echo(text)
+    raise typer.Exit(code=dr.exit_code(lines))
 
 
 def _call(url: str, token: str | None = None, body: Any = None) -> Any:
@@ -145,10 +172,10 @@ def status(port: PortOpt = DEFAULT_PORT, home_dir: HomeOpt = None) -> None:
         health = _call(base + "/health")
     except (OSError, ValueError) as exc:
         typer.echo(
-            f"omnigroup ne répond pas sur {base} : lance `omniscient group serve`."
+            f"omniscient ne répond pas sur {base} : lance `omniscient group serve`."
         )
         raise typer.Exit(code=1) from exc
-    typer.echo(f"omnigroup {health.get('version', '?')} répond sur {base}.")
+    typer.echo(f"omniscient {health.get('version', '?')} répond sur {base}.")
     from omniscient.group.claude_locate import CLAUDE_NOT_FOUND, find_claude
 
     claude = find_claude()
@@ -273,7 +300,7 @@ def hook(
         main(argv)
     except SystemExit as exc:  # argparse: bad --source
         if exc.code not in (0, None):
-            typer.echo("omnigroup hook ignoré : --source claude|copilot", err=True)
+            typer.echo("omniscient hook ignoré : --source claude|copilot", err=True)
     raise typer.Exit(code=0)
 
 
@@ -334,7 +361,7 @@ def hooks_install(
     ] = False,
     home_dir: HomeOpt = None,
 ) -> None:
-    """Ajouter les hooks omnigroup (les tiens sont conservés, sauvegarde avant écriture)."""
+    """Ajouter les hooks omniscient (les tiens sont conservés, sauvegarde avant écriture)."""
     _hooks(
         "install",
         target,
@@ -351,28 +378,28 @@ def hooks_install(
 def hooks_uninstall(
     target: TargetOpt = "all", write: WriteOpt = False, path: PathOpt = None
 ) -> None:
-    """Retirer uniquement les hooks omnigroup (et nos règles --protect)."""
+    """Retirer uniquement les hooks omniscient (et nos règles --protect)."""
     _hooks("uninstall", target, write, path, state_dir=find_home().state)
 
 
 @hooks_app.command("status")
 def hooks_status(target: TargetOpt = "all", path: PathOpt = None) -> None:
-    """Quels événements portent le hook omnigroup ?"""
+    """Quels événements portent le hook omniscient ?"""
     _hooks("status", target, False, path, state_dir=find_home().state)
 
 
 # ---- widget --------------------------------------------------------------------------------
 
-WIDGET_HELP = f"""Widget Windows « Omnigroup » (coin de l'écran, toujours au-dessus) :
+WIDGET_HELP = f"""Widget Windows « Omniscient » (coin de l'écran, toujours au-dessus) :
 
 1. Télécharge l'installateur (.exe NSIS) :
    - versions publiées : {REPO_URL}/releases (tags widget-v*) ;
-   - ou l'artefact « omnigroup-windows-nsis » du dernier run du workflow « Widget » :
+   - ou l'artefact « omniscient-windows-nsis » du dernier run du workflow « Widget » :
      {REPO_URL}/actions/workflows/widget.yml
 2. Dans WSL, lance le démon : omniscient group serve
    (ou au démarrage : omniscient schedule install --write, puis
-   systemctl --user enable --now omnigroup.service)
-3. Ouvre Omnigroup sous Windows, puis ses réglages : « Demander un code ». Le
+   systemctl --user enable --now omniscient.service)
+3. Ouvre Omniscient sous Windows, puis ses réglages : « Demander un code ». Le
    code s'affiche sur le bureau Windows ; tape-le dans le widget
    (voir `omniscient group pair`).
 4. Branche les agents : omniscient group hooks install --target all --protect

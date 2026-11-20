@@ -1,4 +1,4 @@
-"""omnigroup data model: sessions, their steps, pending decisions and jump targets.
+"""omniscient data model: sessions, their steps, pending decisions and jump targets.
 
 Every value is a frozen dataclass validated at construction; datetimes are timezone-aware
 and normalised to UTC. Step texts are truncated and secret-redacted here, so every
@@ -47,7 +47,7 @@ ID_MAX = 200
 
 
 class ModelError(ValueError):
-    """A value does not fit the omnigroup data model."""
+    """A value does not fit the omniscient data model."""
 
 
 def utcnow() -> datetime:
@@ -305,7 +305,7 @@ def to_json(obj: Session | Step | Pending | JumpTarget | Usage) -> dict[str, Any
         }
     if isinstance(obj, Pending):
         return _pending_json(obj)
-    raise TypeError(f"not an omnigroup model: {type(obj).__name__}")
+    raise TypeError(f"not an omniscient model: {type(obj).__name__}")
 
 
 def _session_json(s: Session) -> dict[str, Any]:

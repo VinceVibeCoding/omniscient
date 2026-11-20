@@ -1,4 +1,4 @@
-"""Windows-native behaviour of the omnigroup engine, tested on every platform with
+"""Windows-native behaviour of the omniscient engine, tested on every platform with
 injected runners (no real icacls / taskkill / message box is started here)."""
 
 from __future__ import annotations
@@ -339,7 +339,7 @@ def test_native_setup_installs_hooks_and_skips_an_installed_widget() -> None:
     text = "\n".join(say.lines)
     assert say.hook_calls and say.hook_calls[0]["write"] is True
     assert "Mode Windows natif" in text and "C:/bin/claude.exe" in text
-    assert "Omnigroup est déjà installé" in text
+    assert "Omniscient est déjà installé" in text
     assert "WSL" not in text.replace("sans WSL", "") and "systemd" not in text
 
 

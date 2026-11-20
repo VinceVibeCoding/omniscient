@@ -22,7 +22,7 @@ export function installDrag(root: Document, startDrag: () => Promise<void>): voi
     if (moved < THRESHOLD_PX) return;
     origin = null;
     dragged = true;
-    startDrag().catch((err: unknown) => console.warn("omnigroup: drag failed", err));
+    startDrag().catch((err: unknown) => console.warn("omniscient: drag failed", err));
   });
 
   root.addEventListener("pointerup", () => {

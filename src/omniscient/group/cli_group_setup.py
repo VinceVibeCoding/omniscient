@@ -1,4 +1,4 @@
-"""`omniscient group setup`: one idempotent checklist to get omnigroup running.
+"""`omniscient group setup`: one idempotent checklist to get omniscient running.
 
 1. the daemon answers on 127.0.0.1 (else: how to start it, or its systemd unit);
 2. Claude Code hooks + statusLine in ~/.claude/settings.json (hook_install: a diff first,
@@ -23,11 +23,12 @@ from typing import Annotated, Any
 import typer
 
 from omniscient.group import widget_release as wr
+from omniscient.group.portcheck import configured_port
 
-DEFAULT_PORT = 7341
+DEFAULT_PORT = configured_port()  # 7341, or the port of OMNISCIENT_URL
 HEALTH_TIMEOUT_S = 3.0
 PAIRING_HELP = (
-    "Couplage : ouvre Omnigroup sur Windows, clique le widget → Réglages → « Demander un "
+    "Couplage : ouvre Omniscient sur Windows, clique le widget → Réglages → « Demander un "
     "code », puis tape le code à 6 chiffres affiché sur le bureau."
 )
 
@@ -39,7 +40,7 @@ class SetupOptions:
     protect: bool = False
     skip_widget: bool = False
     widget_dir: Path | None = None  # where to save the installer (default: Downloads)
-    update_widget: bool = False  # download it even when Omnigroup is already installed
+    update_widget: bool = False  # download it even when Omniscient is already installed
 
 
 @dataclass(frozen=True)
@@ -84,9 +85,11 @@ def _run_hooks(**kw: Any) -> None:
 
 
 def widget_installed() -> bool:
-    """The Omnigroup app installed for this Windows user (per-user NSIS install)."""
+    """The Omniscient app installed for this Windows user (per-user NSIS install)."""
     base = os.environ.get("LOCALAPPDATA")
-    return bool(base) and (Path(base) / "Omnigroup" / "omnigroup.exe").is_file()
+    return (
+        bool(base) and (Path(base) / "Omniscient" / "omniscient-widget.exe").is_file()
+    )
 
 
 def default_deps() -> SetupDeps:
@@ -108,7 +111,7 @@ def default_deps() -> SetupDeps:
 
 
 def _step_daemon(opts: SetupOptions, deps: SetupDeps) -> None:
-    deps.say("1. Démon omnigroup")
+    deps.say("1. Démon omniscient")
     if deps.health(opts.port):
         deps.say(f"   ✓ répond sur http://127.0.0.1:{opts.port}")
         return
@@ -124,7 +127,7 @@ def _step_daemon(opts: SetupOptions, deps: SetupDeps) -> None:
         "   → lance `omniscient group serve` (ou `omniscient schedule install` pour"
     )
     deps.say(
-        "     le service systemd omnigroup, puis `systemctl --user enable --now omnigroup`)."
+        "     le service systemd omniscient, puis `systemctl --user enable --now omniscient`)."
     )
 
 
@@ -140,7 +143,9 @@ def _step_hooks(opts: SetupOptions, deps: SetupDeps) -> None:
         deps.say(f"   ✗ {exc}")
 
 
-def _step_widget(opts: SetupOptions, deps: SetupDeps, number: int = 3) -> None:
+def _step_widget(
+    opts: SetupOptions, deps: SetupDeps, number: int = 3, *, native: bool = False
+) -> None:
     deps.say(f"{number}. Widget Windows")
     if opts.skip_widget:
         deps.say("   — ignoré (--skip-widget).")
@@ -155,7 +160,7 @@ def _step_widget(opts: SetupOptions, deps: SetupDeps, number: int = 3) -> None:
             "   ✗ Aucune version publiée du widget pour l'instant : voir les artefacts"
         )
         deps.say(
-            f"     « omnigroup-windows-nsis » sur https://github.com/{wr.REPO}/actions"
+            f"     « omniscient-windows-nsis » sur https://github.com/{wr.REPO}/actions"
         )
         return
     dest = opts.widget_dir or deps.downloads()
@@ -181,7 +186,9 @@ def _step_widget(opts: SetupOptions, deps: SetupDeps, number: int = 3) -> None:
         deps.say(
             "   ✓ attestation de provenance GitHub vérifiée (gh attestation verify)."
         )
-    else:
+    if native:
+        return  # the installer runs it and the widget asks for its own pairing code
+    if not (status and status[-1] == "verified"):
         deps.say(
             "   ⚠ gh absent : seul le SHA256 a été vérifié (pas la provenance du build)."
         )
@@ -207,10 +214,9 @@ def _run_native_windows(opts: SetupOptions, deps: SetupDeps) -> None:
     _step_claude(deps)
     if deps.widget_installed() and not (opts.update_widget and not opts.skip_widget):
         deps.say("4. Widget Windows")
-        deps.say("   ✓ Omnigroup est déjà installé (menu Démarrer).")
+        deps.say("   ✓ Omniscient est déjà installé (menu Démarrer).")
     else:
-        _step_widget(opts, deps, 4)
-    deps.say("5. " + PAIRING_HELP)
+        _step_widget(opts, deps, 4, native=True)
     if not opts.write:
         deps.say("")
         deps.say("Aperçu seulement : relance avec --write pour appliquer.")
@@ -246,7 +252,7 @@ def register(group_app: typer.Typer) -> None:
         protect: Annotated[
             bool,
             typer.Option(
-                "--protect", help="Ajouter les règles deny autour de l'état omnigroup."
+                "--protect", help="Ajouter les règles deny autour de l'état omniscient."
             ),
         ] = False,
         skip_widget: Annotated[
@@ -263,7 +269,7 @@ def register(group_app: typer.Typer) -> None:
             bool,
             typer.Option(
                 "--update-widget",
-                help="Télécharger l'installeur même si Omnigroup est déjà installé.",
+                help="Télécharger l'installeur même si Omniscient est déjà installé.",
             ),
         ] = False,
     ) -> None:

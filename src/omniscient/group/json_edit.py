@@ -1,6 +1,6 @@
 """Edit top-level members of a JSON settings file, keeping every other byte.
 
-Used by the omnigroup hook installer: only the members whose value changes are
+Used by the omniscient hook installer: only the members whose value changes are
 re-rendered (with the file's own indentation and line endings); the rest of the text,
 other members included, stays byte for byte.
 """

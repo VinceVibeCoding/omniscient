@@ -1,4 +1,4 @@
-"""omnigroup HTTP daemon: tokens, binding, CORS, request validation."""
+"""omniscient HTTP daemon: tokens, binding, CORS, request validation."""
 
 from __future__ import annotations
 

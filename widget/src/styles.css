@@ -1,4 +1,4 @@
-/* Omnigroup — "omniscient" house theme. Every colour is a variable overwritten by
+/* Omniscient — "omniscient" house theme. Every colour is a variable overwritten by
    GET /theme (see src/theme.ts); these values are the fallback palette. The terminal
    and dashboard skins (themes.css) override them under html[data-theme]. */
 @import "./osd.css";

@@ -1,4 +1,4 @@
-"""omnigroup models and SQLite store (offline, tmp database)."""
+"""omniscient models and SQLite store (offline, tmp database)."""
 
 from __future__ import annotations
 

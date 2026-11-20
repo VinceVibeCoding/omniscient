@@ -34,6 +34,7 @@ from omniscient.cli_group import register_group
 from omniscient.cli_onboarding import register_onboarding
 from omniscient.cli_update import register as register_update
 from omniscient.config import ConfigError, Settings, load_settings
+from omniscient.console import lossless_streams
 from omniscient.home import Home
 from omniscient.ops import CostRow, append_cost
 from omniscient.profile import Profile, ProfileError, load_profile
@@ -92,6 +93,8 @@ def _settings() -> Settings:
         typer.echo(f"configuration illisible : {exc}")
         raise typer.Exit(code=1) from exc
 
+
+lossless_streams()  # a cp1252 pipe must not turn a status line into a traceback
 
 app = typer.Typer(no_args_is_help=True, help="Omniscient: the agent software factory.")
 app.add_typer(idea_app, name="idea")

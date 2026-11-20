@@ -65,7 +65,7 @@ fn save_if_latest<R: Runtime>(app: &AppHandle<R>, seq: u64) {
         return; // still moving: a later event will save
     }
     if let Err(err) = position::save(&state.config_dir, placement(&state)) {
-        eprintln!("omnigroup: {err}");
+        eprintln!("omniscient: {err}");
     }
 }
 
@@ -74,11 +74,11 @@ pub fn reset<R: Runtime>(app: &AppHandle<R>) {
     let state = app.state::<AppState>();
     *lock(&state.anchor) = None;
     if let Err(err) = position::save(&state.config_dir, placement(&state)) {
-        eprintln!("omnigroup: {err}");
+        eprintln!("omniscient: {err}");
     }
     let Some(window) = app.get_webview_window("main") else { return };
     let mode = *lock(&state.mode);
     if let Err(err) = dock(&window, mode) {
-        eprintln!("omnigroup: {err}");
+        eprintln!("omniscient: {err}");
     }
 }

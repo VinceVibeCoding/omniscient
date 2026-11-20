@@ -1,4 +1,4 @@
-# Omnigroup — widget Windows
+# Omniscient — widget Windows
 
 Petit widget de coin d'écran (Tauri v2) qui montre tous les agents en cours d'une home
 Omniscient — Claude Code, GitHub Copilot, herdr, AgentRun — et permet d'autoriser, de
@@ -13,8 +13,8 @@ répondre, de revenir à la session ou de la rayer sans ouvrir VS Code.
 
 ## Installer
 
-Téléchargez l'installeur NSIS (`Omnigroup_<version>_x64-setup.exe`) depuis l'artefact
-`omnigroup-windows-nsis` du workflow **Widget**, ou depuis la release brouillon d'un tag
+Téléchargez l'installeur NSIS (`Omniscient_<version>_x64-setup.exe`) depuis l'artefact
+`omniscient-windows-nsis` du workflow **Widget**, ou depuis la release brouillon d'un tag
 `widget-v*`. L'installation se fait pour l'utilisateur courant.
 
 ## Coupler avec le démon (WSL)
@@ -29,7 +29,7 @@ Téléchargez l'installeur NSIS (`Omnigroup_<version>_x64-setup.exe`) depuis l'a
    SHA-256 ; le widget le range dans le **Gestionnaire d'identification Windows**
    (chiffré par DPAPI pour votre compte), jamais dans `settings.json` ni dans la webview.
 4. Si Windows ne peut pas afficher le code : voir `omniscient group pair` (repli plus
-   faible, documenté dans `docs/omnigroup.md`).
+   faible, documenté dans `docs/omniscient.md`).
 
 Avant chaque connexion, le widget vérifie le démon sans lui envoyer son jeton
 (`GET /health?nonce=…` doit renvoyer HMAC-SHA256(SHA-256(jeton), nonce)) ; un autre
@@ -37,7 +37,7 @@ programme sur le port n'obtient donc jamais le jeton. **Oublier le couplage** ef
 jeton local ; `omniscient group pair --revoke` les révoque côté démon.
 
 Les réglages ne contiennent plus que l'adresse du démon
-(`%APPDATA%\dev.omniscient.omnigroup\settings.json`) ; un ancien fichier qui contenait un
+(`%APPDATA%\dev.omniscient.widget\settings.json`) ; un ancien fichier qui contenait un
 jeton est réécrit sans lui au démarrage. L'adresse est limitée à `http://127.0.0.1`,
 `localhost` ou `[::1]`, sans proxy ni redirection.
 
@@ -54,6 +54,6 @@ cd src-tauri && cargo test             # tests Rust (SSE bornée, preuve, régla
 Toute la partie réseau (HTTP + SSE avec reconnexion) est en Rust ; la webview ne reçoit
 que des événements Tauri (`group://event`, `group://status`) et n'a que la permission
 `core:default`. `Cargo.lock` est généré au premier build CI (artefact
-`omnigroup-cargo-lock`) : committez-le pour figer les dépendances Rust.
+`omniscient-cargo-lock`) : committez-le pour figer les dépendances Rust.
 
 Icônes : `npx tauri icon icon.svg -o src-tauri/icons`.

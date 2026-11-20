@@ -186,7 +186,12 @@ def expected_sha(sums_text: str, name: str) -> str:
 def _run(argv: list[str]) -> tuple[int, str]:
     try:
         done = subprocess.run(  # argv list, no shell
-            argv, capture_output=True, text=True, timeout=ATTEST_TIMEOUT_S, check=False
+            argv,
+            capture_output=True,
+            text=True,
+            errors="replace",  # tool output in the OEM/ANSI page must not crash us
+            timeout=ATTEST_TIMEOUT_S,
+            check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return 1, str(exc)
@@ -228,7 +233,7 @@ def download_verified(
     target = dest_dir / name
     if target.is_symlink():
         raise ReleaseError(f"{target} est un lien symbolique : supprime-le d'abord")
-    fd, tmp_name = tempfile.mkstemp(dir=dest_dir, prefix=".omnigroup-", suffix=".part")
+    fd, tmp_name = tempfile.mkstemp(dir=dest_dir, prefix=".omniscient-", suffix=".part")
     tmp = Path(tmp_name)
     try:
         with os.fdopen(fd, "wb") as fh:

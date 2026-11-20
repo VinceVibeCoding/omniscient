@@ -113,7 +113,7 @@ class OsdState:
         except FileNotFoundError:
             return {}
         except (OSError, ValueError) as exc:
-            log.warning("omnigroup: %s ignored: %s", LIMITS_FILE, exc)
+            log.warning("omniscient: %s ignored: %s", LIMITS_FILE, exc)
             return {}
         if not isinstance(data, dict):
             return {}
@@ -126,7 +126,7 @@ class OsdState:
             secure_dir(self.state_dir)
             write_atomic(self.state_dir / LIMITS_FILE, json.dumps(limits) + "\n")
         except OSError as exc:
-            log.warning("omnigroup: limits not saved: %s", exc)
+            log.warning("omniscient: limits not saved: %s", exc)
 
     # ---- snapshot ---------------------------------------------------------------------
 
@@ -236,5 +236,5 @@ class OsdWorker:
             try:
                 self.tick()
             except Exception:  # a bad transcript must never kill the feed
-                log.exception("omnigroup: osd tick failed")
+                log.exception("omniscient: osd tick failed")
             stopping.wait(self.tick_s)

@@ -1,7 +1,8 @@
-// Omnigroup widget: state, rendering and wiring to the Rust side.
+// Omniscient widget: state, rendering and wiring to the Rust side.
 import { listen } from "@tauri-apps/api/event";
 import * as api from "./api";
 import * as osdApi from "./api-osd";
+import { needsPairingCode, PAIR_PROMPT } from "./auto-pair";
 import { ChatController } from "./chat-controller";
 import { AccountController } from "./account-controller";
 import * as providerApi from "./api-providers";
@@ -415,7 +416,7 @@ const settingsHandlers = {
   autostart: (enabled: boolean) =>
     void guarded(async () => {
       const now = await api.setAutostart(enabled);
-      toast(now ? "Omnigroup se lancera au démarrage de Windows." : "Lancement au démarrage désactivé.");
+      toast(now ? "Omniscient se lancera au démarrage de Windows." : "Lancement au démarrage désactivé.");
       update({ autostart: now });
     }),
   save: (settings: Settings) =>
@@ -505,8 +506,27 @@ function onStreamEvent(event: StreamEvent): void {
   scheduleRefresh();
 }
 
+let pairCodeRequested = false;
+
+/** Not paired, or not recognized by the daemon: ask for the code once per launch. The user
+ * still types it (Réglages), so the pairing security model is unchanged. */
+async function requestPairingCode(link: LinkStatus): Promise<void> {
+  if (!needsPairingCode(link, pairCodeRequested)) return;
+  pairCodeRequested = true;
+  try {
+    await api.pairStart();
+  } catch (err) {
+    pairCodeRequested = false; // the daemon may not be up yet: the next link event retries
+    toast(api.errorText(err));
+    return;
+  }
+  if (state.view !== "wizard") await expand();
+  toast(PAIR_PROMPT);
+}
+
 async function onLink(link: LinkStatus): Promise<void> {
   update({ link });
+  void requestPairingCode(link);
   if (link.state !== "connected") return;
   const theme = await guarded(api.getTheme);
   if (theme !== undefined) applyTheme(theme);
@@ -562,5 +582,5 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  console.error("omnigroup: start-up failed", err);
+  console.error("omniscient: start-up failed", err);
 });

@@ -1,11 +1,11 @@
 ---
 name: status
-description: Show whether the Omnigroup daemon runs, how many sessions it follows, and the widget settings. Use when the user runs /omnigroup:status or asks if Omnigroup works.
+description: Show whether the Omniscient daemon runs, how many sessions it follows, and the widget settings. Use when the user runs /omniscient:status or asks if Omniscient works.
 disable-model-invocation: true
 allowed-tools: Bash(omniscient group status), Bash(omniscient group config get), Bash(omniscient group hooks status)
 ---
 
-# Omnigroup status
+# Omniscient status
 
 Run these three read-only commands and summarise them in a few lines:
 
@@ -15,4 +15,4 @@ Run these three read-only commands and summarise them in a few lines:
    from (default, config.json or settings.json).
 
 If the daemon is down, suggest `omniscient group serve`; if hooks are missing, suggest
-`/omnigroup:setup`. Do not change anything.
+`/omniscient:setup`. Do not change anything.

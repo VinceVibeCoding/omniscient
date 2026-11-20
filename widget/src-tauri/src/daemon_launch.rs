@@ -21,7 +21,7 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// The argv after `wsl.exe` for a validated folder.
 pub fn wsl_args(home: &str) -> Vec<String> {
-    ["--exec", "bash", "-lc", SCRIPT, "omnigroup-daemon", home].iter().map(|s| s.to_string()).collect()
+    ["--exec", "bash", "-lc", SCRIPT, "omniscient-daemon", home].iter().map(|s| s.to_string()).collect()
 }
 
 /// The loopback address the daemon URL points at (settings only allow loopback).
@@ -40,12 +40,12 @@ fn our_child_running(state: &AppState) -> bool {
     match child.as_mut().map(|c| c.try_wait()) {
         Some(Ok(None)) => true,
         Some(Ok(Some(status))) => {
-            eprintln!("omnigroup: the daemon started by the widget exited ({status})");
+            eprintln!("omniscient: the daemon started by the widget exited ({status})");
             *child = None;
             false
         }
         Some(Err(err)) => {
-            eprintln!("omnigroup: daemon process unreadable: {err}");
+            eprintln!("omniscient: daemon process unreadable: {err}");
             false
         }
         None => false,
@@ -76,7 +76,7 @@ pub fn ensure(app: &AppHandle) {
     }
     match spawn(&settings.wsl_home) {
         Ok(child) => *lock(&state.daemon_child) = Some(child),
-        Err(err) => eprintln!("omnigroup: daemon not started: {err}"),
+        Err(err) => eprintln!("omniscient: daemon not started: {err}"),
     }
 }
 
@@ -91,7 +91,7 @@ pub fn stop(app: &AppHandle) {
     let state = app.state::<AppState>();
     let Some(mut child) = lock(&state.daemon_child).take() else { return };
     if let Err(err) = child.kill() {
-        eprintln!("omnigroup: daemon not stopped: {err}");
+        eprintln!("omniscient: daemon not stopped: {err}");
     }
     let _ = child.wait(); // reap; its exit status is irrelevant once killed
 }

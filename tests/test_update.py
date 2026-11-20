@@ -17,7 +17,7 @@ TAG = "widget-v0.3.0"
 BASE = f"https://github.com/{wr.REPO}/releases/download/{TAG}"
 FILES = {
     "omniscient-0.3.0-py3-none-any.whl": b"wheel",
-    "Omnigroup_0.3.0_x64-setup.exe": b"MZ exe",
+    "Omniscient_0.3.0_x64-setup.exe": b"MZ exe",
     "install.ps1": b"# script",
 }
 
@@ -122,7 +122,7 @@ def test_tampered_file_is_rejected(tmp_path: Path) -> None:
 
 def test_windows_apply_spawns_the_detached_installer(tmp_path: Path) -> None:
     say, spawned = Say(), []
-    exe = tmp_path / "omnigroup.exe"
+    exe = tmp_path / "omniscient-widget.exe"
     d = deps(
         tmp_path,
         say,
@@ -136,7 +136,7 @@ def test_windows_apply_spawns_the_detached_installer(tmp_path: Path) -> None:
     body = argv[-1]
     assert "Wait-Process -Id 4242" in body
     assert "install.ps1" in body and "-Wheel" in body and "-Installer" in body
-    assert "omnigroup.exe" in body
+    assert "omniscient-widget.exe" in body
     assert "en arrière-plan" in say.text and "update.log" in say.text
     assert (tmp_path / "dl" / "install.ps1").read_bytes() == FILES["install.ps1"]
 
@@ -149,7 +149,7 @@ def test_windows_without_widget_update_skips_the_installer(tmp_path: Path) -> No
     )  # fmt: skip
     assert cli_update.run_update(False, False, d) == 0
     assert "-SkipWidget" in spawned[0][-1] and "-Installer" not in spawned[0][-1]
-    assert not (tmp_path / "dl" / "Omnigroup_0.3.0_x64-setup.exe").exists()
+    assert not (tmp_path / "dl" / "Omniscient_0.3.0_x64-setup.exe").exists()
 
 
 def test_quotes_in_paths_are_escaped() -> None:
@@ -182,7 +182,7 @@ def test_linux_without_uv_is_explained(tmp_path: Path) -> None:
 
 
 def test_widget_version_is_read_through_the_runner(tmp_path: Path) -> None:
-    exe = tmp_path / "omnigroup.exe"
+    exe = tmp_path / "omniscient-widget.exe"
     got = up.installed_widget_version(lambda argv: (0, "0.2.0\r\n"), exe, native=True)
     assert got == "0.2.0"
     assert up.installed_widget_version(lambda a: (0, ""), exe, native=False) is None
@@ -191,7 +191,7 @@ def test_widget_version_is_read_through_the_runner(tmp_path: Path) -> None:
 def test_widget_exe_layouts(tmp_path: Path) -> None:
     env = {"LOCALAPPDATA": str(tmp_path)}
     assert up.widget_exe(env) is None
-    target = tmp_path / "Programs" / "Omnigroup" / "omnigroup.exe"
+    target = tmp_path / "Programs" / "Omniscient" / "omniscient-widget.exe"
     target.parent.mkdir(parents=True)
     target.write_bytes(b"x")
     assert up.widget_exe(env) == target

@@ -1,4 +1,4 @@
-"""omnigroup hooks: event translation, decision rendering and the fail-open hook command."""
+"""omniscient hooks: event translation, decision rendering and the fail-open hook command."""
 
 from __future__ import annotations
 
@@ -112,14 +112,14 @@ def test_permission_preview_is_redacted() -> None:
 
 
 def test_fast_invocation_never_opens_a_pending() -> None:
-    event = claude("PermissionRequest", tool_name="Bash", omnigroup={"fast": True})
+    event = claude("PermissionRequest", tool_name="Bash", omniscient={"fast": True})
     t = translate("claude", event, NOW)
     assert t.pending is None and t.step is not None
 
 
 def test_jump_target_depends_on_the_entrypoint() -> None:
-    vscode = claude("Stop", omnigroup={"entrypoint": "claude-vscode"})
-    cli = claude("Stop", omnigroup={"entrypoint": "cli"})
+    vscode = claude("Stop", omniscient={"entrypoint": "claude-vscode"})
+    cli = claude("Stop", omniscient={"entrypoint": "cli"})
     assert translate("claude", vscode).session.jump.kind == "vscode_session"  # type: ignore[union-attr]
     assert translate("claude", cli).session.jump.kind == "terminal"  # type: ignore[union-attr]
     assert translate("claude", cli).session.meta == {"event": "Stop"}
@@ -190,7 +190,7 @@ def test_claude_permission_decisions() -> None:
     assert deny is not None
     assert deny["hookSpecificOutput"]["decision"] == {
         "behavior": "deny",
-        "message": "Refusé depuis omnigroup",
+        "message": "Refusé depuis omniscient",
         "interrupt": False,
     }
     assert decision_output("claude", event, {"decision": "maybe"}) is None

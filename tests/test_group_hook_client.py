@@ -1,4 +1,4 @@
-"""omnigroup hook command: posting, waiting with a ticket, failing open."""
+"""omniscient hook command: posting, waiting with a ticket, failing open."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ class FakeDaemon:
     ) -> Any:
         assert headers["Authorization"] == "Bearer tok"
         if method == "GET":  # every wait carries the ticket /hook returned
-            assert headers["X-Omnigroup-Ticket"] == TICKET
+            assert headers["X-Omniscient-Ticket"] == TICKET
         self.calls.append((method, url, json.loads(body) if body else None, t))
         if self.fail:
             raise ConnectionRefusedError("down")
@@ -95,7 +95,7 @@ def test_permission_waits_and_prints_the_decision(tmp_path: Path) -> None:
     method, url, body, timeout = daemon.calls[0]
     assert (method, url, timeout) == ("POST", "http://127.0.0.1:7341/hook", 2.0)
     assert body["source"] == "claude"
-    assert body["event"]["omnigroup"] == {"entrypoint": "cli", "fast": False}
+    assert body["event"]["omniscient"] == {"entrypoint": "cli", "fast": False}
     assert daemon.calls[1][1].endswith(f"/pending/{PID}/wait?timeout=100")
     assert daemon.calls[2][1].endswith(f"/pending/{PID}/wait?timeout=60")
 
@@ -127,7 +127,7 @@ def test_no_token_means_silence_and_no_call(tmp_path: Path, token: str | None) -
 def test_daemon_down_fails_open(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
     daemon = FakeDaemon({}, fail=True)
     assert run(make_ctx(tmp_path, daemon), PERMISSION) == ""
-    assert "omnigroup hook ignoré" in capsys.readouterr().err
+    assert "omniscient hook ignoré" in capsys.readouterr().err
 
 
 def test_bad_stdin_and_bad_pending_id_fail_open(tmp_path: Path) -> None:
@@ -140,7 +140,7 @@ def test_bad_stdin_and_bad_pending_id_fail_open(tmp_path: Path) -> None:
 def test_non_local_daemon_url_is_refused(tmp_path: Path) -> None:
     daemon = FakeDaemon({})
     ctx = make_ctx(tmp_path, daemon)
-    ctx = HookContext(ctx.state_dir, {"OMNIGROUP_URL": "http://evil:1"}, daemon)
+    ctx = HookContext(ctx.state_dir, {"OMNISCIENT_URL": "http://evil:1"}, daemon)
     assert run(ctx, PERMISSION) == "" and daemon.calls == []
 
 
@@ -184,7 +184,10 @@ def test_copilot_event_name_comes_from_the_flag(tmp_path: Path) -> None:
     out = run(
         make_ctx(tmp_path, daemon), event, "copilot", event_arg="permissionRequest"
     )
-    assert json.loads(out) == {"behavior": "deny", "message": "Refusé depuis omnigroup"}
+    assert json.loads(out) == {
+        "behavior": "deny",
+        "message": "Refusé depuis omniscient",
+    }
     assert daemon.calls[0][2]["event"]["hookEventName"] == "permissionRequest"
     assert daemon.calls[1][1].endswith("timeout=25")  # capped to the Copilot wait
 
@@ -195,7 +198,7 @@ def test_copilot_payload_in_claude_settings(tmp_path: Path) -> None:
     ctx = make_ctx(tmp_path, daemon)
     run(ctx, event, fast=True)
     assert daemon.calls[0][2]["source"] == "copilot"
-    assert daemon.calls[0][2]["event"]["omnigroup"]["fast"] is True
+    assert daemon.calls[0][2]["event"]["omniscient"]["fast"] is True
     ctx.copilot_hooks.write_text('{"x": "omniscient group hook"}', encoding="utf-8")
     run(ctx, event, fast=True)
     assert len(daemon.calls) == 1  # the Copilot hook reports it instead
@@ -245,11 +248,24 @@ def test_http_protocol_errors_fail_open(tmp_path: Path) -> None:
 )
 def test_daemon_url_must_be_plain_local_http(url: str) -> None:
     with pytest.raises(HookError):
-        _base_url({"OMNIGROUP_URL": url})
+        _base_url({"OMNISCIENT_URL": url})
 
 
 def test_daemon_url_accepts_local_forms() -> None:
     assert _base_url({}) == "http://127.0.0.1:7341"
-    assert _base_url({"OMNIGROUP_URL": "http://localhost:8000/"}) == (
+    assert _base_url({"OMNISCIENT_URL": "http://localhost:8000/"}) == (
         "http://localhost:8000"
     )
+
+
+def test_stdin_with_a_bom_is_read_like_plain_utf8() -> None:
+    """PowerShell 5.1 prepends a BOM when it pipes text to a program."""
+    import io
+
+    from omniscient.group.hook_client import use_utf8_streams
+
+    raw = io.TextIOWrapper(
+        io.BytesIO(b'\xef\xbb\xbf{"a": "\xc3\xa9"}'), encoding="cp1252"
+    )
+    use_utf8_streams(raw, encoding="utf-8-sig")
+    assert raw.read() == '{"a": "é"}'

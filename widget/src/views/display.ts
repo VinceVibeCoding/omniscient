@@ -1,6 +1,6 @@
 // « Affichage » section of the Réglages tab: skin, OSD view and ticker — the same
 // choices as the right-click menu. Each change is applied at once (PUT /config); a key
-// set in ~/.claude/settings.json (env OMNIGROUP_*) is locked and shown disabled.
+// set in ~/.claude/settings.json (env OMNISCIENT_*) is locked and shown disabled.
 import { h } from "../dom";
 import type { ConfigPatch, ConfigView, OsdView, Skin } from "../types";
 
@@ -52,6 +52,6 @@ export function displaySection(view: ConfigView | null, change: (patch: ConfigPa
     radios("theme", "Thème", SKINS, config.theme, sources.theme === "settings", (theme) => change({ theme })),
     radios("osd_view", "Vue de l'OSD", VIEWS, config.osd_view, sources.osd_view === "settings", (osd_view) => change({ osd_view })),
     h("label", { class: "choice" }, ticker, h("span", {}, "Afficher le ticker des coûts" + (ticker.disabled ? LOCK_NOTE : ""))),
-    h("p", { class: "setting__hint" }, "Aussi : clic droit sur l'OSD, « omniscient group config set … » ou /omnigroup dans Claude Code."),
+    h("p", { class: "setting__hint" }, "Aussi : clic droit sur l'OSD, « omniscient group config set … » ou /omniscient dans Claude Code."),
   );
 }
