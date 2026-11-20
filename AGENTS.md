@@ -43,7 +43,7 @@ cd widget && npx tsc --noEmit && npm test    # widget type check and tests
 6. **Security first.** The widget never blocks an agent, never clicks or types in a web page; a chat
    with a page attached runs with no tools; secrets are never logged. Keep runtime floors low (people
    install on their own PCs): ask before raising a minimum version.
-7. User-facing text is French today and goes through `src/omniscient/i18n.py`; code, comments,
+7. User-facing text is French today (widget strings in `widget/src`, engine messages in `src/omniscient`); code, comments,
    commits and `README.md`/`AGENTS.md` are English; `docs/*.md` are French.
 
 ## Branches and releases

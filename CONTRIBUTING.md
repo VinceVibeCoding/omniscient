@@ -54,8 +54,9 @@ CI runs the same three steps on Ubuntu with Python 3.12.
 
 ## Language
 
-User-facing text is French today. English is welcome; please route new strings through
-`src/omniscient/i18n.py` rather than adding a second hardcoded language. Code, comments,
+User-facing text is French today (the widget's strings are in `widget/src`, the engine's
+messages in `src/omniscient`). Making it translatable is welcome; please do not add a second
+hardcoded language. Code, comments,
 commit messages and docs are in English.
 
 ## Commits and pull requests

@@ -1,1 +1,1 @@
-"""Omniscient: an autonomous agent software factory."""
+"""Omniscient: a widget to talk to your AI agents, outside the IDE."""

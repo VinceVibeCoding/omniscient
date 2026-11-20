@@ -23,7 +23,8 @@ Only the latest commit on `main` is supported. There are no release branches yet
 - Text from a web page is untrusted (prompt injection): a chat with a page attached runs with **no
   tools**, secrets in a page are masked before anything leaves, and field values and passwords are
   never read.
-- Model spending is capped in code, not by prompts.
+- Chat turns are limited in code, not by prompts: a spending cap per turn and a maximum number of
+  turns per hour.
 - No analytics, no telemetry.
 
 Details and threat model: [docs/omniscient.md](docs/omniscient.md) (in French).

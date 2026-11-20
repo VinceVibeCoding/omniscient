@@ -28,7 +28,7 @@ Free and MIT-licensed. Bring your own AI: Claude Code, an API key, or a local mo
 conversations stay on your computer.
 
 > **Language.** The interface is currently in **French**. Making the UI translatable is a welcome contribution
-> (see `src/omniscient/i18n.py`).
+> (strings live in `widget/src` and `src/omniscient`).
 
 ## Quick start
 
