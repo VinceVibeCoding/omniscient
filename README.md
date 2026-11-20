@@ -4,31 +4,30 @@
 
 # Omniscient
 
-**An idea factory for builders, and a desktop widget that sees the page you see.**
+**A desktop widget for your AI agents: see them, approve them, and chat about the page you are looking at.**
 
 [![CI](https://github.com/VinceVibeCoding/omniscient/actions/workflows/ci.yml/badge.svg)](https://github.com/VinceVibeCoding/omniscient/actions/workflows/ci.yml)
 [![Widget build](https://github.com/VinceVibeCoding/omniscient/actions/workflows/widget.yml/badge.svg)](https://github.com/VinceVibeCoding/omniscient/actions/workflows/widget.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB.svg)](https://www.python.org/)
 
-[Quick start](#quick-start) · [Omniscient widget](#omniscient-the-widget) · [Ideas](#ideas-the-factory) · [Bring your own AI](#bring-your-own-ai) · [Privacy](#privacy-and-security) · [Roadmap](#roadmap) · [Contributing](#contributing)
+[Quick start](#quick-start) · [What it does](#omniscient-the-widget) · [Bring your own AI](#bring-your-own-ai) · [Privacy](#privacy-and-security) · [Roadmap](#roadmap) · [Contributing](#contributing)
 
 </div>
 
 ---
 
-Omniscient has two halves that work alone or together:
+Omniscient is a small always-on-top Windows widget and the local engine behind it. Use it to:
 
-| | What it is | You use it to |
-|---|---|---|
-| **Omniscient** (the widget) | A small always-on-top Windows app. | Watch every AI agent you run, approve their requests, and **chat with the AI of your choice about the web page you are looking at**. |
-| **The idea factory** | A terminal studio plus five background loops. | Turn tech news into ideas, have a council of agents debate and score them, and build throwaway prototypes. |
+- **Watch every AI agent you run** (Claude Code, GitHub Copilot and more) from outside your IDE, and
+  approve their requests.
+- **Monitor your LLM usage** against your subscriptions.
+- **Chat with the AI of your choice about the web page you are looking at.**
 
 Free and MIT-licensed. Bring your own AI: Claude Code, an API key, or a local model. Your keys and
 conversations stay on your computer.
 
-> **Language.** The interface is currently in **French**. Agent-written notes follow the language in
-> your profile (`fr` or `en`). Making the UI translatable is a welcome contribution
+> **Language.** The interface is currently in **French**. Making the UI translatable is a welcome contribution
 > (see `src/omniscient/i18n.py`).
 
 ## Quick start
@@ -142,22 +141,10 @@ taskbar*): one click on that icon brings the widget back, even after you quit it
 
 `omniscient group setup` is safe to re-run at any time; its first line says whether the engine
 answers on port 7341. Nothing else is required: Claude Code is what the hooks attach to (install it
-from [claude.com/claude-code](https://claude.com/claude-code) to see its sessions), and herdr,
-AgentRun, Docker and an API key are only for the idea factory (the engine stays quiet without them).
+from [claude.com/claude-code](https://claude.com/claude-code) to see its sessions).
 
 **Several Windows users on one PC?** Everything is per user (engine, hooks in `~/.claude`, widget
 settings, the pairing token in that user's Credential Manager): repeat the steps for each user.
-
-### The idea factory
-
-```bash
-uv tool install git+https://github.com/VinceVibeCoding/omniscient
-omniscient init                   # home folder, profile, projects, keys
-herdr                             # open herdr, then inside it:
-omniscient studio                 # the idea board
-```
-
-The studio needs no API key. Details: [docs/factory.md](docs/factory.md).
 
 ## Omniscient, the widget
 
@@ -199,34 +186,6 @@ Omniscient is not a sealed product: ask it for a command, theme, workflow or pro
 builds it as a small data folder (never code) in `<home>/extensions/`. Type `/reload` in the widget
 chat and keep going; `omniscient ext export` and `ext install` (with a full preview) share them.
 See [docs/extensions.md](docs/extensions.md) (in French).
-
-## Ideas, the factory
-
-Omniscient reads the news, then helps you decide what to build.
-
-```
-news ──▶ ideas ──▶ council (debate + score) ──▶ game plan ──▶ prototype (PoC)
- Sense     Think          Think                    Plan          Build
-                          ▲
-             studio: you riff, fork, remix and judge ideas
-```
-
-- **Sense.** GitHub, Hacker News, and the Anthropic, OpenAI, Gemini and Meta AI news pages, boosted by
-  your interests, with the topics you avoid dropped.
-- **Think.** A visionary proposes ideas by crossing news with what is newly possible and with *your*
-  projects. A council (challenger, simplifier, risk checker) debates each one and scores it on
-  novelty, feasibility, impact, effort and fit.
-- **Plan.** A strategist promotes the best ideas within your work-in-progress limit.
-- **Build.** A builder makes the smallest testable version in a Docker box, never touching your
-  real projects without your approval.
-- **Learn.** What the agents learn becomes a knowledge base for the next cycle.
-
-You steer it from the **studio**, a terminal idea board that runs inside
-[herdr](https://herdr.dev): one *atelier* (workshop) per idea, with Claude Code ready to push the idea
-further. Create an idea (`n`), riff on it, make a variant (`v`), remix two or three (`space`, `m`),
-pursue or drop it (`p` / `x`). Ideas are plain Markdown notes you can open in Obsidian.
-
-More: [docs/factory.md](docs/factory.md) (init, ateliers, AgentRun, daily schedule, themes, costs, architecture).
 
 ## Bring your own AI
 
@@ -270,22 +229,22 @@ Threat model and reporting: [docs/omniscient.md](docs/omniscient.md) and [SECURI
 | [uv](https://docs.astral.sh/uv/) and Python 3.12+ (tested on 3.12 and 3.14) | the engine | yes |
 | Windows 10/11 x64 (WebView2 is installed for you if missing) | the widget | for the widget |
 | Chrome, Edge, Brave, Vivaldi or Opera | reading the page you look at | optional |
-| git | project registry, prototypes | for the factory |
 | [Claude Code](https://claude.com/claude-code) | the default agent | optional |
-| herdr | the studio | for the studio |
-| [AgentRun](https://pypi.org/project/parcha-agentrun/) + Docker + an Anthropic API key | the factory loops | for the factory |
 
 Node, TypeScript and Rust are only needed to **build** the widget from source: people who install
-Omniscient get built files. `omniscient init` checks your setup and never installs anything for you.
+Omniscient get built files.
 Linux and WSL2 are the tested platforms for the engine.
 
 ## Roadmap
 
-- **Now (V1).** Windows widget; Chromium-family browsers; Claude Code, Anthropic, OpenAI, Gemini and
-  local models; accounts with Google, GitHub and e-mail.
-- **V2.** A **macOS** app (menu-bar and Dock icon, signed and notarized) with page reading through the
-  macOS accessibility API; Firefox.
-- **Later.** More agents in the Sessions list; a translated interface.
+Planned, not done yet:
+
+- Automatic first-run pairing (no code to type).
+- The engine bundled in the widget installer.
+- In-app auto-update.
+- winget, Scoop and Homebrew packages.
+- A tray icon and a terminal command to open the widget.
+- Code signing through the SignPath Foundation (application in progress).
 
 Ideas and votes welcome: open an issue.
 
@@ -311,16 +270,12 @@ uv run pytest -q
 
 ## En français
 
-**Omniscient** est une **usine à idées** et un **widget de bureau qui voit la page que tu regardes**.
-
-- **Omniscient (le widget Windows)** : tous tes agents IA dans une fenêtre, des approbations en un
-  clic, et un chat avec l'IA de ton choix (Claude Code, API Anthropic / OpenAI / Gemini, ou un
-  modèle local). Il lit lui-même la page web ouverte dans ton navigateur, **sans extension**, te
-  montre où est un élément (« Montrer »), et peut joindre une capture de cette seule fenêtre si tu
-  le demandes. Un bouton coupe tout le suivi des pages.
-- **L'usine à idées** : elle lit l'actualité tech et IA, en tire des idées, les fait débattre et
-  noter par un conseil d'agents, planifie les meilleures et construit des prototypes jetables. Tu la
-  pilotes depuis le **studio**, dans herdr.
+**Omniscient** est un **widget de bureau Windows** pour tes agents IA : tous tes agents dans une
+fenêtre, des approbations en un clic, ton usage des modèles face à tes abonnements, et un chat avec
+l'IA de ton choix (Claude Code, API Anthropic / OpenAI / Gemini, ou un modèle local). Il lit
+lui-même la page web ouverte dans ton navigateur, **sans extension**, te montre où est un élément
+(« Montrer »), et peut joindre une capture de cette seule fenêtre si tu le demandes. Un bouton coupe
+tout le suivi des pages.
 
 Installation du widget sous Windows, en une commande dans PowerShell (rien d'autre à installer) :
 
@@ -328,11 +283,7 @@ Installation du widget sous Windows, en une commande dans PowerShell (rien d'aut
 powershell -ExecutionPolicy ByPass -c "iex ((irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1) -join [char]10)"
 ```
 
-Mettre à jour : `omniscient update`. Détails, désinstallation et dépannage : [docs/install.md](docs/install.md). L'usine, ensuite :
-
-```bash
-omniscient init                   # l'usine : dossier, profil, projets, clés
-```
+Mettre à jour : `omniscient update`. Détails, désinstallation et dépannage : [docs/install.md](docs/install.md).
 
 Gratuit, MIT. Tes clés et tes conversations restent sur ton ordinateur. L'interface est en français
 pour l'instant ; les contributions pour l'anglais sont les bienvenues. Guide complet du widget :

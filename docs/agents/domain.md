@@ -1,25 +1,26 @@
 # Domain Docs
 
 How the engineering skills should consume this repo's domain documentation when exploring the codebase.
-This is a single-context layout. The glossary and ADRs are optional: when they exist, they live inside the
-Obsidian vault of your Omniscient home. A fresh home has neither.
+This is a single-context layout. The glossary and ADRs are optional: when they exist, they live under `docs/`.
+A fresh checkout may have neither.
 
 ## Before exploring, read these if they exist
 
-- **`vault/glossary/GLOSSARY.md`** (optional): the shared vocabulary.
-- **`vault/decisions/`** (optional): ADRs. Read the ones that touch the area you're about to work in.
+- **`docs/glossary/GLOSSARY.md`** (optional): the shared vocabulary.
+- **`docs/adr/`** (optional): ADRs. Read the ones that touch the area you're about to work in.
 
-If either is missing or empty, **proceed silently**. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) fills them lazily as terms and decisions get resolved. When it would create `GLOSSARY.md` or `docs/adr/` at the repo root, use the vault paths above instead.
+If either is missing or empty, **proceed silently**. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) fills them lazily as terms and decisions get resolved.
 
 ## File structure (once created)
 
 ```
 /
-├── vault/glossary/GLOSSARY.md
-├── vault/decisions/
+├── docs/glossary/GLOSSARY.md
+├── docs/adr/
 │   ├── 0001-<decision>.md
 │   └── 0002-<decision>.md
-└── src/omniscient/
+├── src/omniscient/
+└── widget/
 ```
 
 ## Use the glossary's vocabulary
