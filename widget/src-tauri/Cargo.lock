@@ -2543,7 +2543,7 @@ dependencies = [
 
 [[package]]
 name = "omniscient-widget"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "futures-util",
  "getrandom 0.4.3",

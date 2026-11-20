@@ -1,6 +1,6 @@
 [package]
 name = "omniscient-widget"
-version = "0.2.2"
+version = "0.2.3"
 description = "Omniscient: a corner widget showing every running agent of an Omniscient home"
 license = "MIT"
 edition = "2021"

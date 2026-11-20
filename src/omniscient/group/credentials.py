@@ -114,7 +114,7 @@ def restrict_to_current_user(
     try:
         argv = icacls_argv(path, account or current_account(), directory)
         done = runner(
-            argv, stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            argv, stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace",  # localized OEM-codepage output
             timeout=ICACLS_TIMEOUT_S, check=False,
         )  # fmt: skip
     except (OSError, ValueError, subprocess.TimeoutExpired) as exc:

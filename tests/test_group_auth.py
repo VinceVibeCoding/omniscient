@@ -46,6 +46,7 @@ class FakeGoTrue:
         self.confirm_signup = True
         self.refreshed = 0
         self.fail_refresh = False
+        self.otp_sent: list[str] = []
 
     def session(self, provider: str = "google", n: int = 1) -> dict[str, Any]:
         return {
@@ -115,6 +116,15 @@ class FakeGoTrue:
                     },
                 )
             return httpx.Response(200, json=self.session("email"))
+        if path == "/auth/v1/otp":
+            self.otp_sent.append(body.get("email", ""))
+            return httpx.Response(200, json={})
+        if path == "/auth/v1/verify":
+            if body.get("type") == "email" and body.get("token") == "123456":
+                return httpx.Response(200, json=self.session("email"))
+            return httpx.Response(
+                403, json={"error_code": "otp_expired", "msg": "Token expired"}
+            )
         if path == "/auth/v1/logout":
             return httpx.Response(204)
         return httpx.Response(404, json={})
@@ -149,6 +159,7 @@ def make(
     events: list,
     clock: Clock,
     configured: bool = True,
+    defaults: au.AuthConfig | None = None,
 ) -> au.AuthService:
     svc = au.AuthService(
         tmp_path / "state",
@@ -159,6 +170,7 @@ def make(
         resolver=public,
         clock=clock,
         env={},
+        defaults=defaults,
     )
     svc.set_port(PORT)
     if configured:
@@ -547,3 +559,88 @@ def test_the_key_is_never_sent_as_a_bearer_token(
     by_path = {r.url.path: r for r in seen}
     assert "authorization" not in by_path["/auth/v1/token"].headers
     assert by_path["/auth/v1/logout"].headers["authorization"] == "Bearer access-1"
+
+
+# ---- e-mail code (one-time code sent by e-mail, typed once) ----------------------------
+
+
+def test_email_code_signs_in_and_keeps_the_session(svc, fake, events) -> None:
+    svc.email_start("ana@example.com")
+    assert fake.otp_sent == ["ana@example.com"]
+    view = svc.email_verify("ana@example.com", "123456")
+    assert view["signed_in"] is True and view["user"]["email"] == "ana@example.com"
+    assert events[-1][0] == "auth"
+    assert svc.access_token() == "access-1"  # the session is saved, not just in memory
+
+
+def test_email_code_wrong_is_refused_without_leaking(svc) -> None:
+    svc.email_start("ana@example.com")
+    with pytest.raises(au.AuthError) as err:
+        svc.email_verify("ana@example.com", "000000")
+    assert err.value.status == au.REFUSED and "expiré" in err.value.message
+    assert svc.status()["signed_in"] is False
+
+
+@pytest.mark.parametrize("code", ["", "12345", "abcdef", "1234567890123", 123456, None])
+def test_email_code_format_is_checked_before_any_call(svc, fake, code) -> None:
+    with pytest.raises(au.AuthError) as err:
+        svc.email_verify("ana@example.com", code)
+    assert err.value.status == 400
+    assert not [c for c in fake.calls if c[1] == "/auth/v1/verify"]
+
+
+@pytest.mark.parametrize(
+    "email", ["", "nope", "a b@example.com", None, "x" * 300 + "@e.com"]
+)
+def test_email_start_rejects_bad_addresses(svc, fake, email) -> None:
+    with pytest.raises(au.AuthError) as err:
+        svc.email_start(email)
+    assert err.value.status == 400 and fake.otp_sent == []
+
+
+def test_email_attempts_are_rate_limited(svc) -> None:
+    for _ in range(au.MAX_PASSWORD_ATTEMPTS):
+        with pytest.raises(au.AuthError):
+            svc.email_verify("ana@example.com", "000000")
+    with pytest.raises(au.AuthError) as err:
+        svc.email_verify("ana@example.com", "123456")
+    assert err.value.status == 429
+
+
+# ---- embedded default project ----------------------------------------------------------
+
+
+def test_defaults_are_used_when_nothing_else_is_configured(
+    tmp_path, fake, events, clock
+) -> None:
+    s = make(
+        tmp_path,
+        fake,
+        events,
+        clock,
+        configured=False,
+        defaults=au.AuthConfig(URL, ANON),
+    )
+    assert s.status()["configured"] is True
+    s.email_start("ana@example.com")
+    assert fake.otp_sent == ["ana@example.com"]
+
+
+def test_saved_config_beats_the_embedded_default(tmp_path, fake, events, clock) -> None:
+    other = "https://zzzzzzzz.supabase.co"
+    s = make(
+        tmp_path,
+        fake,
+        events,
+        clock,
+        configured=False,
+        defaults=au.AuthConfig(URL, ANON),
+    )
+    s.configure(other, ANON)
+    assert s.config().url == other
+
+
+def test_the_shipped_default_is_a_public_key_for_the_omniscient_project() -> None:
+    assert au.DEFAULT_CONFIG.url == "https://hovnpclxrpcaptjhewtp.supabase.co"
+    assert au.DEFAULT_CONFIG.anon_key.startswith("sb_publishable_")
+    assert not au._is_secret_key(au.DEFAULT_CONFIG.anon_key)
