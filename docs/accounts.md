@@ -1,15 +1,47 @@
-# Comptes (Google, GitHub, e-mail + mot de passe)
+# Comptes (e-mail, Google, GitHub)
 
 Un compte est **facultatif** : le widget marche très bien sans. Il identifie l'installation
-(Réglages › Compte, ou l'assistant du premier lancement). Il ne porte **que l'identité** : les
+(Réglages › Connexion, ou l'assistant du premier lancement). Il ne porte **que l'identité** : les
 clés des fournisseurs IA et les conversations restent sur l'ordinateur de la personne.
 
-Le service de connexion est [Supabase Auth](https://supabase.com/docs/guides/auth) : le plan
-gratuit suffit pour démarrer, et Google, GitHub et e-mail + mot de passe y marchent sans
-adaptateur. Toute la connexion passe par le démon, jamais par le widget : le widget ne voit
-aucun jeton.
+## Pour les utilisateurs : rien à faire
 
-## Mettre en place (une fois, par le propriétaire du projet)
+Le projet de comptes (adresse et clé publique) est **intégré à l'application**. La connexion par
+**code e-mail** marche d'emblée : tapez votre e-mail, puis le code à 6 chiffres reçu, une seule
+fois ; le widget reste connecté d'une session à l'autre. Google et GitHub sont aussi proposés.
+
+Le service de connexion est [Supabase Auth](https://supabase.com/docs/guides/auth). Toute la
+connexion passe par le démon, jamais par le widget : le widget ne voit aucun jeton.
+
+### Connexion par code e-mail
+
+Le widget (assistant du premier lancement et Réglages › Connexion) demande l'e-mail, puis le code
+à 6 chiffres reçu par e-mail. Côté démon, deux routes **publiques** (pas de jeton de widget à
+présenter, puisque la personne n'est pas encore connectée) :
+
+- `POST /auth/email/start` avec l'e-mail : le service envoie le code ;
+- `POST /auth/email/verify` avec l'e-mail et le code : un code correct connecte le compte **et**
+  crée le jeton du widget. Aucun code de bureau n'est nécessaire.
+
+Le jeton du widget est gardé dans le Gestionnaire d'identifiants Windows : la personne reste
+connectée d'une session à l'autre. Le code de couplage du bureau (*Réglages › Demander un code*)
+existe toujours, mais seulement en **solution de repli** (hors ligne, ou sans e-mail).
+
+#### Réglages Supabase requis pour les codes e-mail (projet auto-hébergé)
+
+Dans le tableau de bord Supabase du projet :
+
+1. **Authentication › Emails › SMTP Settings** : configurer un **SMTP personnalisé**. Sans lui,
+   l'envoi par défaut de Supabase est très limité et ne convient pas à de vrais utilisateurs.
+2. **Authentication › Emails › Templates** : les modèles **Confirm signup** *et*
+   **Magic link or OTP** doivent **tous deux** contenir `{{ .Token }}` (le code). Un nouvel
+   utilisateur reçoit « Confirm signup », un utilisateur existant « Magic Link » : si l'un des
+   deux manque de `{{ .Token }}`, une partie des personnes ne recevra qu'un lien, sans code.
+3. **Email OTP length** : 6 (le widget attend un code à 6 chiffres).
+
+## Héberger ou forker : mettre en place son propre projet Supabase
+
+À ne faire que si vous hébergez votre propre service de comptes (fork, auto-hébergement). Les utilisateurs de l'application officielle n'ont rien de tout ceci à faire.
 
 1. **Créer un projet** sur supabase.com. Noter l'adresse du projet (`https://<ref>.supabase.co`,
    où `<ref>` est l'identifiant du projet) et la **clé publique** : Project Settings › API Keys ›
@@ -41,7 +73,7 @@ aucun jeton.
    se fait **uniquement en ligne de commande**, jamais par l'API du démon.
 5. Dans le widget : **Réglages › Compte** (ou l'étape « Compte » de l'assistant).
 
-Les variables `OMNISCIENT_AUTH_URL` et `OMNISCIENT_AUTH_ANON_KEY` priment sur le fichier.
+Les variables `OMNISCIENT_AUTH_URL` et `OMNISCIENT_AUTH_ANON_KEY` priment sur le fichier, qui prime lui-même sur la configuration intégrée.
 
 ## Comment ça marche, et ce qui est protégé
 
@@ -50,8 +82,8 @@ Les variables `OMNISCIENT_AUTH_URL` et `OMNISCIENT_AUTH_ANON_KEY` priment sur le
   `http://127.0.0.1:<port>/auth/callback?code=…`. Un code n'est valable qu'avec **notre**
   secret : un lien piégé apporté par quelqu'un d'autre ne connecte personne. Une connexion
   dure 10 minutes et 3 essais.
-- **E-mail** : connexion directe, ou création de compte avec un lien de confirmation qui
-  revient sur la même page.
+- **E-mail** : code à usage unique envoyé par e-mail (voir plus haut) ; la connexion directe et la
+  création de compte avec un lien de confirmation qui revient sur la même page restent possibles.
 - **Jetons** : le jeton de renouvellement est gardé dans `<home>/.omniscient/auth_session.json`
   (0600), le jeton d'accès reste en mémoire. Aucune route ne renvoie un jeton ; l'état ne
   contient que l'e-mail, le nom et le fournisseur.
@@ -66,4 +98,4 @@ Les variables `OMNISCIENT_AUTH_URL` et `OMNISCIENT_AUTH_ANON_KEY` priment sur le
   d'un clic dans le tableau de bord Supabase.
 - Les pages d'arrivée du navigateur sont fixes (aucun texte venant de l'URL n'y est repris).
 - Pour héberger vous-même : Supabase est open source ; adresse et clé se règlent de la même
-  façon.
+  façon (voir la section ci-dessus).
