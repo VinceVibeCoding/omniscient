@@ -11,6 +11,9 @@ export interface SettingsHandlers {
   save(settings: Settings): void;
   pairStart(): void;
   pairFinish(code: string): void;
+  /** E-mail sign-in: ask for a code, then trade it (typed once, kept across sessions). */
+  emailStart(email: string): void;
+  emailVerify(email: string, code: string): void;
   unpair(): void;
   autostart(enabled: boolean): void;
   /** Open the first-run assistant again. */
@@ -35,6 +38,25 @@ function startupSection(autostart: boolean | null, on: SettingsHandlers): HTMLEl
 
 function field(label: string, input: HTMLInputElement, hint?: string): HTMLElement {
   return h("label", { class: "setting" }, h("span", { class: "setting__label" }, label), input, hint ? h("span", { class: "setting__hint" }, hint) : null);
+}
+
+export function emailForm(on: Pick<SettingsHandlers, "emailStart" | "emailVerify">): HTMLElement {
+  const email = h("input", { name: "email", type: "email", autocomplete: "email", spellcheck: "false", placeholder: "vous@exemple.com" });
+  const code = h("input", { name: "email_code", inputmode: "numeric", autocomplete: "one-time-code", maxlength: 10, spellcheck: "false", placeholder: "123456" });
+  const form = h(
+    "form",
+    { class: "settings" },
+    h("p", { class: "setting__hint" }, "Connexion par courriel : un code vous est envoyé, vous le tapez une seule fois."),
+    field("1. Votre courriel", email),
+    h("div", { class: "card__actions" }, h("button", { class: "btn", type: "button", onclick: () => on.emailStart(email.value.trim()) }, "Envoyer le code")),
+    field("2. Code reçu", code),
+    h("div", { class: "card__actions" }, h("button", { class: "btn btn--primary", type: "submit" }, "Se connecter")),
+  );
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    on.emailVerify(email.value.trim(), code.value.trim());
+  });
+  return form;
 }
 
 export function pairingForm(on: SettingsHandlers): HTMLElement {
@@ -126,7 +148,9 @@ export function settingsView(
         h("button", { class: "btn", type: "button", onclick: () => on.wizard() }, "Relancer l'assistant"),
         h("span", { class: "setting__hint" }, current.wizard_done === true ? "Assistant déjà passé." : "Assistant pas encore passé."),
       ),
-      h("h2", { class: "section-title" }, "Couplage"),
+      h("h2", { class: "section-title" }, "Connexion"),
+      emailForm(on),
+      h("h2", { class: "section-title" }, "Couplage (secours, sans courriel)"),
       pairingForm(on),
     ),
   );

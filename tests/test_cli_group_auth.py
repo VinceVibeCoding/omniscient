@@ -24,6 +24,7 @@ def public_dns(monkeypatch: pytest.MonkeyPatch, isolated_home: Path) -> None:
         return au.AuthService(
             find_home().state,
             lambda kind, data: None,
+            defaults=None,  # these tests start from an unconfigured install
             resolver=lambda h, p, *a, **k: [(2, 1, 6, "", ("93.184.216.34", p))],
         )
 

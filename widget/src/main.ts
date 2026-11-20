@@ -352,6 +352,8 @@ const wizardHandlers = {
     }),
   pair: {
     pairStart: () => settingsHandlers.pairStart(),
+    emailStart: (email: string) => settingsHandlers.emailStart(email),
+    emailVerify: (email: string, code: string) => settingsHandlers.emailVerify(email, code),
     unpair: () => settingsHandlers.unpair(),
     pairFinish: (code: string) =>
       void guarded(async () => {
@@ -437,6 +439,16 @@ const settingsHandlers = {
         return;
       }
       toast(await api.pairFinish(code));
+      (document.activeElement as HTMLElement | null)?.blur();
+      update({ view: "list" });
+    }),
+  emailStart: (email: string) =>
+    void guarded(async () => {
+      toast(await api.emailStart(email));
+    }),
+  emailVerify: (email: string, code: string) =>
+    void guarded(async () => {
+      toast(await api.emailVerify(email, code));
       (document.activeElement as HTMLElement | null)?.blur();
       update({ view: "list" });
     }),

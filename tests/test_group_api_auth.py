@@ -36,6 +36,18 @@ def tokens(req: httpx.Request) -> httpx.Response:
                 "user": {"id": "u", "email": "ana@example.com", "app_metadata": {"provider": "email"}},
             },
         )  # fmt: skip
+    if req.url.path == "/auth/v1/otp":
+        return httpx.Response(200, json={})
+    if req.url.path == "/auth/v1/verify":
+        if body.get("token") == "123456":
+            return httpx.Response(
+                200,
+                json={
+                    "access_token": "ACCESS-SECRET", "refresh_token": "REFRESH-SECRET", "expires_in": 3600,
+                    "user": {"id": "u", "email": body["email"], "app_metadata": {"provider": "email"}},
+                },
+            )  # fmt: skip
+        return httpx.Response(403, json={"error_code": "otp_expired"})
     return httpx.Response(400, json={"error_code": "invalid_credentials"})
 
 
@@ -57,7 +69,13 @@ def raw_get(d: Daemon, path: str) -> tuple[int, str, http.client.HTTPResponse]:
     return resp.status, text, resp
 
 
+def unconfigured(d: Daemon) -> None:
+    svc = d.server.app.auth
+    svc._env, svc._defaults = {}, None  # a daemon without the shipped default project
+
+
 def test_status_needs_the_widget_token(daemon: Daemon) -> None:
+    unconfigured(daemon)
     assert daemon.call("GET", "/auth", auth=False)[0] == 401
     status, body, _ = daemon.call("GET", "/auth")
     assert status == 200 and body["configured"] is False and body["signed_in"] is False
@@ -72,6 +90,7 @@ def test_start_and_password_need_the_widget_token(daemon: Daemon) -> None:
 
 
 def test_not_configured_is_a_409(daemon: Daemon) -> None:
+    unconfigured(daemon)
     status, body, _ = daemon.call("POST", "/auth/start", {"provider": "google"})
     assert status == 409 and "docs/accounts.md" in body["error"]
 
@@ -183,3 +202,50 @@ def test_a_wrong_code_while_a_flow_is_pending_gets_the_failure_page(
     )
     assert status == 400 and text.startswith("<!doctype html>") and "impossible" in text
     assert daemon.call("GET", "/auth")[1]["signed_in"] is False
+
+
+# ---- e-mail code: signs the widget in AND pairs it (no desktop code) -----------------------
+
+
+def test_email_start_is_public_and_sends_nothing_back(daemon: Daemon) -> None:
+    configure(daemon)
+    status, body, _ = daemon.call(
+        "POST", "/auth/email/start", {"email": "ana@example.com"}, auth=False
+    )
+    assert status == 200 and "token" not in json.dumps(body)
+
+
+def test_email_verify_mints_a_widget_token_that_works(daemon: Daemon) -> None:
+    configure(daemon)
+    daemon.call("POST", "/auth/email/start", {"email": "ana@example.com"}, auth=False)
+    status, body, _ = daemon.call(
+        "POST", "/auth/email/verify",
+        {"email": "ana@example.com", "code": "123456", "client_name": "PC"}, auth=False,
+    )  # fmt: skip
+    assert status == 200 and body["user"]["email"] == "ana@example.com"
+    token = body["token"]
+    assert "ACCESS-SECRET" not in json.dumps(
+        body
+    ) and "REFRESH-SECRET" not in json.dumps(body)
+    conn = daemon.conn()
+    conn.request("GET", "/auth", headers={"Authorization": f"Bearer {token}"})
+    resp = conn.getresponse()
+    assert resp.status == 200 and json.loads(resp.read())["signed_in"] is True
+
+
+def test_email_verify_wrong_code_mints_nothing(daemon: Daemon) -> None:
+    configure(daemon)
+    status, body, _ = daemon.call(
+        "POST", "/auth/email/verify", {"email": "ana@example.com", "code": "000000"}, auth=False
+    )  # fmt: skip
+    assert status == 422 and "token" not in body
+
+
+def test_email_routes_validate_their_input(daemon: Daemon) -> None:
+    configure(daemon)
+    assert (
+        daemon.call("POST", "/auth/email/start", {"email": "nope"}, auth=False)[0]
+        == 400
+    )
+    bad = {"email": "ana@example.com", "code": "abc"}
+    assert daemon.call("POST", "/auth/email/verify", bad, auth=False)[0] == 400
