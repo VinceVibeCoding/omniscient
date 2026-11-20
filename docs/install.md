@@ -94,8 +94,10 @@ Le texte est celui de [`install.ps1`](../install.ps1) : lis-le avant de l'exécu
    télécharge l'installeur `Omniscient_<version>_x64-setup.exe` de la même version, vérifie son
    SHA-256 (et sa provenance si `gh` est installé), puis le lance en mode silencieux (`/S`),
    pour ton utilisateur seulement.
-5. **État.** Affiche `omniscient group status`, puis « Et maintenant » : ouvre Omniscient,
-   *Réglages › Demander un code*, tape le code à 6 chiffres affiché sur ton bureau.
+5. **État.** Affiche `omniscient group status`, puis « Et maintenant » : ouvre Omniscient, va au
+   formulaire *Connexion* et tape ton e-mail puis le code à 6 chiffres reçu par e-mail. Sans
+   e-mail ou hors ligne, solution de repli : *Réglages › Demander un code*, puis le code à
+   6 chiffres affiché sur ton bureau.
 
 En cas d'échec, le script s'arrête avec un message précis (étape, cause) et ne laisse rien de
 dangereux : relance-le après correction.
@@ -112,7 +114,7 @@ dangereux : relance-le après correction.
 | Hooks Claude Code | `%USERPROFILE%\.claude\settings.json` (+ copie de sauvegarde à côté) | `omniscient group hooks uninstall --write` |
 | Widget | `%LOCALAPPDATA%\Omniscient\` et entrée du menu Démarrer | Paramètres › Applications › Omniscient › Désinstaller |
 | État du démon (jeton des hooks, `group.db`) | `%USERPROFILE%\.omniscient\` | supprimer le dossier |
-| Jeton de couplage du widget | Gestionnaire d'identifiants Windows | `omniscient group pair --revoke` oublie les widgets couplés ; le jeton local se supprime à la main dans le Gestionnaire d'identifiants |
+| Jeton du widget (connexion par e-mail ou couplage) | Gestionnaire d'identifiants Windows | `omniscient group pair --revoke` oublie les widgets couplés ; le jeton local se supprime à la main dans le Gestionnaire d'identifiants |
 | Fichiers temporaires | `%TEMP%\omniscient-install-*`, effacés à la fin | rien à faire |
 
 Le script n'écrit jamais ailleurs que dans ton profil, ne demande pas l'élévation, ne

@@ -293,7 +293,7 @@ final_status() {
     printf '\n%sEt maintenant%s\n' "$C_OK" "$C_OFF"
     if is_wsl && [ -z "$SKIP_WIDGET" ]; then
         echo "  1. Ouvre Omniscient (menu Démarrer de Windows)."
-        echo "  2. Va dans Réglages > Demander un code, puis tape le code à 6 chiffres."
+        echo "  2. Dans le widget, tape ton courriel puis le code reçu par courriel : une seule fois."
     else
         echo "  Pas de widget ici : utilise le terminal."
         echo "    omniscient --help           toutes les commandes"

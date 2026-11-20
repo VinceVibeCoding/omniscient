@@ -71,5 +71,5 @@ def test_launches_the_installed_widget_unless_no_launch() -> None:
 
 
 def test_final_text_is_short_and_has_no_manual_pairing_steps() -> None:
-    assert "saisis les 6 chiffres affichés sur ton bureau" in CODE
+    assert "tape ton courriel puis le code reçu" in CODE
     assert "Demander un code" not in CODE
