@@ -86,7 +86,7 @@ def test_busy_message_names_the_port_and_every_place_to_change() -> None:
         "autostart install --write --port 7342",
         "Adresse du démon",
         "http://127.0.0.1:7342",
-        "OMNIGROUP_URL",
+        "OMNISCIENT_URL",
     ):
         assert needle in text
 
@@ -115,11 +115,11 @@ def test_preflight_free_busy_and_ours() -> None:
     assert other.blocked and "7341" in other.message
 
 
-def test_configured_port_follows_omnigroup_url() -> None:
+def test_configured_port_follows_omniscient_url() -> None:
     assert pc.configured_port({}) == 7341
-    assert pc.configured_port({"OMNIGROUP_URL": "http://127.0.0.1:7351"}) == 7351
-    assert pc.configured_port({"OMNIGROUP_URL": "nonsense"}) == 7341
-    assert pc.configured_port({"OMNIGROUP_URL": "http://127.0.0.1:99999"}) == 7341
+    assert pc.configured_port({"OMNISCIENT_URL": "http://127.0.0.1:7351"}) == 7351
+    assert pc.configured_port({"OMNISCIENT_URL": "nonsense"}) == 7341
+    assert pc.configured_port({"OMNISCIENT_URL": "http://127.0.0.1:99999"}) == 7341
 
 
 def test_serve_on_a_busy_port_exits_1_with_the_message() -> None:
@@ -129,7 +129,7 @@ def test_serve_on_a_busy_port_exits_1_with_the_message() -> None:
         port = int(sock.getsockname()[1])
         result = runner.invoke(cli.app, ["group", "serve", "--port", str(port)])
     assert result.exit_code == 1
-    assert str(port) in result.output and "OMNIGROUP_URL" in result.output
+    assert str(port) in result.output and "OMNISCIENT_URL" in result.output
 
 
 def test_serve_check_port_on_a_free_port_exits_0() -> None:

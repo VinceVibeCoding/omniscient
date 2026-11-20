@@ -1,4 +1,4 @@
-"""AgentRun collector: live and recently finished runs become omnigroup sessions.
+"""AgentRun collector: live and recently finished runs become omniscient sessions.
 
 Polls GET /v2/runs (next_cursor) every 5 s: queued/working/paused/input_required runs and
 runs ended within the hour. A run's `pending` becomes a Pending — question (answered by

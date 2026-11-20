@@ -16,8 +16,8 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let corner = MenuItem::with_id(app, CORNER_ID, "Replacer dans le coin", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, QUIT_ID, "Quitter", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&toggle, &corner, &quit])?;
-    let mut builder = TrayIconBuilder::with_id("omnigroup")
-        .tooltip("Omnigroup")
+    let mut builder = TrayIconBuilder::with_id("omniscient")
+        .tooltip("Omniscient")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -49,18 +49,18 @@ pub fn build(app: &App) -> tauri::Result<()> {
 pub fn show_window(app: &AppHandle) {
     let Some(state) = app.try_state::<AppState>() else { return }; // still starting: it shows itself
     let Some(window) = app.get_webview_window("main") else {
-        eprintln!("omnigroup: main window missing");
+        eprintln!("omniscient: main window missing");
         return;
     };
     let mode = *lock(&state.mode);
     if window.is_minimized().unwrap_or(false) {
         if let Err(err) = window.unminimize() {
-            eprintln!("omnigroup: unminimize failed: {err}");
+            eprintln!("omniscient: unminimize failed: {err}");
         }
     }
     let shown = dock(&window, mode).and_then(|()| window.show().map_err(|err| err.to_string()));
     if let Err(err) = shown {
-        eprintln!("omnigroup: show failed: {err}");
+        eprintln!("omniscient: show failed: {err}");
     }
 }
 
@@ -68,17 +68,17 @@ pub fn show_window(app: &AppHandle) {
 /// (the Windows-wide habit: a minimized app stays in the taskbar).
 pub fn hide_window(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
-        eprintln!("omnigroup: main window missing");
+        eprintln!("omniscient: main window missing");
         return;
     };
     if let Err(err) = window.minimize() {
-        eprintln!("omnigroup: minimize failed: {err}");
+        eprintln!("omniscient: minimize failed: {err}");
     }
 }
 
 fn toggle_window(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
-        eprintln!("omnigroup: main window missing");
+        eprintln!("omniscient: main window missing");
         return;
     };
     let showing = window.is_visible().unwrap_or(false) && !window.is_minimized().unwrap_or(false);

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Omnigroup",
-  "version": "0.2.1",
-  "identifier": "dev.omniscient.omnigroup",
+  "productName": "Omniscient",
+  "version": "0.2.2",
+  "identifier": "dev.omniscient.widget",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Omnigroup",
+        "title": "Omniscient",
         "width": 300,
         "height": 150,
         "resizable": false,
@@ -30,7 +30,7 @@
       },
       {
         "label": "menu",
-        "title": "Omnigroup menu",
+        "title": "Omniscient menu",
         "url": "menu.html",
         "width": 252,
         "height": 360,
@@ -47,7 +47,7 @@
       },
       {
         "label": "highlight",
-        "title": "Omnigroup surlignage",
+        "title": "Omniscient surlignage",
         "url": "highlight.html",
         "width": 100,
         "height": 60,

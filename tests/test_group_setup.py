@@ -14,7 +14,7 @@ from omniscient.group import widget_release as wr
 
 ROOT = Path(__file__).resolve().parents[1]
 EXE = b"MZ fake installer"
-NAME = "Omnigroup_0.2.0_x64-setup.exe"
+NAME = "Omniscient_0.2.0_x64-setup.exe"
 BASE = f"https://github.com/{wr.REPO}/releases/download"
 
 
@@ -185,9 +185,9 @@ def test_marketplace_and_plugin_manifests() -> None:
     market = json.loads(
         (ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
     )
-    entry = next(p for p in market["plugins"] if p["name"] == "omnigroup")
-    assert entry["source"] == "./plugins/omnigroup" and market["owner"]["name"]
-    plugin_dir = ROOT / "plugins" / "omnigroup"
+    entry = next(p for p in market["plugins"] if p["name"] == "omniscient")
+    assert entry["source"] == "./plugins/omniscient" and market["owner"]["name"]
+    plugin_dir = ROOT / "plugins" / "omniscient"
     manifest = json.loads(
         (plugin_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
     )

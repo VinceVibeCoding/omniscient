@@ -1,4 +1,4 @@
-"""In-memory gates of the omnigroup daemon: wait tickets and widget presence.
+"""In-memory gates of the omniscient daemon: wait tickets and widget presence.
 
 - `TicketBook`: POST /hook returns a random ticket bound to the pending it opened; only
   that ticket (once) lets the hook credential wait on that pending. Only its hash is

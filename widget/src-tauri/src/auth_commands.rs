@@ -99,7 +99,7 @@ pub async fn auth_start(state: State<'_, AppState>, provider: String) -> CmdResu
     let raw = reply.get("url").and_then(Value::as_str).ok_or("Réponse du démon invalide.")?;
     let url = validate_browser_url(raw)?;
     if let Err(err) = open_in_browser(&url) {
-        eprintln!("omnigroup: {err}");
+        eprintln!("omniscient: {err}");
     }
     Ok(json!({ "url": url.as_str(), "expires_in": reply.get("expires_in").cloned().unwrap_or(Value::Null) }))
 }

@@ -1,4 +1,4 @@
-"""Install, remove or inspect the omnigroup hooks in Claude Code and Copilot settings.
+"""Install, remove or inspect the omniscient hooks in Claude Code and Copilot settings.
 
 `omniscient group hooks install|uninstall|status [--target claude|copilot|all] [--write]
 [--path P]`. Without --write nothing is written: the merged file is shown as a unified
@@ -52,7 +52,7 @@ from omniscient.theme.export import backup
 Target = Literal["claude", "copilot"]
 TARGETS: tuple[Target, ...] = ("claude", "copilot")
 CLAUDE_SETTINGS = Path.home() / ".claude" / "settings.json"
-COPILOT_HOOKS = Path.home() / ".copilot" / "hooks" / "omnigroup.json"
+COPILOT_HOOKS = Path.home() / ".copilot" / "hooks" / "omniscient.json"
 WAIT_TIMEOUT_S = 110  # Claude: the hook long-polls up to 100 s
 FAST_TIMEOUT_S = 5
 COPILOT_TIMEOUT_S = 30  # Copilot: the hook long-polls up to 25 s
@@ -312,7 +312,7 @@ def _status_line(st: HookStatus) -> str:
     total = len(st.installed) + len(st.missing)
     line = f"{st.target} ({st.path}) : {len(st.installed)}/{total} événements"
     line += f" — manquants : {', '.join(st.missing)}" if st.missing else ""
-    line += " — statusLine omnigroup" if st.statusline else ""
+    line += " — statusLine omniscient" if st.statusline else ""
     return line + (" — protection --protect active" if st.protected else "")
 
 

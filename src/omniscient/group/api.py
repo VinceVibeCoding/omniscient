@@ -1,4 +1,4 @@
-"""omnigroup HTTP routes: validation and store calls, independent of the socket layer.
+"""omniscient HTTP routes: validation and store calls, independent of the socket layer.
 
 Each handler takes (app, ids, query, body) and returns (status, JSON object). The server
 module owns transport concerns (CORS, body limits, checking the credential each route
@@ -300,7 +300,7 @@ def _ask_collector(
     try:
         ok, message = collector.answer(pending, answer)
     except Exception:
-        log.exception("omnigroup: collector %s failed to answer", source)
+        log.exception("omniscient: collector %s failed to answer", source)
         return False, f"Le collecteur {source} n'a pas pu transmettre la réponse."
     return bool(ok), str(message)
 

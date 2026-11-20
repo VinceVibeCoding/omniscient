@@ -2542,8 +2542,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "omnigroup"
-version = "0.2.1"
+name = "omniscient-widget"
+version = "0.2.2"
 dependencies = [
  "futures-util",
  "getrandom 0.4.3",

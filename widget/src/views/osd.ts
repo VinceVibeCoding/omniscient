@@ -130,8 +130,8 @@ export function osdView(m: OsdModel, expand: () => void): HTMLElement {
   const online = m.link.state === "connected";
   const waiting = countSessions([...m.sessions]).waiting > 0;
   const label = online
-    ? "Omnigroup : utilisation Claude. Clic : ouvrir le panneau. Clic droit : vue, thème, taille, ticker."
-    : `Omnigroup : ${m.link.message} Ouvrir le panneau.`;
+    ? "Omniscient : utilisation Claude. Clic : ouvrir le panneau. Clic droit : vue, thème, taille, ticker."
+    : `Omniscient : ${m.link.message} Ouvrir le panneau.`;
   const root = h(
     "div",
     {

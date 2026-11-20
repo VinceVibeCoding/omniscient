@@ -277,7 +277,7 @@ def _send_prompt(
         proc.stdin.write(prompt_payload(text, image))
         proc.stdin.close()
     except (BrokenPipeError, OSError):
-        log.warning("omnigroup chat: claude closed its input early")
+        log.warning("omniscient chat: claude closed its input early")
 
 
 def _lines(stream: Any) -> Any:
@@ -286,7 +286,7 @@ def _lines(stream: Any) -> Any:
         if len(line) <= MAX_LINE_CHARS:
             yield line
             continue
-        log.warning("omnigroup chat: stream-json line too long, skipped")
+        log.warning("omniscient chat: stream-json line too long, skipped")
         while line and not line.endswith("\n"):  # drop the rest of that line
             line = stream.readline(MAX_LINE_CHARS + 1)
 
@@ -354,7 +354,7 @@ def _outcome(
         return TurnOutcome(False, session_id, cost, "Tour arrêté.", stopped=True)
     if stderr.strip():
         log.warning(
-            "omnigroup chat: claude exited with code %s: %s",
+            "omniscient chat: claude exited with code %s: %s",
             code,
             redact_secrets(stderr.strip()[-STDERR_KEEP:], keep_paths=True),
         )

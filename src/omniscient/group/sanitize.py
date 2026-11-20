@@ -1,4 +1,4 @@
-"""Text hygiene shared by every omnigroup model: clipping and secret redaction.
+"""Text hygiene shared by every omniscient model: clipping and secret redaction.
 
 Step texts and session titles are redacted with local paths masked. A pending's payload
 is redacted leaf by leaf; what the owner answers to — a permission's preview

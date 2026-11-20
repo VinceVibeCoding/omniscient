@@ -18,7 +18,7 @@ runner = CliRunner()
 @pytest.fixture
 def paths(tmp_path: Path) -> cs.ConfigPaths:
     return cs.ConfigPaths(
-        tmp_path / "xdg/omnigroup/config.json", tmp_path / "claude/settings.json"
+        tmp_path / "xdg/omniscient/config.json", tmp_path / "claude/settings.json"
     )
 
 
@@ -34,10 +34,10 @@ def test_default_paths_follow_xdg_and_claude_config_dir(tmp_path: Path) -> None:
             "CLAUDE_CONFIG_DIR": str(tmp_path / "c"),
         }
     )
-    assert p.config == tmp_path / "x/omnigroup/config.json"
+    assert p.config == tmp_path / "x/omniscient/config.json"
     assert p.settings == tmp_path / "c/settings.json"
     home = cs.ConfigPaths.default({})
-    assert home.config == Path.home() / ".config/omnigroup/config.json"
+    assert home.config == Path.home() / ".config/omniscient/config.json"
 
 
 def test_defaults_when_nothing_exists(paths: cs.ConfigPaths) -> None:
@@ -91,9 +91,9 @@ def test_settings_env_wins_and_locks(paths: cs.ConfigPaths) -> None:
     settings(
         paths,
         {
-            "OMNIGROUP_THEME": "dashboard",
-            "OMNIGROUP_SHOW_TICKER": "0",
-            "OMNIGROUP_OSD_VIEW": "bogus",
+            "OMNISCIENT_THEME": "dashboard",
+            "OMNISCIENT_SHOW_TICKER": "0",
+            "OMNISCIENT_OSD_VIEW": "bogus",
         },
     )
     view = cs.effective(paths)

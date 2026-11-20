@@ -118,7 +118,7 @@ def test_hooks_install_previews_then_writes(
     status = runner.invoke(
         cli.app, ["group", "hooks", "status", "--target", "claude", "--path", str(path)]
     )
-    assert "statusLine omnigroup" in status.output
+    assert "statusLine omniscient" in status.output
     gone = runner.invoke(
         cli.app,
         [

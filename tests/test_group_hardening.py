@@ -1,4 +1,4 @@
-"""omnigroup hardening units: « Toujours » rules (M2), previews and payload redaction
+"""omniscient hardening units: « Toujours » rules (M2), previews and payload redaction
 (M1, M3), wait tickets and presence, file modes and widget tokens (M4)."""
 
 from __future__ import annotations

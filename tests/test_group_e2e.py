@@ -1,4 +1,4 @@
-"""omnigroup end to end, offline: real daemon (ephemeral port, tmp home), real hook
+"""omniscient end to end, offline: real daemon (ephemeral port, tmp home), real hook
 client fed recorded Claude Code payloads on a fake stdin, answers posted over HTTP."""
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ def daemon(
 def context(server: srv.GroupServer, tmp_path: Path) -> HookContext:
     return HookContext(
         state_dir=server.app.home.state,
-        environ={"OMNIGROUP_URL": f"http://127.0.0.1:{server.port}"},
+        environ={"OMNISCIENT_URL": f"http://127.0.0.1:{server.port}"},
         copilot_hooks=tmp_path / "no-copilot.json",
     )
 

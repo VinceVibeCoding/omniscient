@@ -16,7 +16,7 @@ def _page(heading: str, text: str, ok: bool) -> str:
     return (
         '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"<title>Omnigroup</title><style>{_STYLE}</style></head><body><main>"
+        f"<title>Omniscient</title><style>{_STYLE}</style></head><body><main>"
         f'<h1 class="{tone}">{heading}</h1><p>{text}</p></main></body></html>'
     )
 
@@ -24,7 +24,7 @@ def _page(heading: str, text: str, ok: bool) -> str:
 def success() -> str:
     return _page(
         "Connecté ✓",
-        "Vous pouvez fermer cet onglet et retourner dans le widget Omnigroup.",
+        "Vous pouvez fermer cet onglet et retourner dans le widget Omniscient.",
         True,
     )
 
@@ -32,7 +32,7 @@ def success() -> str:
 def confirmed() -> str:
     return _page(
         "E-mail confirmé ✓",
-        "Retournez dans le widget Omnigroup pour vous connecter.",
+        "Retournez dans le widget Omniscient pour vous connecter.",
         True,
     )
 

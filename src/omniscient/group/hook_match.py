@@ -1,4 +1,4 @@
-"""Recognising omnigroup's own hook commands in agent settings (exact argv match)."""
+"""Recognising omniscient's own hook commands in agent settings (exact argv match)."""
 
 from __future__ import annotations
 

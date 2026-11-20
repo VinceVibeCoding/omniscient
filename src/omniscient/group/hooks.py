@@ -1,4 +1,4 @@
-"""Translate Claude Code and GitHub Copilot hook events for omnigroup (pure functions).
+"""Translate Claude Code and GitHub Copilot hook events for omniscient (pure functions).
 
 `translate(source, event)` turns one hook event into the session update, step and
 pending decision the server stores; `decision_output(source, event, answer)` renders the
@@ -26,9 +26,9 @@ HOOK_SCRIPT = "omniscient-hook"  # the lightweight console script the installer 
 MARKS = (MARK, "omniscient.group.hook_client", HOOK_SCRIPT)
 WAIT_S = {"claude": 100, "copilot": 25}  # within hook timeouts of 110 s and 30 s
 ASK_TOOL = "AskUserQuestion"
-DENY_MESSAGE = "Refusé depuis omnigroup"
+DENY_MESSAGE = "Refusé depuis omniscient"
 PREVIEW_MAX = PAYLOAD_TEXT_MAX  # beyond: clipped, "truncated", only "deny" (M1)
-CONTEXT_KEY = "omnigroup"  # extra info the hook adds to the event it posts
+CONTEXT_KEY = "omniscient"  # extra info the hook adds to the event it posts
 COPILOT_EVENTS = {
     "sessionStart": "SessionStart",
     "sessionEnd": "SessionEnd",
@@ -62,7 +62,7 @@ _BRIEF_KEYS = ("command", "file_path", "path", "pattern", "url", "query", "descr
 
 
 class HookError(ValueError):
-    """The hook event is not something omnigroup understands."""
+    """The hook event is not something omniscient understands."""
 
 
 @dataclass(frozen=True)
@@ -93,7 +93,7 @@ def _native_id(event: Mapping[str, Any]) -> str:
 
 
 def session_key(source: str, event: Mapping[str, Any]) -> str:
-    """The omnigroup session id ("<source>:<native id>") of a hook event."""
+    """The omniscient session id ("<source>:<native id>") of a hook event."""
     return f"{source}:{_native_id(event)}"
 
 

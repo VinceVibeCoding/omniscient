@@ -1,9 +1,9 @@
-"""Widget display settings: `~/.config/omnigroup/config.json` (+ Claude Code settings).
+"""Widget display settings: `~/.config/omniscient/config.json` (+ Claude Code settings).
 
 The file holds the owner's choices (theme, OSD view, ticker); the widget's right-click
-menu, `omniscient group config set` and the /omnigroup Claude Code skills all write it.
-A key can also be set in `~/.claude/settings.json` under `env` (OMNIGROUP_THEME,
-OMNIGROUP_OSD_VIEW, OMNIGROUP_SHOW_TICKER): it then wins and is "locked" — changing it
+menu, `omniscient group config set` and the /omniscient Claude Code skills all write it.
+A key can also be set in `~/.claude/settings.json` under `env` (OMNISCIENT_THEME,
+OMNISCIENT_OSD_VIEW, OMNISCIENT_SHOW_TICKER): it then wins and is "locked" — changing it
 elsewhere is refused (409) so the two never disagree silently. Unknown keys in the file
 are kept on write; invalid values are ignored with a warning. Writes are serialised by a
 lock, and a config.json that cannot be read is never overwritten (500: fix or delete it).
@@ -28,9 +28,9 @@ THEMES = ("default", "terminal", "dashboard")
 VIEWS = ("bars", "gauge")
 DEFAULTS: dict[str, Any] = {"theme": "default", "osd_view": "bars", "show_ticker": True}
 ENV_KEYS = {
-    "theme": "OMNIGROUP_THEME",
-    "osd_view": "OMNIGROUP_OSD_VIEW",
-    "show_ticker": "OMNIGROUP_SHOW_TICKER",
+    "theme": "OMNISCIENT_THEME",
+    "osd_view": "OMNISCIENT_OSD_VIEW",
+    "show_ticker": "OMNISCIENT_SHOW_TICKER",
 }
 TRUE_WORDS = frozenset({"1", "true", "yes", "on", "oui"})
 FALSE_WORDS = frozenset({"0", "false", "no", "off", "non"})
@@ -59,7 +59,7 @@ class ConfigPaths:
         base = Path(xdg).expanduser() if xdg else Path.home() / ".config"
         claude = env.get("CLAUDE_CONFIG_DIR", "").strip()
         claude_dir = Path(claude).expanduser() if claude else Path.home() / ".claude"
-        return cls(base / "omnigroup" / "config.json", claude_dir / "settings.json")
+        return cls(base / "omniscient" / "config.json", claude_dir / "settings.json")
 
 
 def coerce(key: str, value: Any) -> Any:
@@ -88,13 +88,13 @@ def coerce(key: str, value: Any) -> Any:
 def _read_json(path: Path) -> dict[str, Any]:
     try:
         if path.stat().st_size > MAX_FILE_BYTES:
-            log.warning("omnigroup: %s ignored (too large)", path.name)
+            log.warning("omniscient: %s ignored (too large)", path.name)
             return {}
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return {}
     except (OSError, ValueError) as exc:
-        log.warning("omnigroup: %s ignored: %s", path.name, exc)
+        log.warning("omniscient: %s ignored: %s", path.name, exc)
         return {}
     return data if isinstance(data, dict) else {}
 
@@ -122,12 +122,12 @@ def _valid_or_none(key: str, value: Any, origin: str) -> Any:
     try:
         return coerce(key, value)
     except ConfigError:
-        log.warning("omnigroup: %s: invalid %s=%r ignored", origin, key, value)
+        log.warning("omniscient: %s: invalid %s=%r ignored", origin, key, value)
         return None
 
 
 def settings_overrides(paths: ConfigPaths) -> dict[str, Any]:
-    """Valid OMNIGROUP_* values from the Claude Code settings `env` block."""
+    """Valid OMNISCIENT_* values from the Claude Code settings `env` block."""
     env = _read_json(paths.settings).get("env")
     if not isinstance(env, dict):
         return {}

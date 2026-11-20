@@ -17,7 +17,7 @@
 #   --no-daemon      ne pas lancer le démon
 #   --port N         port du démon (défaut : 7341)
 #   --help           cette aide
-# Variables équivalentes : OMNIGROUP_INSTALL_WHEEL, _SKIPWIDGET, _NODAEMON, _PORT.
+# Variables équivalentes : OMNISCIENT_INSTALL_WHEEL, _SKIPWIDGET, _NODAEMON, _PORT.
 set -eu
 
 REPO='VinceVibeCoding/omniscient'
@@ -25,10 +25,10 @@ BASE="https://github.com/$REPO/releases/latest/download"
 TOTAL=5
 DEFAULT_PORT=7341
 
-WHEEL=${OMNIGROUP_INSTALL_WHEEL:-}
-SKIP_WIDGET=${OMNIGROUP_INSTALL_SKIPWIDGET:-}
-NO_DAEMON=${OMNIGROUP_INSTALL_NODAEMON:-}
-PORT=${OMNIGROUP_INSTALL_PORT:-$DEFAULT_PORT}
+WHEEL=${OMNISCIENT_INSTALL_WHEEL:-}
+SKIP_WIDGET=${OMNISCIENT_INSTALL_SKIPWIDGET:-}
+NO_DAEMON=${OMNISCIENT_INSTALL_NODAEMON:-}
+PORT=${OMNISCIENT_INSTALL_PORT:-$DEFAULT_PORT}
 WORK=''
 OMNI=''
 
@@ -71,7 +71,7 @@ Usage : curl -fsSL https://raw.githubusercontent.com/VinceVibeCoding/omniscient/
   --no-daemon      ne pas lancer le démon
   --port N         port du démon (défaut : 7341)
   --help           cette aide
-Variables : OMNIGROUP_INSTALL_WHEEL, _SKIPWIDGET, _NODAEMON, _PORT.
+Variables : OMNISCIENT_INSTALL_WHEEL, _SKIPWIDGET, _NODAEMON, _PORT.
 EOT
 }
 
@@ -199,8 +199,8 @@ install_engine() {
 start_with_systemd() {
     "$OMNI" schedule install --write >/dev/null 2>&1 || return 1
     systemctl --user daemon-reload || return 1
-    systemctl --user enable omnigroup.service >/dev/null 2>&1 || return 1
-    systemctl --user restart omnigroup.service || return 1
+    systemctl --user enable omniscient.service >/dev/null 2>&1 || return 1
+    systemctl --user restart omniscient.service || return 1
 }
 
 start_detached() {
@@ -225,10 +225,10 @@ install_daemon() {
     "$OMNI" group serve --check-port --port "$PORT" \
         || die "le port $PORT est inutilisable pour le démon (voir ci-dessus) : relance avec un autre port, par exemple --port $((PORT + 10))."
     if [ "$PORT" -eq "$DEFAULT_PORT" ] && has_systemd_user && start_with_systemd; then
-        ok "Service systemd utilisateur 'omnigroup' activé (démarre à chaque ouverture de session)."
+        ok "Service systemd utilisateur 'omniscient' activé (démarre à chaque ouverture de session)."
     else
         if [ "$PORT" -ne "$DEFAULT_PORT" ]; then
-            warn "Port $PORT : les hooks suivent la variable OMNIGROUP_URL=http://127.0.0.1:$PORT (ajoute-la à ton profil shell)."
+            warn "Port $PORT : les hooks suivent la variable OMNISCIENT_URL=http://127.0.0.1:$PORT (ajoute-la à ton profil shell)."
         fi
         start_detached
     fi
@@ -250,7 +250,7 @@ install_widget() {
     WIDGET_DIR="$wdir"
     "$OMNI" group setup --write --port "$PORT" --widget-dir "$wdir" --update-widget || die "omniscient group setup a échoué (voir ci-dessus)."
     setup_exe=''
-    for f in "$wdir"/Omnigroup_*-setup.exe; do
+    for f in "$wdir"/Omniscient_*-setup.exe; do
         if [ -f "$f" ]; then setup_exe=$f; break; fi
     done
     if [ -z "$setup_exe" ]; then
@@ -261,10 +261,10 @@ install_widget() {
     info "Installation silencieuse du widget (pour ton utilisateur Windows)..."
     powershell.exe -NoProfile -Command "\$p = Start-Process -FilePath '$win_exe' -ArgumentList '/S' -Wait -PassThru; exit \$p.ExitCode" </dev/null \
         || die "l'installeur du widget a échoué."
-    if powershell.exe -NoProfile -Command "\$a = Join-Path \$env:LOCALAPPDATA 'Omnigroup\\omnigroup.exe'; if (-not (Test-Path \$a)) { \$a = Join-Path \$env:LOCALAPPDATA 'Programs\\Omnigroup\\omnigroup.exe' }; if (Test-Path \$a) { Start-Process \$a; exit 0 } else { exit 1 }" </dev/null; then
-        ok "Widget installé et lancé (menu Démarrer > Omnigroup)."
+    if powershell.exe -NoProfile -Command "\$a = Join-Path \$env:LOCALAPPDATA 'Omniscient\\omniscient-widget.exe'; if (-not (Test-Path \$a)) { \$a = Join-Path \$env:LOCALAPPDATA 'Programs\\Omniscient\\omniscient-widget.exe' }; if (Test-Path \$a) { Start-Process \$a; exit 0 } else { exit 1 }" </dev/null; then
+        ok "Widget installé et lancé (menu Démarrer > Omniscient)."
     else
-        warn "Widget installé, mais pas lancé : ouvre Omnigroup depuis le menu Démarrer."
+        warn "Widget installé, mais pas lancé : ouvre Omniscient depuis le menu Démarrer."
     fi
     rm -rf "$wdir"
 }
@@ -292,7 +292,7 @@ final_status() {
     "$OMNI" group status --port "$PORT" || warn "Le démon ne répond pas : lance 'omniscient group doctor'."
     printf '\n%sEt maintenant%s\n' "$C_OK" "$C_OFF"
     if is_wsl && [ -z "$SKIP_WIDGET" ]; then
-        echo "  1. Ouvre Omnigroup (menu Démarrer de Windows)."
+        echo "  1. Ouvre Omniscient (menu Démarrer de Windows)."
         echo "  2. Va dans Réglages > Demander un code, puis tape le code à 6 chiffres."
     else
         echo "  Pas de widget ici : utilise le terminal."

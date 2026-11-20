@@ -41,14 +41,14 @@ from omniscient.group.hooks import (
 from omniscient.home import Home, find_home
 
 DEFAULT_URL = "http://127.0.0.1:7341"
-URL_ENV = "OMNIGROUP_URL"
-TICKET_HEADER = "X-Omnigroup-Ticket"
+URL_ENV = "OMNISCIENT_URL"
+TICKET_HEADER = "X-Omniscient-Ticket"
 LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost"})
 TOKEN_FILE = "group.token"
 POST_TIMEOUT_S = 2.0
 FAST_POST_TIMEOUT_S = 1.0
 LONG_POLL_MAX_S = 120
-COPILOT_HOOKS_FILE = Path.home() / ".copilot" / "hooks" / "omnigroup.json"
+COPILOT_HOOKS_FILE = Path.home() / ".copilot" / "hooks" / "omniscient.json"
 
 Transport = Callable[[str, str, dict[str, str], bytes | None, float], Any]
 
@@ -76,7 +76,7 @@ class HookContext:
 
 
 def _base_url(environ: Mapping[str, str]) -> str:
-    """OMNIGROUP_URL (default 127.0.0.1:7341): plain http to this machine, nothing else."""
+    """OMNISCIENT_URL (default 127.0.0.1:7341): plain http to this machine, nothing else."""
     url = environ.get(URL_ENV, DEFAULT_URL).rstrip("/")
     try:
         parts = urlsplit(url)
@@ -170,7 +170,7 @@ def run_hook(
     """`omniscient group hook`: always exits 0; prints a decision only when answered."""
     token_file = ctx.state_dir / TOKEN_FILE
     if not token_file.is_file():
-        return 0  # omnigroup not set up: stay out of the way, silently
+        return 0  # omniscient not set up: stay out of the way, silently
     try:
         token = token_file.read_text(encoding="utf-8").strip()
         if not token:
@@ -193,7 +193,7 @@ def run_hook(
         if output is not None:
             stdout.write(json.dumps(output, ensure_ascii=False) + "\n")
     except (OSError, ValueError, http.client.HTTPException) as exc:  # fail open
-        print(f"omnigroup hook ignoré : {exc}", file=sys.stderr)
+        print(f"omniscient hook ignoré : {exc}", file=sys.stderr)
     return 0
 
 
@@ -202,7 +202,7 @@ STATUS_POST_TIMEOUT_S = 0.5  # the status line redraws often: never make it wait
 
 def status_text(event: Mapping[str, Any]) -> str:
     """A short French status line from Claude Code's statusLine JSON."""
-    parts = ["omnigroup"]
+    parts = ["omniscient"]
     model = event.get("model")
     if isinstance(model, dict) and isinstance(model.get("display_name"), str):
         parts.append(model["display_name"])
@@ -226,8 +226,8 @@ def run_statusline(stdin: TextIO, stdout: TextIO, ctx: HookContext) -> int:
         if not isinstance(event, dict):
             raise HookError("statusLine stdin must be a JSON object")
     except ValueError as exc:
-        print(f"omnigroup statusline : {exc}", file=sys.stderr)
-        stdout.write("omnigroup\n")
+        print(f"omniscient statusline : {exc}", file=sys.stderr)
+        stdout.write("omniscient\n")
         return 0
     stdout.write(status_text(event) + "\n")
     stdout.flush()
@@ -245,7 +245,7 @@ def run_statusline(stdin: TextIO, stdout: TextIO, ctx: HookContext) -> int:
         data = json.dumps(body).encode("utf-8")
         ctx.transport("POST", url, headers, data, STATUS_POST_TIMEOUT_S)
     except (OSError, ValueError, http.client.HTTPException) as exc:
-        print(f"omnigroup statusline ignoré : {exc}", file=sys.stderr)
+        print(f"omniscient statusline ignoré : {exc}", file=sys.stderr)
     return 0
 
 
@@ -281,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
     if (
         args.source is None
     ):  # exit 0, never 2: a hook exiting 2 would block the tool call
-        print("omnigroup hook ignoré : --source est requis", file=sys.stderr)
+        print("omniscient hook ignoré : --source est requis", file=sys.stderr)
         return 0
     return run_hook(args.source, sys.stdin, sys.stdout, ctx, args.fast, args.event)
 

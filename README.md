@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB.svg)](https://www.python.org/)
 
-[Quick start](#quick-start) · [Omnigroup widget](#omnigroup-the-widget) · [Ideas](#ideas-the-factory) · [Bring your own AI](#bring-your-own-ai) · [Privacy](#privacy-and-security) · [Roadmap](#roadmap) · [Contributing](#contributing)
+[Quick start](#quick-start) · [Omniscient widget](#omniscient-the-widget) · [Ideas](#ideas-the-factory) · [Bring your own AI](#bring-your-own-ai) · [Privacy](#privacy-and-security) · [Roadmap](#roadmap) · [Contributing](#contributing)
 
 </div>
 
@@ -21,7 +21,7 @@ Omniscient has two halves that work alone or together:
 
 | | What it is | You use it to |
 |---|---|---|
-| **Omnigroup** (the widget) | A small always-on-top Windows app. | Watch every AI agent you run, approve their requests, and **chat with the AI of your choice about the web page you are looking at**. |
+| **Omniscient** (the widget) | A small always-on-top Windows app. | Watch every AI agent you run, approve their requests, and **chat with the AI of your choice about the web page you are looking at**. |
 | **The idea factory** | A terminal studio plus five background loops. | Turn tech news into ideas, have a council of agents debate and score them, and build throwaway prototypes. |
 
 Free and MIT-licensed. Bring your own AI: Claude Code, an API key, or a local model. Your keys and
@@ -57,15 +57,15 @@ That is the whole install. It needs Windows 10/11 and an internet connection, no
 admin rights, no git, no Python: the script fetches what is missing; Claude Code is optional, it is
 only needed for coding chats). It installs uv, the engine (SHA-256 verified, no git), starts the
 engine at every logon, writes the Claude Code hooks (settings backed up first) and installs the
-Omnigroup widget.
+Omniscient widget.
 
 **Update:** `omniscient update` (engine and widget; `--check` only compares, `--dry-run` shows the plan).
 
-Then open **Omnigroup** from the Start menu, go to *Réglages › Demander un code*, type the 6-digit
+Then open **Omniscient** from the Start menu, go to *Réglages › Demander un code*, type the 6-digit
 code shown on your desktop, pick your AI and choose a look. Pin it to your taskbar (right-click ›
 *Pin to taskbar*).
 
-**Uninstall:** Windows *Settings › Apps › Omnigroup › Uninstall*, then
+**Uninstall:** Windows *Settings › Apps › Omniscient › Uninstall*, then
 `omniscient group autostart remove`, `omniscient group hooks uninstall --write` and
 `uv tool uninstall omniscient`. What the script does, what it writes where, full uninstall and
 troubleshooting (SmartScreen, antivirus, no winget, proxy): [docs/install.md](docs/install.md)
@@ -106,8 +106,8 @@ omniscient group serve
 omniscient group autostart install --write
 ```
 
-`--write` downloads the Omnigroup installer into your *Downloads* folder and verifies its SHA-256.
-**Run that installer** (it adds *Omnigroup* to the Start menu; WebView2 is installed if missing).
+`--write` downloads the Omniscient installer into your *Downloads* folder and verifies its SHA-256.
+**Run that installer** (it adds *Omniscient* to the Start menu; WebView2 is installed if missing).
 
 #### B. WSL2 / Linux
 
@@ -128,7 +128,7 @@ omniscient group setup --write     # hooks (settings backed up first) + widget d
 omniscient group serve
 #    ... or run it as a service (needs systemd; in WSL2 set `systemd=true` in /etc/wsl.conf):
 omniscient schedule install --write
-systemctl --user enable --now omnigroup
+systemctl --user enable --now omniscient
 ```
 
 From WSL, `--write` saves the installer in your **Windows** *Downloads* folder. **Run it from
@@ -136,7 +136,7 @@ Windows** (double-click, or `explorer.exe .` from that folder).
 
 #### Then, on both paths: pair
 
-Open **Omnigroup** from the Start menu, go to *Réglages › Demander un code*, type the 6-digit code
+Open **Omniscient** from the Start menu, go to *Réglages › Demander un code*, type the 6-digit code
 shown on your desktop, pick your AI and choose a look. Pin it to your taskbar (right-click › *Pin to
 taskbar*): one click on that icon brings the widget back, even after you quit it.
 
@@ -159,7 +159,7 @@ omniscient studio                 # the idea board
 
 The studio needs no API key. Details: [docs/factory.md](docs/factory.md).
 
-## Omnigroup, the widget
+## Omniscient, the widget
 
 One window, three tabs.
 
@@ -191,7 +191,7 @@ launch at login, the daemon address, and the first-run assistant.
 The OSD (the small collapsed view) shows your Claude limits and live token rate; click it, or the
 panel's header, to unfold and fold it. Right-click it for views, themes and the ticker.
 
-Full guide, hooks, threat model and verified behaviour: [docs/omnigroup.md](docs/omnigroup.md) (in French).
+Full guide, hooks, threat model and verified behaviour: [docs/omniscient.md](docs/omniscient.md) (in French).
 
 ### Extensions
 
@@ -261,7 +261,7 @@ Setup for the project owner: [docs/accounts.md](docs/accounts.md).
 - Tokens live in the Windows Credential Manager; the daemon keeps only a hash.
 - No analytics, no telemetry.
 
-Threat model and reporting: [docs/omnigroup.md](docs/omnigroup.md) and [SECURITY.md](SECURITY.md).
+Threat model and reporting: [docs/omniscient.md](docs/omniscient.md) and [SECURITY.md](SECURITY.md).
 
 ## Requirements
 
@@ -313,7 +313,7 @@ uv run pytest -q
 
 **Omniscient** est une **usine à idées** et un **widget de bureau qui voit la page que tu regardes**.
 
-- **Omnigroup (le widget Windows)** : tous tes agents IA dans une fenêtre, des approbations en un
+- **Omniscient (le widget Windows)** : tous tes agents IA dans une fenêtre, des approbations en un
   clic, et un chat avec l'IA de ton choix (Claude Code, API Anthropic / OpenAI / Gemini, ou un
   modèle local). Il lit lui-même la page web ouverte dans ton navigateur, **sans extension**, te
   montre où est un élément (« Montrer »), et peut joindre une capture de cette seule fenêtre si tu
@@ -336,4 +336,4 @@ omniscient init                   # l'usine : dossier, profil, projets, clés
 
 Gratuit, MIT. Tes clés et tes conversations restent sur ton ordinateur. L'interface est en français
 pour l'instant ; les contributions pour l'anglais sont les bienvenues. Guide complet du widget :
-[docs/omnigroup.md](docs/omnigroup.md).
+[docs/omniscient.md](docs/omniscient.md).

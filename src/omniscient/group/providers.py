@@ -210,7 +210,7 @@ class ProviderStore:
         except FileNotFoundError:
             return {}
         except (OSError, ValueError) as exc:
-            log.warning("omnigroup providers: %s ignored (%s)", name, exc)
+            log.warning("omniscient providers: %s ignored (%s)", name, exc)
             return {}
         return data if isinstance(data, dict) else {}
 
@@ -227,7 +227,7 @@ class ProviderStore:
                     pid, item["kind"], item["label"], item["base_url"], item["model"]
                 )
             except (KeyError, TypeError) as exc:
-                log.warning("omnigroup providers: %s ignored (%s)", pid, exc)
+                log.warning("omniscient providers: %s ignored (%s)", pid, exc)
         keys = {
             k: v
             for k, v in self._read("provider_keys.json").items()

@@ -57,7 +57,12 @@ _EMAIL = re.compile(
     r"\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})\b"
 )
 _ALLOWED_EMAIL_LOCAL = ("noreply", "no-reply", "git")  # git@github.com is an SSH remote
-_ALLOWED_EMAIL_DOMAINS = ("example.com", "example.org", "example.net", "users.noreply.github.com")
+_ALLOWED_EMAIL_DOMAINS = (
+    "example.com",
+    "example.org",
+    "example.net",
+    "users.noreply.github.com",
+)
 _HOME_PATH = re.compile(r"/home/[a-z_][a-z0-9_-]*/")
 
 

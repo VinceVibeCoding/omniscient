@@ -97,7 +97,7 @@ pub fn set_link(app: &AppHandle, status: LinkStatus) {
     let state = app.state::<AppState>();
     *lock(&state.link) = status.clone();
     if let Err(err) = app.emit(STATUS_EVENT, status) {
-        eprintln!("omnigroup: status event not delivered: {err}");
+        eprintln!("omniscient: status event not delivered: {err}");
     }
 }
 
