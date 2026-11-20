@@ -26,9 +26,9 @@ from omniscient.group.collect_agentrun import (
     default_api,
     send_message,
 )
+from omniscient.group.herdr_runner import HerdrError
+from omniscient.group.herdr_runner import default_runner as herdr_runner
 from omniscient.group.models import Session
-from omniscient.studio.herdr import HerdrError
-from omniscient.studio.herdr import default_runner as herdr_runner
 
 RUN_TIMEOUT_S = 15
 PROMPT_MAX = 8000

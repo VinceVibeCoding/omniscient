@@ -1,4 +1,4 @@
-"""Onboarding commands: `omniscient init`, `project add|list`, `theme …`, `schedule …`."""
+"""Commands: `project add|list`, `theme …`, `schedule …`."""
 
 from __future__ import annotations
 
@@ -17,24 +17,6 @@ project_app = typer.Typer(
 
 def _ask(question: str, default: str) -> str:
     return str(typer.prompt(question, default=default, show_default=bool(default)))
-
-
-def init(
-    home_dir: Annotated[
-        str | None,
-        typer.Option("--home", help="Dossier Omniscient (défaut : ~/.omniscient)."),
-    ] = None,
-) -> None:
-    """Créer ou mettre à jour ton dossier Omniscient : profil, thème, projets, clés."""
-    from omniscient.home import Home
-    from omniscient.onboarding import OnboardingError, run_init
-
-    home = Home(Path(home_dir).expanduser().resolve()) if home_dir else find_home()
-    try:
-        run_init(home, _ask, typer.echo)
-    except OnboardingError as exc:
-        typer.echo(f"Erreur : {exc}", err=True)
-        raise typer.Exit(code=1) from exc
 
 
 @project_app.command("add")
@@ -84,7 +66,7 @@ def project_list() -> None:
 
 
 theme_app = typer.Typer(
-    help="Thèmes du terminal (studio, volets, Windows Terminal, herdr).",
+    help="Thèmes (couleurs du widget, Windows Terminal, herdr).",
     no_args_is_help=True,
 )
 
@@ -107,14 +89,8 @@ def theme_list() -> None:
 
 @theme_app.command("set")
 def theme_set(name: str) -> None:
-    """Choisir le thème du studio et des volets."""
+    """Choisir le thème."""
     _theme_call("theme_set", name)
-
-
-@theme_app.command("preview")
-def theme_preview(name: Annotated[str | None, typer.Argument()] = None) -> None:
-    """Aperçu : couleurs, bande ANSI, salle de crise et à faire."""
-    _theme_call("theme_preview", name)
 
 
 @theme_app.command("export")
@@ -139,7 +115,7 @@ def theme_export(
 
 
 schedule_app = typer.Typer(
-    help="Minuteur systemd (utilisateur) du cycle quotidien et du widget Omniscient.",
+    help="Service systemd (utilisateur) du démon Omniscient.",
     no_args_is_help=True,
 )
 WriteFlag = Annotated[
@@ -160,7 +136,7 @@ def _rendered_units() -> tuple[Any, ...]:
 
 @schedule_app.command("install")
 def schedule_install(write: WriteFlag = False) -> None:
-    """Afficher (et avec --write, écrire) les unités systemd ; ne lance jamais systemctl."""
+    """Afficher (et avec --write, écrire) l'unité systemd du démon ; ne lance jamais systemctl."""
     from omniscient import schedule as sch
 
     units, target = _rendered_units(), sch.unit_dir()
@@ -174,9 +150,8 @@ def schedule_install(write: WriteFlag = False) -> None:
     except sch.ScheduleError as exc:
         typer.echo(f"Erreur : {exc}", err=True)
         raise typer.Exit(code=1) from exc
-    typer.echo(f"{len(written)} unités écrites dans {target}. Active-les toi-même :")
+    typer.echo(f"{len(written)} unité écrite dans {target}. Active-la toi-même :")
     typer.echo(f"  {sch.ENABLE_CMD}")
-    typer.echo(f"  {sch.GROUP_CMD}   # optionnel : le démon omniscient")
 
 
 @schedule_app.command("uninstall")
@@ -207,11 +182,10 @@ def schedule_status() -> None:
     target = sch.unit_dir()
     for name, state in sch.unit_states(_rendered_units(), target):
         typer.echo(f"{name:<28} {state}")
-    typer.echo(f"État du minuteur : systemctl --user list-timers {sch.TIMER}")
+    typer.echo(f"État du service : systemctl --user status {sch.GROUP}")
 
 
 def register_onboarding(app: typer.Typer) -> None:
-    app.command("init")(init)
     app.add_typer(project_app, name="project")
     app.add_typer(theme_app, name="theme")
     app.add_typer(schedule_app, name="schedule")

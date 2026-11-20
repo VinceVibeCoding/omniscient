@@ -1,4 +1,4 @@
-"""Colour palettes for the studio and the user's terminal ("ricing").
+"""Colour palettes for the widget and the user's terminal ("ricing").
 
 Each Palette carries semantic slots (used by the Textual apps and the rich panes) and the
 16 ANSI colours (exported to Windows Terminal / herdr). Popular Omarchy-style themes use

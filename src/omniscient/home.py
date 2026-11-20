@@ -1,20 +1,17 @@
 """Where a user's Omniscient data lives (the "home"), separate from the engine code.
 
-The engine is installable (`uv tool install ...`); each user's data — config, secrets,
-vault, project registry, prototypes — lives in a home folder:
+The engine is installable (`uv tool install ...`); each user's data (settings, secrets,
+project registry, the daemon's state) lives in a home folder:
 
 1. `$OMNISCIENT_HOME` if set;
 2. else the nearest folder, from the current directory upwards, holding
-   `config/omniscient.toml` (a git checkout used as a home keeps working);
-3. else `~/.omniscient` (created by `omniscient init`).
+   `config/omniscient.toml`;
+3. else `~/.omniscient`.
 
-Layout of a home (same as the original single-repo layout, so old homes need no move):
-    config/omniscient.toml   settings          config/profile.toml   interests, language
-    .env                     secrets (600)     vault/                notes (Obsidian)
-    repos/                   project registry  pocs/                 prototypes
-    agentrun/                optional agent overrides (else the packaged definitions)
-    .claude/skills/          studio skills (copied by `omniscient init`)
-    .omniscient/             machine state: pages clone, build logs
+Layout of a home:
+    config/omniscient.toml   settings          config/profile.toml   theme, language
+    .env                     secrets (600)     repos/                project registry
+    .omniscient/             machine state: the daemon's database, tokens, logs
 """
 
 from __future__ import annotations
@@ -46,38 +43,12 @@ class Home:
         return self.root / ".env"
 
     @property
-    def vault(self) -> Path:
-        return self.root / "vault"
-
-    @property
     def repos(self) -> Path:
         return self.root / "repos"
 
     @property
-    def pocs(self) -> Path:
-        return self.root / "pocs"
-
-    @property
-    def skills(self) -> Path:
-        return self.root / ".claude" / "skills"
-
-    @property
     def state(self) -> Path:
         return self.root / ".omniscient"
-
-    @property
-    def site_clone(self) -> Path:
-        return self.state / "pages"
-
-    @property
-    def builds(self) -> Path:
-        return self.state / "builds"
-
-    @property
-    def agents_dir(self) -> Path:
-        """Agent definitions: the home's `agentrun/` overrides, else the packaged ones."""
-        local = self.root / "agentrun"
-        return local if local.is_dir() else packaged("agents")
 
     @property
     def exists(self) -> bool:

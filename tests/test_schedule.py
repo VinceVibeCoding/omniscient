@@ -53,11 +53,11 @@ def test_render_units_uses_the_absolute_executable_and_home(
 
     units = {u.name: u.text for u in render_units(home, omniscient_executable())}
 
-    assert set(units) == set(UNITS)
-    cycle = units["omniscient-cycle.service"]
-    assert f'ExecStart="{exe.resolve()}" cycle' in cycle
-    assert f"WorkingDirectory={home}" in cycle
-    assert f'Environment="OMNISCIENT_HOME={home}"' in cycle
+    assert set(units) == set(UNITS) == {"omniscient.service"}
+    daemon = units["omniscient.service"]
+    assert f'ExecStart="{exe.resolve()}" group serve' in daemon
+    assert f"WorkingDirectory={home}" in daemon
+    assert f'Environment="OMNISCIENT_HOME={home}"' in daemon
     assert "uv run" not in "".join(units.values())
     assert "{" not in "".join(units.values())
 
@@ -91,7 +91,7 @@ def test_install_without_write_only_prints(exe: Path, config_home: Path) -> None
     result = CliRunner().invoke(cli.app, ["schedule", "install"])
 
     assert result.exit_code == 0, result.output
-    assert f'ExecStart="{exe.resolve()}" cycle' in result.output
+    assert f'ExecStart="{exe.resolve()}" group serve' in result.output
     assert "--write" in result.output
     assert not config_home.exists()
 
@@ -105,8 +105,9 @@ def test_install_write_writes_units_and_prints_the_systemctl_command(
     assert sorted(p.name for p in config_home.iterdir()) == sorted(UNITS)
     assert (
         "systemctl --user daemon-reload && systemctl --user enable --now "
-        "omniscient-cycle.timer"
+        "omniscient.service"
     ) in result.output
+    assert "cycle" not in result.output
 
     status = CliRunner().invoke(cli.app, ["schedule", "status"])
     assert status.output.count("à jour") == len(UNITS)
@@ -127,9 +128,14 @@ def test_uninstall_prints_disable_then_removes_only_with_write(
     assert [p.name for p in config_home.iterdir()] == ["other.service"]
 
 
-def test_uninstall_also_removes_a_legacy_unit(exe: Path, config_home: Path) -> None:
+def test_uninstall_also_removes_legacy_units(exe: Path, config_home: Path) -> None:
     config_home.mkdir(parents=True, exist_ok=True)
-    (config_home / "omniscient-slack.service").write_text("old", encoding="utf-8")
+    for legacy in (
+        "omniscient-slack.service",
+        "omniscient-cycle.service",
+        "omniscient-cycle.timer",
+    ):
+        (config_home / legacy).write_text("old", encoding="utf-8")
 
     done = CliRunner().invoke(cli.app, ["schedule", "uninstall", "--write"])
 
@@ -143,15 +149,12 @@ def test_status_reports_missing_units(exe: Path, config_home: Path) -> None:
     assert result.output.count("absent") == len(UNITS)
 
 
-def test_omniscient_daemon_unit_is_rendered_and_optional(
+def test_the_daemon_unit_is_wanted_by_the_default_target(
     tmp_path: Path, exe: Path, config_home: Path
 ) -> None:
     units = {u.name: u.text for u in render_units(tmp_path, omniscient_executable())}
-    group = units["omniscient.service"]
-    assert f'ExecStart="{exe.resolve()}" group serve' in group
-    assert "WantedBy=default.target" in group
+    assert "WantedBy=default.target" in units["omniscient.service"]
 
     result = CliRunner().invoke(cli.app, ["schedule", "install", "--write"])
     assert result.exit_code == 0, result.output
     assert (config_home / "omniscient.service").is_file()
-    assert "systemctl --user enable --now omniscient.service" in result.output

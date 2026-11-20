@@ -1,20 +1,16 @@
 [project]
 name = "omniscient"
 version = "0.2.3"
-description = "Autonomous agent software factory: sense AI news, ideate, plan, prototype."
+description = "A widget to talk to your AI agents, from any provider, outside the IDE."
 authors = [
     { name = "Vincent Lauzier", email = "287529286+VinceVibeCoding@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "anthropic>=2.8.0",
-    "claude-agent-sdk>=0.2.180",
-    "feedparser>=6.0.14",
     "httpx>=0.28.1",
     "parcha-agentrun>=0.3,<0.4",
     "pydantic>=2.14.3",
     "python-frontmatter>=1.3.0",
-    "textual>=8.2.8",
     "typer>=0.29.1",
 ]
 

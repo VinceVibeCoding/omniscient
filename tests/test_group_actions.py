@@ -18,8 +18,8 @@ from omniscient.group.actions import (
     safe_url,
 )
 from omniscient.group.collect_agentrun import AgentRunHttpError
+from omniscient.group.herdr_runner import HerdrError
 from omniscient.group.models import JumpTarget, Session
-from omniscient.studio.herdr import HerdrError
 
 NOW = datetime(2026, 1, 2, 12, 0, tzinfo=UTC)
 UUID = "0b1c2d3e-aaaa-bbbb-cccc-000000000001"
