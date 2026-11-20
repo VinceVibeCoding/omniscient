@@ -13,6 +13,7 @@ import { accountSection } from "./views/account";
 import { providersSection } from "./views/providers";
 import { wizardView } from "./views/wizard";
 import { h, replace } from "./dom";
+import { ABOUT_BUTTON, clearReact, REACT_HOST, showAbout } from "./react/host";
 import { installDrag } from "./drag";
 import { installResize } from "./resize";
 import { FIRST_LIMIT, INITIAL_EXCHANGES, MORE_STEP, refetchLimit } from "./exchanges";
@@ -49,7 +50,6 @@ const REFRESH_DEBOUNCE_MS = 250;
 const AGE_TICK_MS = 30_000;
 const TOAST_MS = 4_000;
 const CHAT_APPROVALS = "chat__approvals";
-const REACT_HOST = "react-host";
 const DEFAULT_CONFIG: WidgetConfig = { theme: "default", osd_view: "bars", show_ticker: true };
 const DEFAULT_SETTINGS: Settings = { daemon_url: "http://127.0.0.1:7341", start_daemon: false, wsl_home: "" };
 
@@ -76,7 +76,6 @@ let history: HistoryState = { shown: INITIAL_EXCHANGES, fetchedLimit: FIRST_LIMI
 let refocusMore = false;
 let toastTimer: number | undefined;
 let sessionDraft = "";
-let unmountReact: (() => void) | null = null;
 
 const account = new AccountController(
   () => (state.view === "settings" || state.view === "wizard") && render(),
@@ -134,20 +133,15 @@ function render(): void {
   document.body.dataset.view = state.view;
   const kept = keepUiState(app);
   const view = viewFor(state);
-  unmountReact?.();
-  unmountReact = null;
+  clearReact();
   replace(app, state.view === "osd" || state.view === "wizard" ? view : withUsageStrip(view, strip()));
   restoreUiState(app, kept);
-  if (state.view === "about") void showAbout();
+  if (state.view === "about") void showAbout(app, { version: __APP_VERSION__, link: state.link, onBack: backFromAbout });
 }
 
-/** The React screens are a separate chunk, fetched only when one is opened. */
-async function showAbout(): Promise<void> {
-  const host = app.querySelector<HTMLElement>(`#${REACT_HOST}`);
-  if (!host) return;
-  const { mountAbout } = await import("./react/mount");
-  if (!host.isConnected) return; // another screen replaced this one while the chunk loaded
-  unmountReact = mountAbout(host, { version: __APP_VERSION__, link: state.link, onBack: () => void openSettings() });
+/** Back from About: show Settings again and put the keyboard focus on the button that opened it. */
+function backFromAbout(): void {
+  void openSettings().then(() => app.querySelector<HTMLElement>(`[${ABOUT_BUTTON}]`)?.focus());
 }
 
 function strip(): HTMLElement {

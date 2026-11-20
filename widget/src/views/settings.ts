@@ -150,7 +150,7 @@ export function settingsView(
         h("button", { class: "btn", type: "button", onclick: () => on.wizard() }, "Relancer l'assistant"),
         h("span", { class: "setting__hint" }, current.wizard_done === true ? "Assistant déjà passé." : "Assistant pas encore passé."),
       ),
-      h("div", { class: "card__actions" }, h("button", { class: "btn", type: "button", onclick: () => on.about() }, "À propos")),
+      h("div", { class: "card__actions" }, h("button", { class: "btn", type: "button", "data-about-button": true, onclick: () => on.about() }, "À propos")),
       h("h2", { class: "section-title" }, "Connexion"),
       emailForm(on),
       h("h2", { class: "section-title" }, "Couplage (secours, sans courriel)"),
