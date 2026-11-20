@@ -1,4 +1,4 @@
-"""`omniscient schedule`: render the systemd user units of the daily cycle.
+"""`omniscient schedule`: render the systemd user unit of the Omniscient daemon.
 
 Never runs systemctl. `install` prints the rendered units; with `--write` it also writes
 them to ~/.config/systemd/user/ and prints the one systemctl command the user runs.
@@ -17,19 +17,17 @@ from pathlib import Path
 
 from omniscient.home import packaged
 
-UNITS = (
+GROUP = "omniscient.service"
+UNITS = (GROUP,)
+# Units shipped by older versions: `uninstall` still removes them from a user's machine.
+LEGACY_UNITS = (
+    "omniscient-slack.service",
     "omniscient-cycle.service",
     "omniscient-cycle.timer",
-    "omniscient.service",
 )
-TIMER = "omniscient-cycle.timer"
-# Units shipped by older versions: `uninstall` still removes them from a user's machine.
-LEGACY_UNITS = ("omniscient-slack.service",)
 FORBIDDEN_IN_PATHS = ('"', "\\", "\n", "\r")
-ENABLE_CMD = f"systemctl --user daemon-reload && systemctl --user enable --now {TIMER}"
-GROUP = "omniscient.service"
-GROUP_CMD = f"systemctl --user enable --now {GROUP}"
-DISABLE_CMD = f"systemctl --user disable --now {TIMER} {GROUP}"
+ENABLE_CMD = f"systemctl --user daemon-reload && systemctl --user enable --now {GROUP}"
+DISABLE_CMD = f"systemctl --user disable --now {GROUP}"
 RELOAD_CMD = "systemctl --user daemon-reload"
 
 Which = Callable[[str], str | None]

@@ -133,8 +133,7 @@ uv tool uninstall omniscient               # le moteur
 ```
 
 Puis le widget : *Paramètres Windows › Applications › Omniscient › Désinstaller*. Enfin, si tu le
-veux, supprime `%USERPROFILE%\.omniscient` (état et jeton du démon) et, si tu as créé un dossier de
-travail avec `omniscient init`, ce dossier-là.
+veux, supprime `%USERPROFILE%\.omniscient` (état et jeton du démon).
 
 ## Dépannage
 

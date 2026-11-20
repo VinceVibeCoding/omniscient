@@ -3,7 +3,7 @@
 The choice lives in <home>/config/profile.toml under `[profile] theme = "<name>"`. It is
 written by a minimal line editor that touches only that key, so every other key and
 comment of the profile is kept. The integrator registers the CLI functions:
-`theme list | set NAME | preview [NAME] | export TARGET NAME [--write]`.
+`theme list | set NAME | export TARGET NAME [--write]`.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
-from rich.console import Console, Group
+from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
@@ -187,7 +187,7 @@ def save_theme_name(profile: Path, name: str) -> Palette:
 
 
 def list_themes() -> tuple[Palette, ...]:
-    """Every palette (used by `omniscient init`'s theme step)."""
+    """Every palette."""
     return tuple(PALETTES.values())
 
 
@@ -201,7 +201,7 @@ def set_theme(home: Home, name: str) -> Palette:
 
 def theme_list(home: Home | None = None, console: Console | None = None) -> None:
     """Every theme with its swatch; the current one is marked ●."""
-    from omniscient.theme.apply import swatch
+    from omniscient.theme.swatch import swatch
 
     out = console or Console()
     current, warning = load_palette(home or find_home())
@@ -218,33 +218,15 @@ def theme_list(home: Home | None = None, console: Console | None = None) -> None
 def theme_set(
     name: str, home: Home | None = None, console: Console | None = None
 ) -> Palette:
-    """Store the theme; the studio uses it at next launch (or live with `t`)."""
+    """Store the theme (the widget reads it from the profile)."""
     out = console or Console()
     target = home or find_home()
     palette = save_theme_name(target.profile, name)
     out.print(f"Thème enregistré : {palette.label} ({target.profile})")
     out.print(
-        "Le studio l'utilise au prochain lancement (ou `t` dans le studio). "
         f"Pour le terminal : omniscient theme export windows-terminal {palette.name}"
     )
     return palette
-
-
-def theme_preview(
-    name: str | None = None, home: Home | None = None, console: Console | None = None
-) -> None:
-    """Swatches, the ANSI strip and a sample war room / to-do rendered in the theme."""
-    from omniscient.theme.apply import ansi_strip, sample_panes, swatch, use_palette
-
-    out = console or Console()
-    palette = get_palette(name) if name else load_palette(home or find_home())[0]
-    use_palette(palette)
-    slots = Text()
-    for slot, color in palette.colors().items():
-        slots.append("██", style=color).append(f" {slot} {color}  ")
-    out.print(Text(f"{palette.label} ({palette.name})", style=f"bold {palette.accent}"))
-    out.print(Group(slots, swatch(palette), ansi_strip(palette)))
-    out.print(sample_panes(palette))
 
 
 def theme_export(
@@ -258,7 +240,7 @@ def theme_export(
     """Print the theme for `windows-terminal` or `herdr` (+ an ANSI strip); with
     write=True, update that config after a timestamped backup (theme keys only)."""
     from omniscient.theme import export as ex
-    from omniscient.theme.apply import ansi_strip
+    from omniscient.theme.swatch import ansi_strip
 
     if target not in ex.TARGETS:
         raise ThemeError(

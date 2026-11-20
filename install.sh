@@ -297,8 +297,6 @@ final_status() {
     else
         echo "  Pas de widget ici : utilise le terminal."
         echo "    omniscient --help           toutes les commandes"
-        echo "    omniscient init             créer ton dossier Omniscient (profil, thème, projets)"
-        echo "    omniscient studio           le tableau des idées (idéal dans herdr)"
         echo "    omniscient group status     l'état du démon"
     fi
     echo

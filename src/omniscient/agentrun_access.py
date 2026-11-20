@@ -1,7 +1,7 @@
 """How Omniscient reaches the AgentRun server, and a French diagnosis when it can't.
 
 The API key comes from, in order: the AGENTRUN_API_KEY environment variable, the home's
-`.env` (written by `omniscient init`), then the token file the local AgentRun server
+`.env`, then the token file the local AgentRun server
 writes on first start (`~/.agentrun/.token`).
 """
 
@@ -19,9 +19,8 @@ TOKEN_FILE = Path.home() / ".agentrun" / ".token"
 DEFAULT_PORT = 7340
 CONNECT_TIMEOUT_S = 0.5
 SETUP_HINT = (
-    "Démarre le serveur AgentRun (scripts/agentrun-up.sh server, puis runner) : il crée "
-    "~/.agentrun/.token. Ou mets AGENTRUN_API_KEY dans le .env de ta maison "
-    "(omniscient init). Voir le README, section « AgentRun »."
+    "Démarre le serveur AgentRun : il crée ~/.agentrun/.token. Ou mets "
+    "AGENTRUN_API_KEY dans le fichier .env de ton dossier Omniscient."
 )
 
 PortOpen = Callable[[str, int], bool]

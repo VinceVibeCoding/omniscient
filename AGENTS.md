@@ -1,66 +1,69 @@
-# Omniscient (engine)
+# Omniscient
 
-Omniscient is an autonomous idea factory: it reads tech and AI news, invents ideas about
-what can now be built, has a council of agents debate and score them, plans the best ones
-and builds throwaway proofs of concept. This repository is the **engine**. Each user's
-data lives in a separate **home** folder (see `src/omniscient/home.py`).
+Omniscient is a small Windows desktop widget (Tauri) plus its local Python engine, the daemon behind
+the `omniscient` CLI. It lets users interact with agents from any provider (Claude Code, Copilot,
+API keys, local models) outside the IDE, see and approve their requests, monitor LLM usage against
+their subscriptions, and chat about the web page they are looking at. Everything stays on the user's
+machine. This repo is public (`VinceVibeCoding/omniscient`).
 
-## The five loops
+## What the repo contains
 
-| Loop | What it does | Code | Writes to (in the home) |
-|---|---|---|---|
-| **Sense** | news notes from GitHub, Hacker News and AI vendor blogs | `src/omniscient/sense/` | `vault/news/` |
-| **Think** | visionary ideas → council debate → scores | `src/omniscient/think/` | `vault/ideas/` |
-| **Plan** | strategist: game plan, WIP limit, wayfinder maps | `src/omniscient/plan/` | `vault/gameplan.md`, `vault/maps/` |
-| **Build** | builder agent in an AgentRun Docker box | `src/omniscient/build/` | `pocs/<idea>/` |
-| **Learn** | agents' kept notes → tech knowledge base | `src/omniscient/learn/` | `vault/tech/learned/` |
-
-Routing (task → model + effort) is in `src/omniscient/router.py`. The studio (herdr board
-and ateliers) is in `src/omniscient/studio/`; onboarding (`omniscient init`) in
-`src/omniscient/onboarding/`. Agent definitions and studio skills ship in
-`src/omniscient/resources/`.
-
-## Rules for every agent
-
-1. **Read before you build.** Check the home's `vault/tech/` notes and the live vendor docs
-   before writing code. When you find a new caveat, write it back to `vault/tech/`.
-2. **Know the blast radius.** Before touching a registered project, read its
-   `repos/<name>.md` entry and that project's own AGENTS.md or CLAUDE.md.
-3. **Autonomous zone:** sensing, ideation, the game plan, and prototypes under `pocs/`.
-4. **Approval required:** any change to a registered project (worktree branch + pull
-   request, never its main branch), spending over the daily budget, and anything public or
-   outward-facing (publishing, cloud resources that cost money).
-5. **Read other projects, never write to them directly.** Writes go only through worktrees.
-6. **Prototypes are throwaway; the engine is not.** A prototype answers one question and
-   starts with one command. Engine code follows rule 7.
-7. **Code standards:** frozen dataclasses, files under 400 lines, functions under 50 lines,
-   validation at every boundary, no swallowed errors, TDD with 80%+ coverage, offline tests.
-8. **Never answer a human's side of a HITL ticket.** Grilling and prototype verdicts come
-   only from the owner. The council may debate among itself, but no agent stands in for
-   the owner.
-9. **No personal data** in the engine: no user names, absolute home paths, e-mails,
-   GitHub ids, tokens. Paths come from `find_home()`.
-
-## Idea notes
-
-Notes change only through `omniscient idea list|show|context|new|variant|append|debate|verdict`
-(`src/omniscient/studio/ideas.py` is the contract). A studio council verdict counts like
-the factory's: `abandonner` drops the idea; a debated idea at or above the promote
-threshold can be planned by the next cycle.
-
-## Issue tracker
-
-Local markdown in the home's vault, under `vault/maps/<feature>/`. See
-`docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md` and `docs/agents/domain.md`.
+| Path | What |
+|---|---|
+| `src/omniscient/group/` | the daemon (HTTP on `127.0.0.1`, sessions, approvals, chat, usage, hooks) |
+| `src/omniscient/cli*.py` | the CLI: `omniscient group ...`, `update`, `ext ...`, `project`, `theme`, `schedule`, `--version`, `--update` |
+| `src/omniscient/resources/`, `theme/`, `registry/` | packaged data, themes, project registry |
+| `widget/` | the Tauri app (TypeScript front end in `widget/src`, Rust in `widget/src-tauri`) |
+| `install.ps1`, `install.sh` | one-command installers (Windows; Linux, macOS, WSL) |
+| `plugins/`, `.claude-plugin/` | the Claude Code plugin |
+| `docs/` | user docs (French), `docs/agents/` for agent skills config |
+| `tests/` | Python tests (offline) |
 
 ## Commands
 
 ```
-uv run pytest -q                 # tests (offline)
-uv run ruff check src tests      # lint
-uv run omniscient init           # create or update a home
-uv run omniscient studio         # idea board (inside herdr)
-uv run omniscient agents-push    # sync agent definitions to AgentRun
-uv run omniscient cycle          # ingest -> learn-sync -> think -> plan -> work
-uv run omniscient build STEM     # build one idea's prototype
+uv sync --group dev && uv run pytest         # Python tests (offline)
+uv run ruff check src tests                  # lint
+cd widget && npx tsc --noEmit && npm test    # widget type check and tests
 ```
+
+## Rules for every agent
+
+1. **Read before you build.** Read the code and the doc you touch (`docs/omniscient.md` for the
+   widget and daemon) before changing it.
+2. **Code standards:** frozen dataclasses, files under 400 lines, functions under 50 lines,
+   validation at every boundary, no swallowed errors, TDD with 80%+ coverage, offline tests
+   (inject fakes; no network, real model or GitHub calls).
+3. **No personal data** in code, tests, docs or fixtures: no user names, absolute home paths,
+   e-mails, GitHub ids, tokens. Use generic names and fake ids.
+4. **No hardcoded paths.** Resolve data locations at command time (`omniscient.home`) so tests can
+   point `OMNISCIENT_HOME` at a temp folder.
+5. **Never answer a human's side of a HITL ticket.** Grilling and prototype verdicts come only from
+   the owner.
+6. **Security first.** The widget never blocks an agent, never clicks or types in a web page; a chat
+   with a page attached runs with no tools; secrets are never logged. Keep runtime floors low (people
+   install on their own PCs): ask before raising a minimum version.
+7. User-facing text is French today (widget strings in `widget/src`, engine messages in `src/omniscient`); code, comments,
+   commits and `README.md`/`AGENTS.md` are English; `docs/*.md` are French.
+
+## Branches and releases
+
+- Work on a branch, open a pull request against **`dev`**. Never push to `dev` or `main` directly.
+- `dev` -> `main` is a pull request merged with `--merge` (no squash, no rebase).
+- Releases: an annotated tag `widget-vX.Y.Z` on `main` builds the widget installer in CI.
+- Conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`).
+- Never `git stash` in a shared worktree, never force-push.
+
+## Known gotchas
+
+- The engine and the widget are installed separately; `omniscient update` updates both.
+- On WSL the daemon runs in Linux but the widget is a Windows app: they meet over a local port
+  (default 7341). `omniscient group doctor` diagnoses it.
+- Time zones and paths differ across Windows, WSL and Linux: keep tests independent of both.
+- Tests that exercise `install.sh` and `install.ps1` assert on message texts; update them with the
+  scripts.
+
+## Issue tracker
+
+GitHub Issues; see `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md` and
+`docs/agents/domain.md`.

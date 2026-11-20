@@ -16,9 +16,10 @@ labels: bug, needs-triage
 ## Environment
 
 - `omniscient` version / commit:
-- OS (Linux, macOS, WSL2):
+- OS (Windows 10/11, WSL2, Linux, macOS):
 - Python (`uv run python --version`):
-- Running inside herdr? AgentRun reachable? (`omniscient init` prints the prerequisites table)
+- Widget version (Settings), AI provider used:
+- Output of `omniscient group doctor`:
 
 ## Logs
 

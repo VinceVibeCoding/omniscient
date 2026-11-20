@@ -14,7 +14,6 @@ from pathlib import Path
 
 import httpx
 
-from omniscient.build.publish import redact_secrets
 from omniscient.onboarding.scan import (
     MAX_READ_BYTES,
     EntryFields,
@@ -22,6 +21,7 @@ from omniscient.onboarding.scan import (
     render_entry,
     slugify,
 )
+from omniscient.redact import redact_secrets
 
 API = "https://api.github.com"
 PER_PAGE = 100

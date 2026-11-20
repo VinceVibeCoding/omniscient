@@ -20,9 +20,9 @@ from omniscient.group.collect_herdr import (
     parse_read,
     run_loop,
 )
+from omniscient.group.herdr_runner import HerdrError
 from omniscient.group.models import Session, Usage
 from omniscient.group.store import Store
-from omniscient.studio.herdr import HerdrError
 
 NOW = datetime(2026, 1, 2, 12, 0, tzinfo=UTC)
 

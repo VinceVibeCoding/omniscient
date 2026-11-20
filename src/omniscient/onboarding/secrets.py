@@ -10,8 +10,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from collections.abc import Mapping
 from pathlib import Path
 
 from omniscient.envfile import KEY_RE, parse_env, quote_value
@@ -19,34 +18,6 @@ from omniscient.group.credentials import replace_file, restrict_to_current_user
 
 ENV_MODE = 0o600
 NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-NOT_TTY_WARNING = (
-    "Attention : l'entrée n'est pas un terminal, les secrets saisis risquent de "
-    "s'afficher en clair. Lance plutôt `omniscient init` dans un terminal interactif."
-)
-
-Ask = Callable[[str, str], str]
-Say = Callable[[str], None]
-Secret = Callable[[str], str]
-
-
-@dataclass(frozen=True)
-class SecretSpec:
-    key: str
-    label: str
-
-
-ANTHROPIC = SecretSpec(
-    "ANTHROPIC_API_KEY",
-    "Clé API Anthropic (boucles de l'usine ; vide = studio seulement)",
-)
-AGENTRUN = SecretSpec(
-    "AGENTRUN_API_KEY",
-    "Clé API AgentRun (vide = lire ~/.agentrun/.token, créé au premier démarrage "
-    "du serveur AgentRun local)",
-)
-GITHUB = SecretSpec(
-    "GITHUB_TOKEN", "Jeton GitHub en lecture (optionnel, évite la limite de requêtes)"
-)
 
 
 def read_env(path: Path) -> dict[str, str]:
@@ -91,52 +62,3 @@ def write_env(path: Path, updates: Mapping[str, str]) -> None:
             out.append(line)
     out += [f"{key}={quote_value(value)}" for key, value in pending.items()]
     _atomic_private_write(path, "\n".join(out) + "\n")
-
-
-def warn_if_echoing(say: Say, is_tty: Callable[[], bool]) -> None:
-    """getpass echoes when stdin is not a terminal: say so before any secret prompt."""
-    if not is_tty():
-        say(NOT_TTY_WARNING)
-
-
-def _yes(answer: str) -> bool:
-    return answer.strip().lower() in ("o", "oui", "y", "yes")
-
-
-def prompt_secret(
-    spec: SecretSpec, existing: Mapping[str, str], ask: Ask, secret: Secret
-) -> str | None:
-    """New value for one key, or None to keep/skip. The value is never echoed."""
-    question = f"{spec.key} est déjà défini. Le remplacer ? (o/N)"
-    if existing.get(spec.key) and not _yes(ask(question, "n")):
-        return None
-    value = secret(f"{spec.label} [{spec.key}] (vide = passer) : ").strip()
-    if "\n" in value or "\r" in value:
-        raise ValueError(f"{spec.key} : valeur invalide (retour à la ligne)")
-    return value or None
-
-
-def configure_secrets(
-    env_file: Path, ask: Ask, say: Say, secret: Secret, *, ask_github: bool = True
-) -> tuple[str, ...]:
-    """Interactive secrets step; returns the keys that were written (never their values).
-
-    ask_github=False when the GitHub token was already offered in the projects step.
-    """
-    existing = read_env(env_file)
-    specs = [ANTHROPIC, AGENTRUN]
-    if ask_github:
-        specs.append(GITHUB)
-    updates: dict[str, str] = {}
-    for spec in specs:
-        value = prompt_secret(spec, existing, ask, secret)
-        if value is not None:
-            updates[spec.key] = value
-    if updates:
-        write_env(env_file, updates)
-        say(f"Secrets enregistrés dans {env_file} (600) : {', '.join(updates)}")
-    elif env_file.is_file():
-        restrict_to_current_user(env_file, is_dir=False)
-    if not (updates.get(ANTHROPIC.key) or existing.get(ANTHROPIC.key)):
-        say("Pas de clé Anthropic : le studio marche, les boucles automatiques non.")
-    return tuple(updates)

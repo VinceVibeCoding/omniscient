@@ -18,12 +18,5 @@ dist/
 # Claude Code personal settings
 .claude/settings.local.json
 
-# PoC worktrees and runtime state
-pocs/*/
-!pocs/README.md
+# Runtime state
 .omniscient/
-
-# Obsidian per-device workspace state (keep the shared vault config)
-vault/.obsidian/workspace*.json
-vault/.obsidian/cache
-vault/.trash/

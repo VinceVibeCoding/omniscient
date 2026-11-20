@@ -36,6 +36,7 @@ from omniscient.group.collect_common import (
     run_loop,
     save_session,
 )
+from omniscient.group.herdr_runner import HerdrError, default_runner
 from omniscient.group.models import (
     JumpTarget,
     Pending,
@@ -46,7 +47,6 @@ from omniscient.group.models import (
     session_id,
     utcnow,
 )
-from omniscient.studio.herdr import HerdrError, default_runner
 
 log = logging.getLogger(__name__)
 

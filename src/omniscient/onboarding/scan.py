@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 import yaml
 
-from omniscient.build.publish import redact_secrets
+from omniscient.redact import redact_secrets
 
 PURPOSE_MAX = 200
 GIT_TIMEOUT_S = 10
@@ -315,7 +315,7 @@ def describe_local_project(path: Path, git_run: GitRun = run_git) -> str:
         git=has_git,
         agent_docs=_agent_docs(root),
     )
-    body = "Fiche créée par `omniscient init` à partir des fichiers du projet. Relis-la et complète-la."
+    body = "Fiche créée par `omniscient project add` à partir des fichiers du projet. Relis-la et complète-la."
     return render_entry(fields, body)
 
 

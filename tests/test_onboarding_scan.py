@@ -4,7 +4,6 @@ import frontmatter
 import pytest
 
 from omniscient.onboarding import scan
-from omniscient.onboarding.prereqs import check_prereqs, missing_required, render_checks
 from omniscient.onboarding.scan import (
     clean_remote,
     describe_local_project,
@@ -122,39 +121,6 @@ def test_scan_projects_root_depth_one_skips_hidden(tmp_path: Path) -> None:
 
     assert [p.name for p in scan_projects_root(tmp_path)] == ["a", "b"]
     assert scan_projects_root(tmp_path / "missing") == ()
-
-
-def test_check_prereqs_reports_without_installing() -> None:
-    present = {
-        "uv": "/bin/uv",
-        "git": "/bin/git",
-        "docker": "/bin/docker",
-        "agentrun": "/bin/agentrun",
-    }
-    checks = check_prereqs(present.get, run=lambda cmd: 1, port_open=lambda h, p: False)
-    by_name = {c.name: c for c in checks}
-
-    assert [c.name for c in checks] == [
-        "uv",
-        "git",
-        "docker",
-        "herdr",
-        "claude",
-        "agentrun",
-    ]
-    assert by_name["docker"].ok is False and "démon" in by_name["docker"].detail
-    assert by_name["agentrun"].ok is True
-    assert by_name["herdr"].ok is False and by_name["herdr"].required is False
-    assert missing_required(checks) == ()
-    assert "herdr" in render_checks(checks)
-
-
-def test_check_prereqs_flags_missing_required_and_live_agentrun() -> None:
-    checks = check_prereqs(
-        lambda _: None, run=lambda cmd: 0, port_open=lambda h, p: p == 7340
-    )
-    assert [c.name for c in missing_required(checks)] == ["uv", "git"]
-    assert {c.name: c.ok for c in checks}["agentrun"] is True
 
 
 @pytest.mark.parametrize(

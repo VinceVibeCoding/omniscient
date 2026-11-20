@@ -1,10 +1,9 @@
-"""Themes: palettes, the stored choice, terminal exports and the studio picker."""
+"""Themes: palettes, the stored choice and the terminal exports."""
 
 from __future__ import annotations
 
 import re
 import tomllib
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -12,7 +11,6 @@ import pytest
 from rich.console import Console
 
 from omniscient.home import Home
-from omniscient.studio.app import StudioApp
 from omniscient.theme import (
     DEFAULT_THEME,
     PALETTES,
@@ -23,16 +21,7 @@ from omniscient.theme import (
     save_theme_name,
     set_toml_keys,
     theme_list,
-    theme_preview,
     theme_set,
-)
-from omniscient.theme import apply as theme_apply
-from omniscient.theme.apply import (
-    Look,
-    current_look,
-    palette_for,
-    textual_name,
-    use_palette,
 )
 from omniscient.theme.palettes import (
     ACCENT_CONTRAST,
@@ -58,13 +47,6 @@ REQUIRED = [
     "osaka-jade",
     "ristretto",
 ]
-
-
-@pytest.fixture(autouse=True)
-def _reset_look() -> Iterator[None]:
-    theme_apply._ACTIVE.clear()
-    yield
-    theme_apply._ACTIVE.clear()
 
 
 def _console() -> Console:
@@ -173,79 +155,10 @@ def test_set_toml_keys_refuses_an_unsafe_edit() -> None:
         set_toml_keys('profile.theme = "x"\n', "profile", {"theme": "nord"})
 
 
-# ---- rich look -------------------------------------------------------------------
-
-
-def test_look_maps_semantic_slots() -> None:
-    nord = PALETTES["nord"]
-    look = Look(nord)
-    assert look.idea_status("shipped") == f"bold {nord.success}"
-    assert look.actor("visionnaire") == f"bold {nord.accent}"
-    assert look.actor("débatteur") == f"bold {nord.ansi[9]}"
-    assert look.agent_state("blocked") == f"bold {nord.error}"
-    assert look.run_mark("?") is None
-
-
-def test_panes_render_with_the_active_palette() -> None:
-    from omniscient.studio.todo import TodoItem, checklist
-
-    use_palette(PALETTES["ristretto"])
-    assert current_look().palette.name == "ristretto"
-    text = checklist((TodoItem(1, "a", False),))
-    assert PALETTES["ristretto"].warning in str(text.style)
-
-
-def test_preview_list_and_set(tmp_path: Path) -> None:
+def test_list_and_set(tmp_path: Path) -> None:
     out = _console()
     home = Home(tmp_path)
     theme_set("everforest", home=home, console=out)
     theme_list(home=home, console=out)
-    theme_preview(None, home=home, console=out)
     shown = out.export_text()
     assert re.search(r"●\s+█+\s+everforest", shown)
-    assert "Salle de crise" in shown and "À faire" in shown
-
-
-# ---- Textual -------------------------------------------------------------------------
-
-
-def test_textual_names_round_trip() -> None:
-    for palette in PALETTES.values():
-        assert palette_for(textual_name(palette)) == palette
-    assert textual_name(PALETTES["nord"]) == "omniscient-nord"  # built-in kept
-    assert palette_for("textual-dark") is None
-
-
-@pytest.mark.asyncio
-async def test_studio_registers_themes_and_uses_the_profile(tmp_path: Path) -> None:
-    (tmp_path / "vault" / "ideas").mkdir(parents=True)
-    save_theme_name(Home(tmp_path).profile, "nord")
-    app = StudioApp(tmp_path / "vault", tmp_path)
-    async with app.run_test(size=(120, 36)) as pilot:
-        await pilot.pause()
-        assert app.theme == "omniscient-nord"
-        assert {textual_name(p) for p in PALETTES.values()} <= set(app.available_themes)
-        assert current_look().palette.name == "nord"
-
-
-@pytest.mark.asyncio
-async def test_picker_previews_live_and_escape_restores(tmp_path: Path) -> None:
-    (tmp_path / "vault" / "ideas").mkdir(parents=True)
-    app = StudioApp(tmp_path / "vault", tmp_path)
-    async with app.run_test(size=(120, 36)) as pilot:
-        await pilot.pause()
-        assert app.theme == "omniscient"
-        await pilot.press("t")
-        await pilot.press("down")
-        await pilot.pause()
-        assert app.theme == textual_name(list(PALETTES.values())[1])
-        await pilot.press("escape")
-        await pilot.pause()
-        assert app.theme == "omniscient"
-        assert not (tmp_path / "config" / "profile.toml").exists()
-
-        await pilot.press("t", "down", "down", "enter")
-        await pilot.pause()
-        chosen = list(PALETTES.values())[2]
-        assert app.theme == textual_name(chosen)
-        assert read_theme_name(Home(tmp_path).profile) == chosen.name

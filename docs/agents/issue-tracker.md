@@ -1,19 +1,19 @@
-# Issue tracker: Local Markdown (in the Obsidian vault)
+# Issue tracker: GitHub Issues, plus local markdown for wayfinder maps
 
-Issues, specs and wayfinder maps for this repo live as markdown files in `vault/maps/`. You can see and edit them in Obsidian.
-This is the stock local-markdown tracker with the root moved from `.scratch/` to `vault/maps/`.
+Public issues live in GitHub Issues (`gh issue ...`), with the labels in `triage-labels.md`.
+Specs and wayfinder maps are local markdown files under `.scratch/` (the stock local-markdown tracker); they are working notes, not committed.
 
 ## Conventions
 
-- One feature or effort per directory: `vault/maps/<feature-slug>/`
-- The spec is `vault/maps/<feature-slug>/spec.md`
-- Implementation issues get one file per ticket, at `vault/maps/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01`. Never put several tickets in one combined file.
+- One feature or effort per directory: `.scratch/<feature-slug>/`
+- The spec is `.scratch/<feature-slug>/spec.md`
+- Implementation issues get one file per ticket, at `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01`. Never put several tickets in one combined file.
 - Triage state is a `Status:` line near the top of each issue file (see `triage-labels.md` for the role strings).
 - Comments and conversation history are appended to the bottom of the file under a `## Comments` heading.
 
 ## When a skill says "publish to the issue tracker"
 
-Create a new file under `vault/maps/<feature-slug>/`, creating the directory if needed.
+For a user-facing issue, run `gh issue create`. For a spec or ticket in a local map, create a new file under `.scratch/<feature-slug>/`, creating the directory if needed.
 
 ## When a skill says "fetch the relevant ticket"
 
@@ -23,12 +23,12 @@ Read the file at the referenced path. The user normally passes the path or the i
 
 `/wayfinder` uses these. The **map** is a file with one **child** file per ticket.
 
-- **Map:** `vault/maps/<effort>/map.md` holds the Destination / Notes / Decisions-so-far / Not-yet-specified / Out-of-scope body.
-- **Child ticket:** `vault/maps/<effort>/issues/NN-<slug>.md`, numbered from `01`, with the question in the body.
+- **Map:** `.scratch/<effort>/map.md` holds the Destination / Notes / Decisions-so-far / Not-yet-specified / Out-of-scope body.
+- **Child ticket:** `.scratch/<effort>/issues/NN-<slug>.md`, numbered from `01`, with the question in the body.
   - A `Type:` line records the ticket type: `research`, `prototype`, `grilling` or `task`.
   - A `Status:` line records `claimed` or `resolved`.
 - **Blocking:** a `Blocked by: NN, NN` line near the top. A ticket is unblocked when every file it lists is `resolved`.
-- **Frontier:** scan `vault/maps/<effort>/issues/` for files that are open, unblocked and unclaimed. The lowest number wins.
+- **Frontier:** scan `.scratch/<effort>/issues/` for files that are open, unblocked and unclaimed. The lowest number wins.
 - **Claim:** set `Status: claimed` and save before doing any work.
 - **Resolve:**
   1. Append the answer under an `## Answer` heading.
