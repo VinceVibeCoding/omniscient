@@ -52,6 +52,9 @@ def test_icacls_argv_for_a_file_and_a_directory(tmp_path: Path) -> None:
     assert cred.restrict_to_current_user(tmp_path, True, run, True, "PC\\jean")
     assert run.calls[-1][-1] == "PC\\jean:(OI)(CI)(F)"
     assert all(k.get("check") is False and "shell" not in k for k in run.kwargs)
+    assert all(
+        k.get("errors") == "replace" for k in run.kwargs
+    )  # French icacls output is cp850
 
 
 def test_icacls_failure_is_logged_not_raised(
