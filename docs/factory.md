@@ -2,7 +2,7 @@
 
 Everything about the **factory** side of the project: the studio, the five loops, AgentRun,
 the daily schedule, themes, costs and how the code is organised. The Windows widget has its
-own guide: [Omnigroup](omnigroup.md) (in French) and the [README](../README.md).
+own guide: [Omniscient](omniscient.md) (in French) and the [README](../README.md).
 
 ## `omniscient init`
 
@@ -76,7 +76,7 @@ the same message.
 ## Daily schedule (systemd)
 
 `omniscient schedule install` prints systemd **user** units for a daily cycle (and the
-optional [Omnigroup](omnigroup.md) daemon service), rendered with your home
+optional [Omniscient](omniscient.md) daemon service), rendered with your home
 folder and the absolute path of the `omniscient` executable you are running. Nothing is
 written until you add `--write` (to `~/.config/systemd/user/`), and Omniscient never runs
 `systemctl`: it prints the command for you to run.

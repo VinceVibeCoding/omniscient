@@ -41,7 +41,7 @@ aucun jeton.
    se fait **uniquement en ligne de commande**, jamais par l'API du démon.
 5. Dans le widget : **Réglages › Compte** (ou l'étape « Compte » de l'assistant).
 
-Les variables `OMNIGROUP_AUTH_URL` et `OMNIGROUP_AUTH_ANON_KEY` priment sur le fichier.
+Les variables `OMNISCIENT_AUTH_URL` et `OMNISCIENT_AUTH_ANON_KEY` priment sur le fichier.
 
 ## Comment ça marche, et ce qui est protégé
 

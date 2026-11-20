@@ -1,4 +1,4 @@
-"""omnigroup hook installer: merge, preview, backup, atomic write, uninstall, status."""
+"""omniscient hook installer: merge, preview, backup, atomic write, uninstall, status."""
 
 from __future__ import annotations
 
@@ -175,7 +175,7 @@ def test_settings_without_hooks_or_file(tmp_path: Path) -> None:
 
 
 def test_copilot_file_is_created_and_deleted(tmp_path: Path) -> None:
-    path = tmp_path / "hooks" / "omnigroup.json"
+    path = tmp_path / "hooks" / "omniscient.json"
     apply(plan("copilot", "install", path, CMD), NOW)
     data = json.loads(path.read_text(encoding="utf-8"))
     assert data["version"] == 1 and "permissionRequest" in data["hooks"]
@@ -314,4 +314,4 @@ def test_command_with_statusline(tmp_path: Path) -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
     assert data["statusLine"]["command"] == f"{CMD} --statusline"
     run_hooks_command("status", "claude", path=path, say=out.append)
-    assert out[-1].endswith("statusLine omnigroup")
+    assert out[-1].endswith("statusLine omniscient")

@@ -1,4 +1,4 @@
-"""omnigroup accounts: sign in with Google or GitHub, or with an e-mail and a password,
+"""omniscient accounts: sign in with Google or GitHub, or with an e-mail and a password,
 through Supabase Auth (the "cheapest" hosted login that supports all three).
 
 Everything happens in the daemon, which already speaks HTTPS; the widget never touches a
@@ -42,7 +42,7 @@ from omniscient.group.providers import ProviderError, Resolver, check_destinatio
 log = logging.getLogger(__name__)
 
 PROVIDERS = ("google", "github")
-ENV_URL, ENV_KEY = "OMNIGROUP_AUTH_URL", "OMNIGROUP_AUTH_ANON_KEY"
+ENV_URL, ENV_KEY = "OMNISCIENT_AUTH_URL", "OMNISCIENT_AUTH_ANON_KEY"
 ANON_KEY = re.compile(r"^[A-Za-z0-9._-]{16,2048}$")
 AUTH_CODE = re.compile(r"^[A-Za-z0-9_-]{8,200}$")
 EMAIL = re.compile(r"[^@\s]{1,64}@[^@\s.]+(?:\.[^@\s.]+)*\.[^@\s.]{2,63}")
@@ -222,7 +222,7 @@ class AuthService:
         try:
             return validate_config(url, key, self._resolver)
         except AuthError as exc:
-            log.warning("omnigroup accounts: configuration ignored (%s)", exc.message)
+            log.warning("omniscient accounts: configuration ignored (%s)", exc.message)
             return None
 
     def configure(self, url: Any, anon_key: Any) -> AuthConfig:
@@ -247,7 +247,7 @@ class AuthService:
         except FileNotFoundError:
             return {}
         except (OSError, ValueError) as exc:
-            log.warning("omnigroup accounts: %s ignored (%s)", name, exc)
+            log.warning("omniscient accounts: %s ignored (%s)", name, exc)
             return {}
         return data if isinstance(data, dict) else {}
 
@@ -286,7 +286,7 @@ class AuthService:
                 status, raw = resp.status_code, b"".join(chunks)
         except httpx.HTTPError as exc:
             log.warning(
-                "omnigroup accounts: %s %s: %s", method, path, type(exc).__name__
+                "omniscient accounts: %s %s: %s", method, path, type(exc).__name__
             )
             raise AuthError(502, "Le service de comptes est injoignable.") from exc
         try:
@@ -371,7 +371,7 @@ class AuthService:
                 )
                 self._store_session(data)
             except AuthError as exc:
-                log.warning("omnigroup accounts: refresh failed (%s)", exc.message)
+                log.warning("omniscient accounts: refresh failed (%s)", exc.message)
                 # the session is dead, not just unreachable
                 if exc.status in (400, REFUSED):
                     self._forget()
@@ -406,7 +406,7 @@ class AuthService:
         try:
             self._publish("auth", view)
         except Exception:
-            log.exception("omnigroup accounts: event not published")
+            log.exception("omniscient accounts: event not published")
         return view
 
     # -- browser flow --
@@ -462,7 +462,7 @@ class AuthService:
                               body={"auth_code": code, "code_verifier": pending.verifier})  # fmt: skip
             self._store_session(data)
         except AuthError as exc:
-            log.info("omnigroup accounts: browser sign-in refused (%s)", exc.message)
+            log.info("omniscient accounts: browser sign-in refused (%s)", exc.message)
             with self._lock:
                 self._drop_if_spent(pending)
             self._changed()
@@ -547,7 +547,7 @@ class AuthService:
                 AuthError
             ) as exc:  # signing out locally still works when the service is down
                 log.warning(
-                    "omnigroup accounts: remote sign-out failed (%s)", exc.message
+                    "omniscient accounts: remote sign-out failed (%s)", exc.message
                 )
         with self._lock:
             self._forget()

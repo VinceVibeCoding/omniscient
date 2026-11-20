@@ -1,6 +1,6 @@
-"""omnigroup credentials: the hook token file, widget tokens (hashes only) and file modes.
+"""omniscient credentials: the hook token file, widget tokens (hashes only) and file modes.
 
-Two credentials, two powers (see docs/omnigroup.md, « Modèle de menace »):
+Two credentials, two powers (see docs/omniscient.md, « Modèle de menace »):
 - the **hook credential** (`<home>/.omniscient/group.token`, 0600) lets the agents' hook
   post events and wait for the pending its own call opened (with a wait ticket);
 - a **widget token** answers, prompts and reads everything. It is minted by pairing,
@@ -118,10 +118,10 @@ def restrict_to_current_user(
             timeout=ICACLS_TIMEOUT_S, check=False,
         )  # fmt: skip
     except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
-        log.warning("omnigroup: cannot restrict %s to the current user: %s", path, exc)
+        log.warning("omniscient: cannot restrict %s to the current user: %s", path, exc)
         return False
     if done.returncode != 0:
-        log.warning("omnigroup: icacls failed on %s (code %s)", path, done.returncode)
+        log.warning("omniscient: icacls failed on %s (code %s)", path, done.returncode)
         return False
     return True
 
@@ -209,10 +209,10 @@ def load_or_create_hook_token(home: Home) -> str:
     if not _on_windows():
         mode = stat.S_IMODE(path.stat().st_mode)
         if mode != FILE_MODE:
-            log.warning("omnigroup: token file was mode %o, tightening to 600", mode)
+            log.warning("omniscient: token file was mode %o, tightening to 600", mode)
     restrict_to_current_user(path, is_dir=False)
     if token is None or len(token) < TOKEN_MIN_LEN:
-        raise RuntimeError(f"jeton omnigroup invalide : supprime {path} et relance")
+        raise RuntimeError(f"jeton omniscient invalide : supprime {path} et relance")
     return token
 
 

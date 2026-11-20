@@ -417,7 +417,7 @@ class ChatManager:
         else:
             target, args = self._run_plain, (chat_id, image)
         thread = threading.Thread(
-            target=target, args=args, daemon=True, name=f"omnigroup-chat-{chat_id[:8]}",
+            target=target, args=args, daemon=True, name=f"omniscient-chat-{chat_id[:8]}",
         )  # fmt: skip
         self._threads[chat_id] = thread
         thread.start()
@@ -446,7 +446,7 @@ class ChatManager:
             spec = TurnSpec(argv, ref.path, prompt, self._timeout_s, image=image)
             outcome = self._runner(spec, lambda e: self._on_event(chat_id, e), handle)
         except Exception as exc:  # never leave a chat stuck in "running"
-            log.exception("omnigroup chat: turn crashed")
+            log.exception("omniscient chat: turn crashed")
             outcome = TurnOutcome(
                 False, error=f"Erreur interne du démon : {type(exc).__name__}"
             )
@@ -481,7 +481,7 @@ class ChatManager:
             )
             outcome = TurnOutcome(False, error=exc.message + hint)
         except Exception as exc:  # never leave a chat stuck in "running"
-            log.exception("omnigroup chat: provider turn crashed")
+            log.exception("omniscient chat: provider turn crashed")
             outcome = TurnOutcome(
                 False, error=f"Erreur interne du démon : {type(exc).__name__}"
             )
@@ -540,7 +540,7 @@ class ChatManager:
         try:
             self._publish("chat", data)
         except Exception:
-            log.exception("omnigroup chat: event not published")
+            log.exception("omniscient chat: event not published")
 
     def _save(self, chat_id: str) -> None:
         with self._lock:
@@ -550,7 +550,7 @@ class ChatManager:
         try:
             write_private(secure_dir(self._dir) / f"{chat_id}.json", dump(chat))
         except OSError:
-            log.exception("omnigroup chat: %s not saved", chat_id)
+            log.exception("omniscient chat: %s not saved", chat_id)
 
     def _prune(self) -> None:
         with self._lock:
@@ -566,7 +566,7 @@ class ChatManager:
             try:
                 (self._dir / f"{chat_id}.json").unlink(missing_ok=True)
             except OSError:
-                log.exception("omnigroup chat: %s not deleted", chat_id)
+                log.exception("omniscient chat: %s not deleted", chat_id)
 
     def _load_all(self) -> dict[str, Chat]:
         chats: dict[str, Chat] = {}
@@ -578,7 +578,7 @@ class ChatManager:
             try:
                 chat = load(file.read_text(encoding="utf-8"))
             except (OSError, ValueError, KeyError, TypeError) as exc:
-                log.warning("omnigroup chat: %s ignored (%s)", file.name, exc)
+                log.warning("omniscient chat: %s ignored (%s)", file.name, exc)
                 continue
             chats[chat.chat_id] = chat
         return chats

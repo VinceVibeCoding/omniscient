@@ -218,7 +218,7 @@ def test_configuration_is_saved_private_and_env_wins(
     other = au.AuthService(
         tmp_path / "state", lambda *a: None, client=httpx.Client(transport=httpx.MockTransport(fake)),
         resolver=public, clock=clock,
-        env={"OMNIGROUP_AUTH_URL": "https://zzzzzzzz.supabase.co", "OMNIGROUP_AUTH_ANON_KEY": ANON},
+        env={"OMNISCIENT_AUTH_URL": "https://zzzzzzzz.supabase.co", "OMNISCIENT_AUTH_ANON_KEY": ANON},
     )  # fmt: skip
     assert (
         other.status()["host"] == "zzzzzzzz.supabase.co"

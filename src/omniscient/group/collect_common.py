@@ -50,14 +50,14 @@ def run_loop(
             if signature != failing:
                 if getattr(exc, "unavailable", False):
                     # An optional integration that is not installed/configured: expected.
-                    log.info("omnigroup collector %s: inactif (%s)", name, exc)
+                    log.info("omniscient collector %s: inactif (%s)", name, exc)
                 else:
-                    log.exception("omnigroup collector %s: poll failed", name)
+                    log.exception("omniscient collector %s: poll failed", name)
                 failing = signature
             delay = min(max(delay * 2, interval_s), MAX_BACKOFF_S)
         else:
             if failing is not None:
-                log.info("omnigroup collector %s: recovered", name)
+                log.info("omniscient collector %s: recovered", name)
                 failing = None
             delay = interval_s
         stop.wait(delay)

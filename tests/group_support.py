@@ -1,4 +1,4 @@
-"""Shared fakes and a real-daemon harness for the omnigroup server tests."""
+"""Shared fakes and a real-daemon harness for the omniscient server tests."""
 
 from __future__ import annotations
 
@@ -126,7 +126,7 @@ class Daemon:
     def wait(
         self, pid: str, ticket: str | None, timeout: str = "10"
     ) -> tuple[int, dict[str, Any], http.client.HTTPResponse]:
-        headers = {"X-Omnigroup-Ticket": ticket} if ticket else {}
+        headers = {"X-Omniscient-Ticket": ticket} if ticket else {}
         return self.call(
             "GET",
             f"/pending/{pid}/wait?timeout={timeout}",

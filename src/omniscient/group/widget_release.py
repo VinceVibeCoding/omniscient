@@ -233,7 +233,7 @@ def download_verified(
     target = dest_dir / name
     if target.is_symlink():
         raise ReleaseError(f"{target} est un lien symbolique : supprime-le d'abord")
-    fd, tmp_name = tempfile.mkstemp(dir=dest_dir, prefix=".omnigroup-", suffix=".part")
+    fd, tmp_name = tempfile.mkstemp(dir=dest_dir, prefix=".omniscient-", suffix=".part")
     tmp = Path(tmp_name)
     try:
         with os.fdopen(fd, "wb") as fh:

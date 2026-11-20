@@ -148,7 +148,7 @@ mod tests {
     use super::*;
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("omnigroup-test-{name}-{}", std::process::id()))
+        std::env::temp_dir().join(format!("omniscient-test-{name}-{}", std::process::id()))
     }
 
     #[test]

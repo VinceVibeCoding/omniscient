@@ -25,7 +25,7 @@ function render(snap: MenuSnapshot): void {
 function fit(): void {
   const box = root.getBoundingClientRect();
   void invoke("menu_fit", { width: Math.ceil(box.width), height: Math.ceil(box.height) }).catch((err) =>
-    console.warn("omnigroup menu: size not sent", err),
+    console.warn("omniscient menu: size not sent", err),
   );
 }
 
@@ -35,16 +35,16 @@ async function loadPalette(): Promise<void> {
     applyTheme(await invoke<unknown>("get_theme"));
     paletteLoaded = true;
   } catch (err) {
-    console.warn("omnigroup menu: home palette unavailable, default kept", err); // retried next opening
+    console.warn("omniscient menu: home palette unavailable, default kept", err); // retried next opening
   }
 }
 
 function close(): void {
-  void invoke("menu_close").catch((err) => console.warn("omnigroup menu: not closed", err));
+  void invoke("menu_close").catch((err) => console.warn("omniscient menu: not closed", err));
 }
 
 function pick(id: string): void {
-  void invoke("menu_pick", { id }).catch((err) => console.warn("omnigroup menu: pick refused", err));
+  void invoke("menu_pick", { id }).catch((err) => console.warn("omniscient menu: pick refused", err));
 }
 
 function move(step: number): void {

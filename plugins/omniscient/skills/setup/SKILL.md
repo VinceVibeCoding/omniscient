@@ -1,12 +1,12 @@
 ---
 name: setup
-description: Install or check Omnigroup (daemon, Claude Code hooks and statusLine, Windows widget, pairing) with one command. Use when the user runs /omnigroup:setup or asks to install the Omnigroup widget.
+description: Install or check Omniscient (daemon, Claude Code hooks and statusLine, Windows widget, pairing) with one command. Use when the user runs /omniscient:setup or asks to install the Omniscient widget.
 argument-hint: "[--protect] [--skip-widget]"
 disable-model-invocation: true
 allowed-tools: Bash(omniscient group setup), Bash(omniscient group setup --protect), Bash(omniscient group setup --skip-widget), Bash(omniscient group setup --protect --skip-widget), Bash(command -v omniscient)
 ---
 
-# Omnigroup setup
+# Omniscient setup
 
 1. Check the CLI exists: `command -v omniscient`. If it is missing, stop and tell the user to
    install it themselves, then rerun this skill:

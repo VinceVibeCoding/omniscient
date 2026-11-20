@@ -1,4 +1,4 @@
-"""omnigroup API: usage from hooks, store merge rule, collector answers, answer formats.
+"""omniscient API: usage from hooks, store merge rule, collector answers, answer formats.
 
 A real daemon on an ephemeral port with the real hooks.translate (no fake translation),
 fake collectors, and transcripts written in tmp folders.

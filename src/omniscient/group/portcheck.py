@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 DEFAULT_PORT = 7341
-URL_ENV = "OMNIGROUP_URL"
+URL_ENV = "OMNISCIENT_URL"
 BIND_HOST = "127.0.0.1"
 WSAEADDRINUSE = 10048
 WSAEACCES = 10013
@@ -38,7 +38,7 @@ class PortProblem:
 
 
 def configured_port(environ: Mapping[str, str] | None = None) -> int:
-    """The port of OMNIGROUP_URL (the address hooks use), else the default 7341."""
+    """The port of OMNISCIENT_URL (the address hooks use), else the default 7341."""
     url = (os.environ if environ is None else environ).get(URL_ENV, "")
     try:
         port = urlsplit(url).port if url else None
@@ -93,13 +93,13 @@ def suggest_port(
 def fix_steps(other: int) -> list[str]:
     """What must change together for the daemon to live on port `other`."""
     url = f"http://127.0.0.1:{other}"
-    setenv = f"[Environment]::SetEnvironmentVariable('OMNIGROUP_URL','{url}','User')"
+    setenv = f"[Environment]::SetEnvironmentVariable('OMNISCIENT_URL','{url}','User')"
     return [
         f"1. Lance le démon sur un autre port : omniscient group serve --port {other}",
         "2. Démarrage à l'ouverture de session : "
         + f"omniscient group autostart install --write --port {other}",
         f"3. Widget : Réglages, champ « Adresse du démon » : {url}",
-        f"4. Hooks de Claude Code : variable utilisateur OMNIGROUP_URL = {url}, puis "
+        f"4. Hooks de Claude Code : variable utilisateur OMNISCIENT_URL = {url}, puis "
         + f"rouvre Claude Code. PowerShell : {setenv}",
         "   (ensuite `omniscient group status`, `pair` et `serve` prennent ce port seuls.)",
     ]
@@ -143,7 +143,7 @@ def preflight(
         return Preflight(f"Port {port} libre.")
     if problem.kind == BUSY and healthy(port):
         return Preflight(
-            f"omnigroup tourne déjà sur http://{BIND_HOST}:{port} : rien à relancer.",
+            f"omniscient tourne déjà sur http://{BIND_HOST}:{port} : rien à relancer.",
             already_running=True,
         )
     other = suggest_port(port, windows, bind) if problem.kind != INVALID else None

@@ -1,4 +1,4 @@
-//! Omnigroup widget: Rust side (networking, SSE, tray, notifications, docking).
+//! Omniscient widget: Rust side (networking, SSE, tray, notifications, docking).
 
 mod auth_commands;
 mod autostart;
@@ -35,17 +35,17 @@ use tauri::{Manager, RunEvent, WindowEvent};
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let config_dir = app.path().app_config_dir()?;
     let loaded = settings::load(&config_dir).unwrap_or_else(|err| {
-        eprintln!("omnigroup: {err} — default settings used");
+        eprintln!("omniscient: {err} — default settings used");
         settings::Loaded { settings: settings::Settings::default(), legacy: false }
     });
     if loaded.legacy {
         // An older version kept a token in plain text: rewrite the file without it.
         if let Err(err) = settings::save(&config_dir, &loaded.settings) {
-            eprintln!("omnigroup: legacy settings not rewritten: {err}");
+            eprintln!("omniscient: legacy settings not rewritten: {err}");
         }
     }
     let token = vault::load().unwrap_or_else(|err| {
-        eprintln!("omnigroup: {err}");
+        eprintln!("omniscient: {err}");
         None
     });
     let http = client::http_client()?;
@@ -169,7 +169,7 @@ pub fn run() {
             ext_commands::ext_expand,
         ])
         .build(tauri::generate_context!())
-        .expect("error while building the Omnigroup widget")
+        .expect("error while building the Omniscient widget")
         .run(|app, event| {
             if let RunEvent::Exit = event {
                 daemon_launch::stop(app);

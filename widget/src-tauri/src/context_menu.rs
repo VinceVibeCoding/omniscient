@@ -45,7 +45,7 @@ async fn refresh(app: &AppHandle) {
     let Ok(daemon) = daemon_for(&state) else { return };
     match daemon.get(&["config"]).await {
         Ok(view) => *lock(&state.config) = Some(view),
-        Err(err) => eprintln!("omnigroup: config not refreshed: {}", err.message()),
+        Err(err) => eprintln!("omniscient: config not refreshed: {}", err.message()),
     }
 }
 
@@ -76,7 +76,7 @@ pub async fn popup(app: AppHandle) -> Result<(), String> {
     place_at_cursor(&app, &menu)?;
     menu.show().map_err(|err| format!("Menu impossible à afficher : {err}"))?;
     if let Err(err) = menu.set_focus() {
-        eprintln!("omnigroup: menu not focused: {err}");
+        eprintln!("omniscient: menu not focused: {err}");
     }
     Ok(())
 }
@@ -85,7 +85,7 @@ pub async fn popup(app: AppHandle) -> Result<(), String> {
 pub fn close(app: &AppHandle) {
     let Some(menu) = app.get_webview_window(MENU_LABEL) else { return };
     if let Err(err) = menu.hide() {
-        eprintln!("omnigroup: menu not hidden: {err}");
+        eprintln!("omniscient: menu not hidden: {err}");
     }
 }
 
@@ -98,7 +98,7 @@ pub fn fit(app: &AppHandle, width: f64, height: f64) -> Result<(), String> {
 
 fn emit(app: &AppHandle, kind: &str, data: Value) {
     if let Err(err) = app.emit(STREAM_EVENT, json!({ "type": kind, "data": data })) {
-        eprintln!("omnigroup: {kind} event not delivered: {err}");
+        eprintln!("omniscient: {kind} event not delivered: {err}");
     }
 }
 
@@ -107,7 +107,7 @@ async fn apply(app: AppHandle, patch: Value) {
     match put_config(&state, &patch).await {
         Ok(view) => emit(&app, "config", view),
         Err(message) => {
-            eprintln!("omnigroup: config not saved: {message}");
+            eprintln!("omniscient: config not saved: {message}");
             emit(&app, "menu_error", json!({ "message": message }));
         }
     }

@@ -122,7 +122,7 @@ Assert (($preview.Code -eq 0) -and ($preview.Text -notmatch 'UnicodeEncodeError|
 $settings = Join-Path $fake '.claude\settings.json'
 Assert (Test-Path -LiteralPath $settings) "hooks written to the temporary $settings"
 $raw = [IO.File]::ReadAllText($settings, [Text.Encoding]::UTF8)
-Assert ($raw -match 'omniscient') 'settings.json carries the omnigroup hooks'
+Assert ($raw -match 'omniscient') 'settings.json carries the omniscient hooks'
 $json = $raw | ConvertFrom-Json
 $entry = $json.hooks.SessionStart[0].hooks[0]
 $hookCommand = [string]$entry.command
@@ -167,7 +167,7 @@ Assert ($auto -match 'actif') 'autostart (Run key) is registered'
 Stop-OmniscientDaemon
 Start-Sleep -Seconds 2
 Assert (-not ((Invoke-Captured $omni @('group', 'status')).Code -eq 0)) 'the daemon is stopped before the Run test'
-$runCommand = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').Omnigroup
+$runCommand = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').Omniscient
 Assert ([bool]$runCommand) 'the Run value exists'
 $null = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $runCommand }
 Assert (Wait-Daemon $omni 7341 40) 'the Run command line starts the daemon (it resolves like at logon)'
@@ -178,7 +178,7 @@ $taken.Start()
 $busy = Invoke-Captured $omni @('group', 'serve', '--port', '7352')
 $taken.Stop()
 Assert (($busy.Code -ne 0) -and ($busy.Text -match '7352') -and ($busy.Text -match 'occup')) "serve on a busy port exits non-zero and names it ($($busy.Text.Trim().Split([char]10)[0]))"
-Assert ($busy.Text -match 'OMNIGROUP_URL') 'the busy-port message says how the hooks and the widget must follow'
+Assert ($busy.Text -match 'OMNISCIENT_URL') 'the busy-port message says how the hooks and the widget must follow'
 $free = Invoke-Captured $omni @('group', 'serve', '--check-port', '--port', '7353')
 Assert ($free.Code -eq 0) 'serve --check-port exits 0 on a free port'
 $ours = Invoke-Captured $omni @('group', 'serve', '--check-port', '--port', '7341')
@@ -216,15 +216,15 @@ Write-Host '::group::install.ps1 run 3 (-Port 7371)'
 $code = $LASTEXITCODE
 Write-Host '::endgroup::'
 Assert ($code -eq 0) 'install.ps1 -Port 7371 exits 0'
-Assert ($env:OMNIGROUP_URL -eq 'http://127.0.0.1:7371') 'OMNIGROUP_URL (what the hooks read) follows -Port'
+Assert ($env:OMNISCIENT_URL -eq 'http://127.0.0.1:7371') 'OMNISCIENT_URL (what the hooks read) follows -Port'
 $moved = (Invoke-Captured $omni @('group', 'status')).Text
-Assert ($moved -match '127\.0\.0\.1:7371') 'group status (no --port) follows OMNIGROUP_URL to the daemon on 7371'
-Assert (((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').Omnigroup) -match '--port 7371') 'the Run value is written with the new port'
-[Environment]::SetEnvironmentVariable('OMNIGROUP_URL', $null, 'User')
-Remove-Item Env:\OMNIGROUP_URL -ErrorAction SilentlyContinue
+Assert ($moved -match '127\.0\.0\.1:7371') 'group status (no --port) follows OMNISCIENT_URL to the daemon on 7371'
+Assert (((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').Omniscient) -match '--port 7371') 'the Run value is written with the new port'
+[Environment]::SetEnvironmentVariable('OMNISCIENT_URL', $null, 'User')
+Remove-Item Env:\OMNISCIENT_URL -ErrorAction SilentlyContinue
 
 # The REAL one-liner path: install.ps1 served over HTTP and run as `irm <url> | iex` in a fresh
-# shell (iex takes no parameters: the OMNIGROUP_INSTALL_* variables carry them). The shell is the
+# shell (iex takes no parameters: the OMNISCIENT_INSTALL_* variables carry them). The shell is the
 # one of the matrix leg (powershell 5.1 or pwsh 7). Success is judged on the effects, not only on
 # the exit code of `-c`.
 $probe = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, 0)
@@ -248,31 +248,31 @@ $null = $serverShell.AddScript({
 }).AddArgument($listener).AddArgument($serverBody)
 $serverHandle = $serverShell.BeginInvoke()
 $oneLinerShell = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh' } else { 'powershell' }
-$env:OMNIGROUP_INSTALL_WHEEL = $params.Wheel
-if ($Installer) { $env:OMNIGROUP_INSTALL_INSTALLER = $params.Installer } else { $env:OMNIGROUP_INSTALL_SKIPWIDGET = '1' }
-$env:OMNIGROUP_INSTALL_NOLAUNCH = '1'
+$env:OMNISCIENT_INSTALL_WHEEL = $params.Wheel
+if ($Installer) { $env:OMNISCIENT_INSTALL_INSTALLER = $params.Installer } else { $env:OMNISCIENT_INSTALL_SKIPWIDGET = '1' }
+$env:OMNISCIENT_INSTALL_NOLAUNCH = '1'
 Write-Host "::group::irm http://127.0.0.1:$httpPort/install.ps1 | iex ($oneLinerShell)"
 $oneLiner = Invoke-Captured $oneLinerShell @('-NoProfile', '-ExecutionPolicy', 'ByPass', '-c', "irm http://127.0.0.1:$httpPort/install.ps1 | iex")
 Write-Host $oneLiner.Text
 Write-Host '::endgroup::'
 $listener.Stop()
 $serverShell.Dispose()
-foreach ($name in 'WHEEL', 'INSTALLER', 'SKIPWIDGET', 'NOLAUNCH') { Remove-Item "Env:\OMNIGROUP_INSTALL_$name" -ErrorAction SilentlyContinue }
+foreach ($name in 'WHEEL', 'INSTALLER', 'SKIPWIDGET', 'NOLAUNCH') { Remove-Item "Env:\OMNISCIENT_INSTALL_$name" -ErrorAction SilentlyContinue }
 Assert ($oneLiner.Text -notmatch 'ERREUR :') 'the irm | iex one-liner reports no error'
 Assert ($oneLiner.Text -match 'Et maintenant') 'the irm | iex one-liner reaches its final message'
 Assert ($oneLiner.Text -notmatch 'lance-le|double-clic|gh absent|Demander un code') 'the install output has no confusing WSL, pairing or gh text'
 Assert ($oneLiner.Code -eq 0) "the irm | iex one-liner exits 0 (got $($oneLiner.Code))"
 Assert ((Invoke-Captured $omni @('group', 'status')).Code -eq 0) 'the daemon answers after the irm | iex one-liner'
-Assert (((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').Omnigroup) -match '--port 7341') 'the Run value is back on port 7341 after the one-liner'
+Assert (((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').Omniscient) -match '--port 7341') 'the Run value is back on port 7341 after the one-liner'
 
 if ($Installer) {
-    $app = (Get-ChildItem -LiteralPath $fake, $env:LOCALAPPDATA, $env:ProgramFiles -Filter omnigroup.exe -Recurse -Depth 4 -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+    $app = (Get-ChildItem -LiteralPath $fake, $env:LOCALAPPDATA, $env:ProgramFiles -Filter omniscient-widget.exe -Recurse -Depth 4 -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
     Assert ([bool]$app) "widget installed at $app"
-    Get-Process -Name omnigroup -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name omniscient-widget -ErrorAction SilentlyContinue | Stop-Process -Force
     $proc = Start-Process -FilePath $app -PassThru
     Start-Sleep -Seconds 8
     Assert (-not $proc.HasExited) 'the widget process stays alive for 8 seconds'
-    Get-Process -Name omnigroup -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name omniscient-widget -ErrorAction SilentlyContinue | Stop-Process -Force
 }
 
 # Cleanup path documented in docs/install.md

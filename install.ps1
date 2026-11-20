@@ -6,22 +6,22 @@
 #   1. trouve ou installe uv (winget, sinon l'installeur officiel astral.sh) ;
 #   2. installe le moteur depuis la roue (.whl) de la dernière version GitHub, SHA-256 vérifié, sans git ;
 #   3. active le démarrage du démon à l'ouverture de session et le lance ;
-#   4. écrit les hooks Claude Code (sauvegarde d'abord) et installe le widget Omnigroup (silencieux, par utilisateur) ;
+#   4. écrit les hooks Claude Code (sauvegarde d'abord) et installe le widget Omniscient (silencieux, par utilisateur) ;
 #   5. affiche l'état et la suite.
 # Relancer le script met tout à jour. Rien n'est écrit hors de ton profil utilisateur.
 #
 # Parametres (pour les tests ; la commande ci-dessus n'en a pas besoin) :
 #   -Wheel <chemin>      roue locale à installer au lieu de la dernière version publiée
-#   -Installer <chemin>  installeur du widget local (Omnigroup_*_x64-setup.exe)
+#   -Installer <chemin>  installeur du widget local (Omniscient_*_x64-setup.exe)
 #   -SkipWidget          ne pas installer le widget
 #   -NoAutostart         ne pas activer le démarrage automatique du démon à l'ouverture de session
 #   -NoLaunch            ne pas ouvrir le widget à la fin
-#   -Port <n>            port du démon si 7341 est pris (défaut : 7341, ou celui de la variable OMNIGROUP_URL)
+#   -Port <n>            port du démon si 7341 est pris (défaut : 7341, ou celui de la variable OMNISCIENT_URL)
 #
 # `irm ... | iex` ne peut pas recevoir de paramètres : chacun a donc une variable d'environnement
 # équivalente, lue quand le paramètre n'est pas donné :
-#   OMNIGROUP_INSTALL_WHEEL, OMNIGROUP_INSTALL_INSTALLER, OMNIGROUP_INSTALL_PORT (valeurs),
-#   OMNIGROUP_INSTALL_SKIPWIDGET, OMNIGROUP_INSTALL_NOAUTOSTART, OMNIGROUP_INSTALL_NOLAUNCH (1 ou true).
+#   OMNISCIENT_INSTALL_WHEEL, OMNISCIENT_INSTALL_INSTALLER, OMNISCIENT_INSTALL_PORT (valeurs),
+#   OMNISCIENT_INSTALL_SKIPWIDGET, OMNISCIENT_INSTALL_NOAUTOSTART, OMNISCIENT_INSTALL_NOLAUNCH (1 ou true).
 param(
     [string]$Wheel = '',
     [string]$Installer = '',
@@ -31,8 +31,8 @@ param(
     [int]$Port = 0
 )
 
-# Parameters not given fall back to OMNIGROUP_INSTALL_* (the iex path cannot pass any).
-function Get-InstallEnv([string]$name) { return [string][Environment]::GetEnvironmentVariable("OMNIGROUP_INSTALL_$name") }
+# Parameters not given fall back to OMNISCIENT_INSTALL_* (the iex path cannot pass any).
+function Get-InstallEnv([string]$name) { return [string][Environment]::GetEnvironmentVariable("OMNISCIENT_INSTALL_$name") }
 function Test-InstallFlag([string]$name) { return ((Get-InstallEnv $name).Trim().ToLowerInvariant() -in @('1', 'true', 'yes')) }
 if (-not $Wheel) { $Wheel = Get-InstallEnv 'WHEEL' }
 if (-not $Installer) { $Installer = Get-InstallEnv 'INSTALLER' }
@@ -80,11 +80,11 @@ function Install-Omniscient {
         } finally { $ErrorActionPreference = $old }
     }
 
-    # The daemon port: -Port, else the one of OMNIGROUP_URL (what the hooks use), else 7341.
+    # The daemon port: -Port, else the one of OMNISCIENT_URL (what the hooks use), else 7341.
     function Resolve-Port([int]$requested) {
         if ($requested -gt 0) { return $requested }
-        $url = [Environment]::GetEnvironmentVariable('OMNIGROUP_URL', 'User')
-        if (-not $url) { $url = $env:OMNIGROUP_URL }
+        $url = [Environment]::GetEnvironmentVariable('OMNISCIENT_URL', 'User')
+        if (-not $url) { $url = $env:OMNISCIENT_URL }
         if ($url -match '^http://(127\.0\.0\.1|localhost):(\d{1,5})/?$') { return [int]$Matches[2] }
         return 7341
     }
@@ -118,19 +118,19 @@ function Install-Omniscient {
     # folder of the uninstaller), else the usual per-user folders, else a shallow search.
     function Find-WidgetExe {
         $keys = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*')
-        foreach ($entry in (Get-ItemProperty -Path $keys -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Omnigroup' })) {
+        foreach ($entry in (Get-ItemProperty -Path $keys -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq 'Omniscient' })) {
             $folders = @($entry.InstallLocation, (Split-Path -Parent ([string]$entry.UninstallString).Trim('"'))) | Where-Object { $_ }
             foreach ($folder in $folders) {
-                $hit = Get-ChildItem -LiteralPath $folder -Filter 'omnigroup.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+                $hit = Get-ChildItem -LiteralPath $folder -Filter 'omniscient-widget.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
                 if ($hit) { return $hit.FullName }
             }
         }
-        foreach ($rel in 'Omnigroup\omnigroup.exe', 'Programs\Omnigroup\omnigroup.exe') {
+        foreach ($rel in 'Omniscient\omniscient-widget.exe', 'Programs\Omniscient\omniscient-widget.exe') {
             $candidate = Join-Path $env:LOCALAPPDATA $rel
             if (Test-Path -LiteralPath $candidate) { return $candidate }
         }
         foreach ($root in @($env:LOCALAPPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ }) {
-            $hit = Get-ChildItem -LiteralPath $root -Filter 'omnigroup.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1
+            $hit = Get-ChildItem -LiteralPath $root -Filter 'omniscient-widget.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($hit) { return $hit.FullName }
         }
         return $null
@@ -227,9 +227,9 @@ function Install-Omniscient {
             throw "Le port $Port est inutilisable pour le démon (voir ci-dessus) : relance avec un autre port, par exemple -Port $($Port + 10)."
         }
         if ($Port -ne 7341) {
-            [Environment]::SetEnvironmentVariable('OMNIGROUP_URL', "http://127.0.0.1:$Port", 'User')
-            $env:OMNIGROUP_URL = "http://127.0.0.1:$Port"
-            Warn "Port $Port : dans le widget, Réglages > Adresse du démon doit être http://127.0.0.1:$Port. Les hooks suivent la variable OMNIGROUP_URL (rouvre Claude Code)."
+            [Environment]::SetEnvironmentVariable('OMNISCIENT_URL', "http://127.0.0.1:$Port", 'User')
+            $env:OMNISCIENT_URL = "http://127.0.0.1:$Port"
+            Warn "Port $Port : dans le widget, Réglages > Adresse du démon doit être http://127.0.0.1:$Port. Les hooks suivent la variable OMNISCIENT_URL (rouvre Claude Code)."
         }
         Start-Process -FilePath $omni -ArgumentList @('group', 'serve', '--port', "$Port") -WindowStyle Hidden
         $up = $false
@@ -241,7 +241,7 @@ function Install-Omniscient {
         Ok "Le démon répond sur http://127.0.0.1:$Port."
 
         # ---- 4. hooks + widget ------------------------------------------------------
-        Step 4 'Hooks Claude Code et widget Omnigroup'
+        Step 4 'Hooks Claude Code et widget Omniscient'
         $setupArgs = @('group', 'setup', '--write', '--port', "$Port")
         $widgetDir = Join-Path $work 'widget'
         if ($SkipWidget -or $Installer) { $setupArgs += '--skip-widget' } else { $setupArgs += @('--widget-dir', $widgetDir, '--update-widget') }
@@ -253,20 +253,20 @@ function Install-Omniscient {
                 if (-not (Test-Path -LiteralPath $Installer -PathType Leaf)) { throw "-Installer : fichier introuvable : $Installer" }
                 $exe = (Resolve-Path -LiteralPath $Installer).Path
             } else {
-                $found = Get-ChildItem -LiteralPath $widgetDir -Filter 'Omnigroup_*-setup.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+                $found = Get-ChildItem -LiteralPath $widgetDir -Filter 'Omniscient_*-setup.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
                 if (-not $found) { throw "L'installeur du widget n'a pas été téléchargé ou vérifié (voir les messages ci-dessus)." }
                 $exe = $found.FullName
             }
-            Get-Process -Name 'omnigroup' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Get-Process -Name 'omniscient-widget' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             Info "Installation silencieuse de $(Split-Path -Leaf $exe) (pour ton utilisateur uniquement)..."
             $proc = Start-Process -FilePath $exe -ArgumentList '/S' -Wait -PassThru
             if ($proc.ExitCode -ne 0) { throw "L'installeur du widget a échoué (code $($proc.ExitCode))." }
             $app = Find-WidgetExe
             if (-not $app) {
                 $seen = (Get-ChildItem -Path "$env:LOCALAPPDATA\*mnigroup*", "$env:ProgramFiles\*mnigroup*", "$env:LOCALAPPDATA\Programs\*" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }) -join '; '
-                throw "Le widget n'est pas installé : omnigroup.exe est introuvable (installeur : code $($proc.ExitCode)). Vu : $seen"
+                throw "Le widget n'est pas installé : omniscient-widget.exe est introuvable (installeur : code $($proc.ExitCode)). Vu : $seen"
             }
-            Ok "Widget installé : $app (menu Démarrer > Omnigroup)."
+            Ok "Widget installé : $app (menu Démarrer > Omniscient)."
         }
 
         # ---- 5. etat ----------------------------------------------------------------
@@ -277,9 +277,9 @@ function Install-Omniscient {
         Write-Host 'Et maintenant' -ForegroundColor Green
         if ($app -and -not $NoLaunch) {
             Start-Process -FilePath $app
-            Write-Host '  Le widget Omnigroup vient de s''ouvrir en bas à droite de l''écran.'
+            Write-Host '  Le widget Omniscient vient de s''ouvrir en bas à droite de l''écran.'
         } elseif ($app) {
-            Write-Host '  Ouvre Omnigroup depuis le menu Démarrer : le widget s''ouvre en bas à droite de l''écran.'
+            Write-Host '  Ouvre Omniscient depuis le menu Démarrer : le widget s''ouvre en bas à droite de l''écran.'
         }
         Write-Host '  Si le widget affiche un code à taper, saisis les 6 chiffres affichés sur ton bureau.'
         Write-Host ''

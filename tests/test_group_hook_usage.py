@@ -1,4 +1,4 @@
-"""omnigroup usage: Claude transcript tail, statusLine JSON, and the statusline command."""
+"""omniscient usage: Claude transcript tail, statusLine JSON, and the statusline command."""
 
 from __future__ import annotations
 
@@ -150,9 +150,9 @@ def test_status_events_are_usage_only() -> None:
 
 def test_status_text() -> None:
     assert (
-        status_text(STATUS) == "omnigroup · Test · contexte 5 % · 5 h 42 % · 7 j 10 %"
+        status_text(STATUS) == "omniscient · Test · contexte 5 % · 5 h 42 % · 7 j 10 %"
     )
-    assert status_text({}) == "omnigroup"
+    assert status_text({}) == "omniscient"
 
 
 def _ctx(tmp_path: Path, calls: list[Any], token: bool = True) -> HookContext:
@@ -172,7 +172,7 @@ def test_statusline_command_prints_then_forwards(tmp_path: Path) -> None:
     out = io.StringIO()
     raw = {k: v for k, v in STATUS.items() if k != "hook_event_name"}
     run_statusline(io.StringIO(json.dumps(raw)), out, _ctx(tmp_path, calls))
-    assert out.getvalue().startswith("omnigroup · Test")
+    assert out.getvalue().startswith("omniscient · Test")
     method, url, _headers, body, timeout = calls[0]
     assert (method, url, timeout) == ("POST", "http://127.0.0.1:7341/hook", 0.5)
     assert json.loads(body)["event"]["hook_event_name"] == "StatusLine"
@@ -183,4 +183,4 @@ def test_statusline_command_without_daemon_or_input(tmp_path: Path) -> None:
     out = io.StringIO()
     run_statusline(io.StringIO(json.dumps(STATUS)), out, _ctx(tmp_path, calls, False))
     run_statusline(io.StringIO("nope"), out, _ctx(tmp_path, calls, False))
-    assert calls == [] and out.getvalue().splitlines()[-1] == "omnigroup"
+    assert calls == [] and out.getvalue().splitlines()[-1] == "omniscient"

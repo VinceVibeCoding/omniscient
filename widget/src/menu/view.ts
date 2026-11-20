@@ -97,8 +97,8 @@ function action(id: string, icon: string, label: string, danger = false): HTMLEl
 export function menuView(snap: MenuSnapshot): HTMLElement {
   return h(
     "div",
-    { class: "menu", role: "menu", "aria-label": "Omnigroup" },
-    h("div", { class: "menu__head" }, eyeMark(18), h("span", { class: "menu__title" }, "Omnigroup")),
+    { class: "menu", role: "menu", "aria-label": "Omniscient" },
+    h("div", { class: "menu__head" }, eyeMark(18), h("span", { class: "menu__title" }, "Omniscient")),
     section("OSD View", snap.view_locked, viewSwitch(snap)),
     section("Thème", snap.theme_locked, ...THEMES.map((t) => themeRow(snap, t))),
     section("Taille", false, sizeSwitch(snap)),

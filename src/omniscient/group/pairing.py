@@ -5,7 +5,7 @@ the code through a native Windows message (`powershell.exe` with a fixed script,
 code as its argument; fallback `msg.exe *`). If Windows cannot show it, pairing is
 refused: the owner can then run `omniscient group pair --show-code` in a terminal they
 opened themselves (only when the daemon runs with --allow-terminal-pairing: weaker,
-see docs/omnigroup.md). POST /pair/finish {code, client_name} allows five wrong codes,
+see docs/omniscient.md). POST /pair/finish {code, client_name} allows five wrong codes,
 then locks pairing for ten minutes. Success mints a widget token (credentials.py).
 """
 
@@ -36,10 +36,10 @@ MB_OK, MB_ICONINFORMATION, MB_SETFOREGROUND, MB_TOPMOST = 0x0, 0x40, 0x10000, 0x
 POWERSHELL_SCRIPT = (
     "& { param([string]$c); if ($c -notmatch '^[0-9]{6}$') { exit 2 }; "
     "$n = [Environment]::NewLine; "
-    "$t = 'Code de couplage Omnigroup : ' + $c + $n + $n + "
+    "$t = 'Code de couplage Omniscient : ' + $c + $n + $n + "
     "'Tape-le dans le widget (valable 2 minutes).' + $n + "
     "'Si tu n''as rien demandé, ignore ce message.'; "
-    "[void](New-Object -ComObject WScript.Shell).Popup($t, 120, 'Omnigroup', 64) }"
+    "[void](New-Object -ComObject WScript.Shell).Popup($t, 120, 'Omniscient', 64) }"
 )
 TERMINAL_HINT = (
     "Impossible d'afficher le code sur le bureau Windows. Dans un terminal que tu "
@@ -145,7 +145,7 @@ def code_commands(code: str) -> list[list[str]]:
     if not valid_code(code):
         raise ValueError("pairing code must be six digits")
     message = (
-        f"Code de couplage Omnigroup : {code} — tape-le dans le widget "
+        f"Code de couplage Omniscient : {code} — tape-le dans le widget "
         "(valable 2 minutes). Si tu n'as rien demandé, ignore ce message."
     )
     return [
@@ -177,12 +177,12 @@ def native_message_box(code: str) -> bool:
     if not valid_code(code):
         raise ValueError("pairing code must be six digits")
     text = (
-        f"Code de couplage Omnigroup : {code}\n\nTape-le dans le widget "
+        f"Code de couplage Omniscient : {code}\n\nTape-le dans le widget "
         "(valable 2 minutes).\nSi tu n'as rien demandé, ignore ce message."
     )
     flags = MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST
     threading.Thread(
-        target=box, args=(None, text, "Omnigroup", flags), daemon=True
+        target=box, args=(None, text, "Omniscient", flags), daemon=True
     ).start()
     return True
 

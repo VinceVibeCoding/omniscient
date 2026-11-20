@@ -1,7 +1,7 @@
 # Rendered by `omniscient schedule install` (placeholders filled with absolute paths).
-# Optional: the omnigroup daemon (127.0.0.1:7341 only) the Windows widget talks to.
+# Optional: the omniscient daemon (127.0.0.1:7341 only) the Windows widget talks to.
 [Unit]
-Description=Omniscient omnigroup daemon (agent sessions for the corner widget)
+Description=Omniscient omniscient daemon (agent sessions for the corner widget)
 After=network.target
 
 [Service]

@@ -61,7 +61,7 @@ def test_children_speak_utf8_and_the_environment_is_restored() -> None:
 def test_every_parameter_has_an_environment_variable_for_the_iex_path() -> None:
     head = SCRIPT.split("param(", 1)[0]
     for name in ("WHEEL", "INSTALLER", "SKIPWIDGET", "NOAUTOSTART", "NOLAUNCH", "PORT"):
-        assert f"OMNIGROUP_INSTALL_{name}" in head
+        assert f"OMNISCIENT_INSTALL_{name}" in head
         assert f"'{name}'" in CODE
 
 

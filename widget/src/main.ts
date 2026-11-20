@@ -1,4 +1,4 @@
-// Omnigroup widget: state, rendering and wiring to the Rust side.
+// Omniscient widget: state, rendering and wiring to the Rust side.
 import { listen } from "@tauri-apps/api/event";
 import * as api from "./api";
 import * as osdApi from "./api-osd";
@@ -416,7 +416,7 @@ const settingsHandlers = {
   autostart: (enabled: boolean) =>
     void guarded(async () => {
       const now = await api.setAutostart(enabled);
-      toast(now ? "Omnigroup se lancera au démarrage de Windows." : "Lancement au démarrage désactivé.");
+      toast(now ? "Omniscient se lancera au démarrage de Windows." : "Lancement au démarrage désactivé.");
       update({ autostart: now });
     }),
   save: (settings: Settings) =>
@@ -582,5 +582,5 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  console.error("omnigroup: start-up failed", err);
+  console.error("omniscient: start-up failed", err);
 });

@@ -167,7 +167,7 @@ class TranscriptTail:
                 fh.seek(start)
                 data = fh.read(min(size - start, MAX_READ_BYTES))
         except OSError as exc:
-            log.warning("omnigroup: transcript unreadable (%s): %s", path.name, exc)
+            log.warning("omniscient: transcript unreadable (%s): %s", path.name, exc)
             return
         end = data.rfind(b"\n")
         if end < 0:

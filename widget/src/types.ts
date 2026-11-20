@@ -1,4 +1,4 @@
-// Shapes of the omnigroup daemon's JSON (see src/omniscient/group/models.py).
+// Shapes of the omniscient daemon's JSON (see src/omniscient/group/models.py).
 
 export type Source = "claude" | "copilot" | "herdr" | "agentrun";
 export type SessionState = "working" | "waiting" | "idle" | "done" | "error";
@@ -176,7 +176,7 @@ export interface Chat {
   title: string;
   state: ChatState;
   updated_at: string;
-  /** The omnigroup session (as in /sessions) whose approvals belong to this chat. */
+  /** The omniscient session (as in /sessions) whose approvals belong to this chat. */
   session_id: string | null;
   /** "claude-code" or the id of a saved provider. */
   provider: string;

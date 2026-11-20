@@ -29,7 +29,7 @@ def _win_facts(**over: object) -> WinFacts:
         "powershell_version": lambda: "5.1.22621.4391",
         "webview2_version": lambda: "130.0.2849.80",
         "widget_version": lambda: "0.3.0",
-        "widget_path": lambda: Path("C:/x/omnigroup.exe"),
+        "widget_path": lambda: Path("C:/x/omniscient-widget.exe"),
     }
     return WinFacts(**{**base, **over})  # type: ignore[arg-type]
 
@@ -95,7 +95,7 @@ def test_free_port_with_daemon_down_is_ok_for_the_port() -> None:
 
 def test_widget_missing_is_info_with_the_antivirus_hint() -> None:
     win = _win_facts(widget_version=lambda: None, widget_path=lambda: None)
-    line = _by_label(dr.run_checks(_deps(win=win)))["Widget Omnigroup"]
+    line = _by_label(dr.run_checks(_deps(win=win)))["Widget Omniscient"]
     assert (
         line.level == dr.INFO and "antivirus" in line.fix and "SmartScreen" in line.fix
     )
@@ -177,7 +177,7 @@ def test_linux_skips_windows_checks() -> None:
     for windows_only in (
         "WebView2",
         "PowerShell",
-        "Widget Omnigroup",
+        "Widget Omniscient",
         "Démarrage automatique",
     ):
         assert windows_only not in labels
