@@ -3,7 +3,7 @@
 Une seule commande, à coller dans PowerShell (menu Démarrer, taper *PowerShell*) :
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1 | iex"
+powershell -ExecutionPolicy ByPass -c "iex ((irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1) -join [char]10)"
 ```
 
 Prérequis : Windows 10 ou 11 et une connexion Internet. Rien d'autre : pas de droits

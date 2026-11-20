@@ -252,7 +252,7 @@ $env:OMNISCIENT_INSTALL_WHEEL = $params.Wheel
 if ($Installer) { $env:OMNISCIENT_INSTALL_INSTALLER = $params.Installer } else { $env:OMNISCIENT_INSTALL_SKIPWIDGET = '1' }
 $env:OMNISCIENT_INSTALL_NOLAUNCH = '1'
 Write-Host "::group::irm http://127.0.0.1:$httpPort/install.ps1 | iex ($oneLinerShell)"
-$oneLiner = Invoke-Captured $oneLinerShell @('-NoProfile', '-ExecutionPolicy', 'ByPass', '-c', "irm http://127.0.0.1:$httpPort/install.ps1 | iex")
+$oneLiner = Invoke-Captured $oneLinerShell @('-NoProfile', '-ExecutionPolicy', 'ByPass', '-c', "iex ((irm http://127.0.0.1:$httpPort/install.ps1) -join [char]10)")
 Write-Host $oneLiner.Text
 Write-Host '::endgroup::'
 $listener.Stop()
