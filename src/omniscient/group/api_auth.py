@@ -2,7 +2,8 @@
 
 Widget token: GET /auth (who is signed in, never a token), POST /auth/start {provider}
 (the URL to open in the browser), POST /auth/password {mode, email, password},
-POST /auth/signout. Public (the browser cannot present a token): GET /auth/callback, where
+POST /auth/signout. Public (no widget token yet): POST /auth/email/start {email} and
+POST /auth/email/verify {email, code}, which also mints the widget token. Public (the browser cannot present a token): GET /auth/callback, where
 Supabase sends the browser back after Google / GitHub, and GET /auth/confirmed, the page an
 e-mail confirmation link lands on. Both answer a fixed HTML page and reflect no input.
 The project URL and its public key are set from the command line only
@@ -58,6 +59,24 @@ def password(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:
             body.get("mode"), body.get("email"), body.get("password")
         )
     )
+
+
+def email_start(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:
+    """Public: the person is not paired yet. The service e-mails a one-time code."""
+    service = _service(app)
+    _guard(lambda: service.email_start(body.get("email")))
+    return 200, {"ok": True, "message": service.status()["message"]}
+
+
+def email_verify(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:
+    """Public, like /pair/finish: owning the inbox is the proof, so a right code both signs
+    in and mints the widget token (returned this once; no desktop code needed)."""
+    from omniscient.group.api_pair import _client_name
+
+    service = _service(app)
+    name = _client_name(body.get("client_name"))
+    view = _guard(lambda: service.email_verify(body.get("email"), body.get("code")))
+    return 200, {"ok": True, "token": app.widgets.mint(name), "user": view["user"]}
 
 
 def signout(app: App, ids: dict, query: dict, body: dict) -> tuple[int, dict]:

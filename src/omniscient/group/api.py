@@ -3,7 +3,7 @@
 Each handler takes (app, ids, query, body) and returns (status, JSON object). The server
 module owns transport concerns (CORS, body limits, checking the credential each route
 names in `Route.auth`); this one owns the API contract. Credentials:
-- "none": /health, /pair/start, /pair/finish;
+- "none": /health, /pair/start, /pair/finish, /auth/email/start, /auth/email/verify;
 - "hook": POST /hook (the hook credential, nothing else);
 - "ticket": GET /pending/{id}/wait (hook credential + the wait ticket /hook returned);
 - "widget": everything else (a paired widget's token).
@@ -383,6 +383,12 @@ ROUTES: tuple[Route, ...] = (
     _route("auth", "GET", "/auth", api_auth.get_auth),
     _route("auth_start", "POST", "/auth/start", api_auth.start),
     _route("auth_password", "POST", "/auth/password", api_auth.password),
+    _route(
+        "auth_email_start", "POST", "/auth/email/start", api_auth.email_start, "none"
+    ),
+    _route(
+        "auth_email_verify", "POST", "/auth/email/verify", api_auth.email_verify, "none"
+    ),
     _route("auth_signout", "POST", "/auth/signout", api_auth.signout),
     _route("auth_callback", "GET", "/auth/callback", api_auth.callback, "none"),
     _route("auth_confirmed", "GET", "/auth/confirmed", api_auth.confirmed, "none"),

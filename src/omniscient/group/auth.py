@@ -47,6 +47,7 @@ ANON_KEY = re.compile(r"^[A-Za-z0-9._-]{16,2048}$")
 AUTH_CODE = re.compile(r"^[A-Za-z0-9_-]{8,200}$")
 EMAIL = re.compile(r"[^@\s]{1,64}@[^@\s.]+(?:\.[^@\s.]+)*\.[^@\s.]{2,63}")
 EMAIL_MAX = 254
+OTP_CODE = re.compile(r"^[0-9]{6,10}$")  # Supabase's e-mail code: 6 digits by default
 PASSWORD_MIN, PASSWORD_MAX = 8, 128
 PENDING_TTL_S = 600
 MAX_CALLBACK_ATTEMPTS = 3
@@ -75,6 +76,7 @@ _ERRORS: dict[str, tuple[int, str]] = {
         "Mot de passe trop faible : choisissez-en un plus long ou plus varié.",
     ),
     "signup_disabled": (REFUSED, "Les inscriptions sont fermées."),
+    "otp_expired": (REFUSED, "Code incorrect ou expiré : demandez-en un nouveau."),
     "over_request_rate_limit": (
         429,
         "Trop de tentatives : réessayez dans quelques minutes.",
@@ -101,6 +103,15 @@ class AuthConfig:
     @property
     def host(self) -> str:
         return urlsplit(self.url).hostname or ""
+
+
+# The Omniscient accounts project. The key is the PUBLIC one (sb_publishable_…): it is meant
+# to ship inside apps, and what it can do is fixed by the project's row-level rules. A
+# secret key never belongs here (validate_config refuses one).
+DEFAULT_CONFIG = AuthConfig(
+    "https://hovnpclxrpcaptjhewtp.supabase.co",
+    "sb_publishable_O3jeksCi4l0uc1qN2qT0IA_KAo_n9wl",
+)
 
 
 @dataclass
@@ -187,6 +198,7 @@ class AuthService:
         resolver: Resolver = socket.getaddrinfo,
         clock: Callable[[], float] = time.time,
         env: Mapping[str, str] | None = None,
+        defaults: AuthConfig | None = DEFAULT_CONFIG,
     ) -> None:
         self._dir = state_dir
         self._publish = publish
@@ -194,6 +206,7 @@ class AuthService:
         self._resolver = resolver
         self._clock = clock
         self._env = os.environ if env is None else env
+        self._defaults = defaults
         self._lock = threading.RLock()
         self._port = 7341
         self._pending: Pending | None = None
@@ -218,7 +231,7 @@ class AuthService:
             saved = self._read("auth_config.json")
             url, key = saved.get("url"), saved.get("anon_key")
         if not (url and key):
-            return None
+            return self._defaults  # the project shipped with the app
         try:
             return validate_config(url, key, self._resolver)
         except AuthError as exc:
@@ -533,6 +546,46 @@ class AuthService:
                 self._store_session(data)
             else:
                 self._notice = f"Un e-mail de confirmation vient d'être envoyé à {email}. Cliquez sur le lien, puis revenez ici."
+        return self._changed()
+
+    # -- e-mail code --
+
+    @staticmethod
+    def _clean_email(email: Any) -> str:
+        if (
+            not isinstance(email, str)
+            or len(email) > EMAIL_MAX
+            or not EMAIL.fullmatch(email)
+        ):
+            raise AuthError(400, "Adresse e-mail invalide.")
+        return email
+
+    def email_start(self, email: Any) -> dict[str, Any]:
+        """Ask the service to e-mail a one-time code (it also creates the account)."""
+        email = self._clean_email(email)
+        cfg = self._need_config()
+        self._allow_attempt()
+        self._call(
+            cfg, "POST", "/auth/v1/otp", body={"email": email, "create_user": True}
+        )
+        with self._lock:
+            self._notice = f"Un code vient d'être envoyé à {email}."
+        return self._changed()
+
+    def email_verify(self, email: Any, code: Any) -> dict[str, Any]:
+        """Trade the e-mailed code for a session, saved for good (refreshed, never retyped)."""
+        email = self._clean_email(email)
+        if not isinstance(code, str) or not OTP_CODE.match(code):
+            raise AuthError(400, "Code invalide : chiffres uniquement.")
+        cfg = self._need_config()
+        self._allow_attempt()
+        data = self._call(
+            cfg,
+            "POST",
+            "/auth/v1/verify",
+            body={"type": "email", "email": email, "token": code},
+        )
+        self._store_session(data)
         return self._changed()
 
     # -- sign out --
