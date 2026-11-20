@@ -1,8 +1,8 @@
 {
   "name": "omniscient",
-  "description": "Omniscient factory plugins for Claude Code",
+  "description": "Omniscient plugin for Claude Code: set up and drive the widget",
   "owner": {
-    "name": "Omniscient Factory"
+    "name": "Omniscient"
   },
   "plugins": [
     {

@@ -2,7 +2,7 @@
   "name": "omniscient",
   "description": "Set up and drive the Omniscient widget (OSD, themes, chat) from Claude Code",
   "version": "0.2.0",
-  "author": { "name": "Omniscient Factory" },
+  "author": { "name": "Omniscient" },
   "license": "MIT",
   "repository": "https://github.com/VinceVibeCoding/omniscient",
   "keywords": ["omniscient", "widget", "osd", "usage"]
