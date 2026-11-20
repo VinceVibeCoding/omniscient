@@ -30,7 +30,7 @@ import { transcriptSection, type Conversation, type HistoryState } from "./views
 import { pendingCard } from "./views/pending";
 import { STRIP_CLASS, usageStrip, withUsageStrip } from "./views/usage-strip";
 
-type View = "osd" | "list" | "detail" | "settings" | "chat" | "wizard";
+type View = "osd" | "list" | "detail" | "settings" | "chat" | "wizard" | "about";
 
 interface AppState {
   readonly view: View;
@@ -49,6 +49,7 @@ const REFRESH_DEBOUNCE_MS = 250;
 const AGE_TICK_MS = 30_000;
 const TOAST_MS = 4_000;
 const CHAT_APPROVALS = "chat__approvals";
+const REACT_HOST = "react-host";
 const DEFAULT_CONFIG: WidgetConfig = { theme: "default", osd_view: "bars", show_ticker: true };
 const DEFAULT_SETTINGS: Settings = { daemon_url: "http://127.0.0.1:7341", start_daemon: false, wsl_home: "" };
 
@@ -75,6 +76,7 @@ let history: HistoryState = { shown: INITIAL_EXCHANGES, fetchedLimit: FIRST_LIMI
 let refocusMore = false;
 let toastTimer: number | undefined;
 let sessionDraft = "";
+let unmountReact: (() => void) | null = null;
 
 const account = new AccountController(
   () => (state.view === "settings" || state.view === "wizard") && render(),
@@ -132,8 +134,20 @@ function render(): void {
   document.body.dataset.view = state.view;
   const kept = keepUiState(app);
   const view = viewFor(state);
+  unmountReact?.();
+  unmountReact = null;
   replace(app, state.view === "osd" || state.view === "wizard" ? view : withUsageStrip(view, strip()));
   restoreUiState(app, kept);
+  if (state.view === "about") void showAbout();
+}
+
+/** The React screens are a separate chunk, fetched only when one is opened. */
+async function showAbout(): Promise<void> {
+  const host = app.querySelector<HTMLElement>(`#${REACT_HOST}`);
+  if (!host) return;
+  const { mountAbout } = await import("./react/mount");
+  if (!host.isConnected) return; // another screen replaced this one while the chunk loaded
+  unmountReact = mountAbout(host, { version: __APP_VERSION__, link: state.link, onBack: () => void openSettings() });
 }
 
 function strip(): HTMLElement {
@@ -185,6 +199,8 @@ function viewFor(s: AppState): HTMLElement {
         { step: s.wizardStep, link: s.link, providers: providers.view, account: account.view, skin: s.config?.config.theme ?? "default" },
         wizardHandlers,
       );
+    case "about":
+      return h("div", { id: REACT_HOST });
     case "chat":
       return withTabs(chatView(chat.view, chat.handlers, header(s.link, nav, "Chat"), chatApprovals()), tabBar("chat", selectTab));
     default:
@@ -415,6 +431,7 @@ const settingsHandlers = {
   back: () => update({ view: "list" }),
   collapse,
   wizard: () => void startWizard(),
+  about: () => update({ view: "about" }),
   autostart: (enabled: boolean) =>
     void guarded(async () => {
       const now = await api.setAutostart(enabled);
