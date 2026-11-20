@@ -1,6 +1,6 @@
 [project]
 name = "omniscient"
-version = "0.2.2"
+version = "0.2.3"
 description = "Autonomous agent software factory: sense AI news, ideate, plan, prototype."
 authors = [
     { name = "Vincent Lauzier", email = "287529286+VinceVibeCoding@users.noreply.github.com" }

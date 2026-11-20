@@ -1,7 +1,7 @@
 {
   "name": "omniscient-widget",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Omniscient: a Windows corner widget showing every running agent of an Omniscient home.",
   "license": "MIT",
   "type": "module",
