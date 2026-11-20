@@ -51,6 +51,18 @@ npm run tauri dev                      # Windows (Rust + WebView2 requis)
 cd src-tauri && cargo test             # tests Rust (SSE bornée, preuve, réglages…)
 ```
 
+## Écrans React et budget de taille
+
+Le widget est en cours de migration vers React 19 et le système de design Astryx
+(`@astryxdesign/core`, thème `neutral`, CSS préconstruit : pas de style injecté, la CSP
+reste `style-src 'self'`). Les écrans React sont dans `src/react/` et ne sont chargés
+(import dynamique) qu'à leur ouverture : le démarrage ne paie rien. Les polices distantes
+d'Astryx (`fonts.css`) ne sont pas importées : polices système, aucune requête externe.
+
+`npm run build && npm run size` échoue si un fichier dépasse sa limite
+(`scripts/size-budget.mjs`) ; la CI le lance. Le paquet `@astryxdesign/core` a un script
+`postinstall` (simple message) : installez avec `npm ci --ignore-scripts`, comme la CI.
+
 Toute la partie réseau (HTTP + SSE avec reconnexion) est en Rust ; la webview ne reçoit
 que des événements Tauri (`group://event`, `group://status`) et n'a que la permission
 `core:default`. `Cargo.lock` est généré au premier build CI (artefact

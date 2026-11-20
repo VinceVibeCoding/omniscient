@@ -44,7 +44,7 @@ function stepConnect(m: WizardModel, on: WizardHandlers): HTMLElement {
     {},
     h("p", { class: `notice notice--${m.link.state}`, role: "status" }, m.link.message),
     emailForm(on.pair),
-    pairingForm({ ...on.pair, back: () => undefined, collapse: () => undefined, save: () => undefined, autostart: () => undefined, wizard: () => undefined }),
+    pairingForm({ ...on.pair, back: () => undefined, collapse: () => undefined, save: () => undefined, autostart: () => undefined, wizard: () => undefined, about: () => undefined }),
   );
 }
 

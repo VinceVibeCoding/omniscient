@@ -13,6 +13,7 @@ import { accountSection } from "./views/account";
 import { providersSection } from "./views/providers";
 import { wizardView } from "./views/wizard";
 import { h, replace } from "./dom";
+import { ABOUT_BUTTON, clearReact, REACT_HOST, showAbout } from "./react/host";
 import { installDrag } from "./drag";
 import { installResize } from "./resize";
 import { FIRST_LIMIT, INITIAL_EXCHANGES, MORE_STEP, refetchLimit } from "./exchanges";
@@ -30,7 +31,7 @@ import { transcriptSection, type Conversation, type HistoryState } from "./views
 import { pendingCard } from "./views/pending";
 import { STRIP_CLASS, usageStrip, withUsageStrip } from "./views/usage-strip";
 
-type View = "osd" | "list" | "detail" | "settings" | "chat" | "wizard";
+type View = "osd" | "list" | "detail" | "settings" | "chat" | "wizard" | "about";
 
 interface AppState {
   readonly view: View;
@@ -132,8 +133,15 @@ function render(): void {
   document.body.dataset.view = state.view;
   const kept = keepUiState(app);
   const view = viewFor(state);
+  clearReact();
   replace(app, state.view === "osd" || state.view === "wizard" ? view : withUsageStrip(view, strip()));
   restoreUiState(app, kept);
+  if (state.view === "about") void showAbout(app, { version: __APP_VERSION__, link: state.link, onBack: backFromAbout });
+}
+
+/** Back from About: show Settings again and put the keyboard focus on the button that opened it. */
+function backFromAbout(): void {
+  void openSettings().then(() => app.querySelector<HTMLElement>(`[${ABOUT_BUTTON}]`)?.focus());
 }
 
 function strip(): HTMLElement {
@@ -185,6 +193,8 @@ function viewFor(s: AppState): HTMLElement {
         { step: s.wizardStep, link: s.link, providers: providers.view, account: account.view, skin: s.config?.config.theme ?? "default" },
         wizardHandlers,
       );
+    case "about":
+      return h("div", { id: REACT_HOST });
     case "chat":
       return withTabs(chatView(chat.view, chat.handlers, header(s.link, nav, "Chat"), chatApprovals()), tabBar("chat", selectTab));
     default:
@@ -415,6 +425,7 @@ const settingsHandlers = {
   back: () => update({ view: "list" }),
   collapse,
   wizard: () => void startWizard(),
+  about: () => update({ view: "about" }),
   autostart: (enabled: boolean) =>
     void guarded(async () => {
       const now = await api.setAutostart(enabled);
