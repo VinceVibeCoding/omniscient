@@ -33,6 +33,18 @@ conversations stay on your computer.
 
 ## Quick start
 
+### Which install is for me?
+
+| You are on | Run | You get |
+|---|---|---|
+| Windows 10/11 | the PowerShell one-liner | the full app: engine and widget |
+| WSL (inside Windows) | `install.sh` | the engine in WSL and the Windows widget |
+| Linux (native) or macOS | `install.sh` | the engine and the terminal only (no widget yet; Mac is V2) |
+| Any, step by step | the manual install below (`uv tool install`) | the engine; `omniscient group setup --write` downloads the widget installer, which you run yourself |
+
+On Windows, SmartScreen may show a warning because the installer is not code-signed yet; see
+[docs/install.md](docs/install.md#dépannage) (in French).
+
 ### One command
 
 | Windows 10/11 (PowerShell) | Linux, macOS, WSL (any shell) |
@@ -61,9 +73,11 @@ Omniscient widget.
 
 **Update:** `omniscient update` (engine and widget; `--check` only compares, `--dry-run` shows the plan).
 
-Then open **Omniscient** from the Start menu, go to *Réglages › Demander un code*, type the 6-digit
-code shown on your desktop, pick your AI and choose a look. Pin it to your taskbar (right-click ›
-*Pin to taskbar*).
+Then open **Omniscient** from the Start menu. The first-run assistant has a *Connexion* form: type your
+e-mail, type the 6-digit code you receive by e-mail, and you stay signed in across sessions (the
+token is kept in the Windows Credential Manager). Then pick your AI and choose a look. No e-mail or
+offline? Fall back to *Réglages › Demander un code* and type the 6-digit code shown on your desktop.
+Pin it to your taskbar (right-click › *Pin to taskbar*).
 
 **Uninstall:** Windows *Settings › Apps › Omniscient › Uninstall*, then
 `omniscient group autostart remove`, `omniscient group hooks uninstall --write` and
@@ -134,10 +148,12 @@ systemctl --user enable --now omniscient
 From WSL, `--write` saves the installer in your **Windows** *Downloads* folder. **Run it from
 Windows** (double-click, or `explorer.exe .` from that folder).
 
-#### Then, on both paths: pair
+#### Then, on both paths: sign in
 
-Open **Omniscient** from the Start menu, go to *Réglages › Demander un code*, type the 6-digit code
-shown on your desktop, pick your AI and choose a look. Pin it to your taskbar (right-click › *Pin to
+Open **Omniscient** from the Start menu. In the *Connexion* form (first-run assistant, or
+*Réglages*), type your e-mail, then the 6-digit code you receive by e-mail: you stay signed in
+across sessions. If you have no e-mail or are offline, use the fallback: *Réglages › Demander un
+code* and type the 6-digit code shown on your desktop. Then pick your AI and choose a look. Pin it to your taskbar (right-click › *Pin to
 taskbar*): one click on that icon brings the widget back, even after you quit it.
 
 `omniscient group setup` is safe to re-run at any time; its first line says whether the engine
@@ -244,10 +260,12 @@ Screenshots need a model that can see images.
 
 ## Accounts (optional, free)
 
-An account only identifies your install: sign in with **Google**, **GitHub** or **e-mail and
-password**, through [Supabase Auth](https://supabase.com/docs/guides/auth)'s free plan. Your AI keys
-and conversations never leave your computer, and the widget works fully without an account.
-Setup for the project owner: [docs/accounts.md](docs/accounts.md).
+An account only identifies your install. Sign in with an **e-mail code** (the main path) through
+[Supabase Auth](https://supabase.com/docs/guides/auth)'s free plan. Google and GitHub sign-in are built
+in too, but each only works once the project owner enables that provider in Supabase. The
+accounts project ships preconfigured in the app, so you configure nothing; people who self-host can
+override it. Your AI keys and conversations never leave your computer, and the widget works fully
+without an account. Details and self-hosting: [docs/accounts.md](docs/accounts.md).
 
 ## Privacy and security
 
