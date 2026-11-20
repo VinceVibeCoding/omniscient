@@ -1,6 +1,6 @@
 # Omniscient - installation en une commande (Windows 10/11, PowerShell 5.1 ou 7, sans droits administrateur).
 #
-#   powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1 | iex"
+#   powershell -ExecutionPolicy ByPass -c "iex ((irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1) -join [char]10)"
 #
 # Ce que le script fait (détails : docs/install.md) :
 #   1. trouve ou installe uv (winget, sinon l'installeur officiel astral.sh) ;

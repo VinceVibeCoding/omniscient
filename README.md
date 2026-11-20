@@ -37,7 +37,7 @@ conversations stay on your computer.
 
 | Windows 10/11 (PowerShell) | Linux, macOS, WSL (any shell) |
 |---|---|
-| `powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1 \| iex"` | `curl -fsSL https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.sh \| sh` |
+| `powershell -ExecutionPolicy ByPass -c "iex ((irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1) -join [char]10)"` | `curl -fsSL https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.sh \| sh` |
 
 **Linux, macOS, WSL:** no root, no git, no Python needed (uv fetches it). The script installs uv, the
 engine (SHA-256 verified), starts the daemon (systemd user service when available), writes the Claude
@@ -50,7 +50,7 @@ uninstall: [docs/install.md](docs/install.md#linux-macos-et-wsl-installsh).
 Open **PowerShell** (Start menu › type *PowerShell*), paste, press Enter:
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1 | iex"
+powershell -ExecutionPolicy ByPass -c "iex ((irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1) -join [char]10)"
 ```
 
 That is the whole install. It needs Windows 10/11 and an internet connection, nothing else (no
@@ -325,7 +325,7 @@ uv run pytest -q
 Installation du widget sous Windows, en une commande dans PowerShell (rien d'autre à installer) :
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1 | iex"
+powershell -ExecutionPolicy ByPass -c "iex ((irm https://raw.githubusercontent.com/VinceVibeCoding/omniscient/main/install.ps1) -join [char]10)"
 ```
 
 Mettre à jour : `omniscient update`. Détails, désinstallation et dépannage : [docs/install.md](docs/install.md). L'usine, ensuite :
